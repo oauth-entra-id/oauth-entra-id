@@ -1,0 +1,37 @@
+{
+  "name": "server-fastify",
+  "version": "0.0.0",
+  "private": true,
+  "main": "dist/index.js",
+  "scripts": {
+    "start": "node dist/index.js",
+    "dev": "tsx watch --clear-screen=false src/index.ts",
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/"
+  },
+  "dependencies": {
+    "oauth-entra-id": "workspace:*",
+    "@fastify/cookie": "^11.0.2",
+    "@fastify/cors": "^10.1.0",
+    "@fastify/formbody": "^8.0.2",
+    "@fastify/helmet": "^12.0.1",
+    "@fastify/rate-limit": "^10.2.2",
+    "@sinclair/typebox": "^0.33.22",
+    "dotenv": "^16.4.7",
+    "fastify": "^5.2.1",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.22.0",
+    "@types/node": "^22.13.10",
+    "eslint": "^9.22.0",
+    "eslint-config-prettier": "^10.1.1",
+    "eslint-plugin-prettier": "^5.2.3",
+    "globals": "^16.0.0",
+    "tsup": "^8.4.0",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2",
+    "typescript-eslint": "^8.26.0"
+  }
+}

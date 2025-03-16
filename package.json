@@ -1,0 +1,21 @@
+{
+  "name": "oauth-entra-ad-monorepo",
+  "private": true,
+  "author": "WolfieLeader",
+  "scripts": {
+    "start": "turbo run start",
+    "build": "turbo run build",
+    "dev": "turbo run dev --filter=./apps/*",
+    "format": "prettier --write \"**/*.{ts,tsx,js,cjs,mjs,json,md}\"",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck"
+  },
+  "devDependencies": {
+    "prettier": "^3.5.3",
+    "turbo": "^2.4.4"
+  },
+  "packageManager": "pnpm@10.6.2",
+  "engines": {
+    "node": ">=18"
+  }
+}

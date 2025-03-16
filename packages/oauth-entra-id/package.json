@@ -1,0 +1,96 @@
+{
+  "name": "oauth-entra-id",
+  "version": "1.0.0",
+  "description": "Simple and Secure OAuth 2.0 for Entra ID",
+  "author": "WolfieLeader",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./express": {
+      "import": {
+        "types": "./dist/express.d.ts",
+        "default": "./dist/express.js"
+      },
+      "require": {
+        "types": "./dist/express.d.cts",
+        "default": "./dist/express.cjs"
+      }
+    },
+    "./nestjs": {
+      "import": {
+        "types": "./dist/nestjs.d.ts",
+        "default": "./dist/nestjs.js"
+      },
+      "require": {
+        "types": "./dist/nestjs.d.cts",
+        "default": "./dist/nestjs.cjs"
+      }
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "*": [
+        "./dist/index.d.ts"
+      ],
+      "express": [
+        "./dist/express.d.ts"
+      ],
+      "nestjs": [
+        "./dist/nestjs.d.ts"
+      ]
+    }
+  },
+  "files": ["dist","README.md"],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "prepare": "npm run build",
+    "dev": "tsup --watch",
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@azure/msal-node": "^3.2.3",
+    "jsonwebtoken": "^9.0.2",
+    "jwks-rsa": "^3.1.0",
+    "zod": "^3.24.2"
+  },
+  "peerDependencies": {
+    "cookie-parser": ">=1.4.7",
+    "express": ">=4.21.0"
+  },
+  "peerDependenciesMeta": {
+    "express": {
+      "optional": true
+    },
+    "cookie-parser": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.22.0",
+    "@types/cookie-parser": "^1.4.8",
+    "@types/express": "^5.0.0",
+    "@types/jsonwebtoken": "^9.0.9",
+    "@types/node": "^22.13.10",
+    "eslint": "^9.22.0",
+    "eslint-config-prettier": "^10.1.1",
+    "eslint-plugin-prettier": "^5.2.3",
+    "globals": "^16.0.0",
+    "tsup": "^8.4.0",
+    "typescript": "^5.8.2",
+    "typescript-eslint": "^8.26.0"
+  }
+}

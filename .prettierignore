@@ -1,0 +1,5 @@
+dist/
+build/
+.vercel/
+.next/
+!.next/cache/

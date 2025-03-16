@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "display": "OAuth2.0 Entra ID Package",
+  "compilerOptions": {
+    /* Projects */
+    "composite": false,
+
+    /* Language and Environment */
+    "target": "ES2020",
+    "lib": ["ES2020"],
+    "moduleDetection": "force",
+
+    /* Modules */
+    "module": "Preserve",
+    "rootDir": ".",
+    "moduleResolution": "Node",
+    "baseUrl": ".",
+    "paths": {
+      "~/*": ["./src/*"]
+    },
+    "types": ["node"],
+    "resolveJsonModule": true,
+
+    /* JavaScript Support */
+    "allowJs": false,
+
+    /* Emit */
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "./dist",
+    "removeComments": false,
+    "preserveWatchOutput": true,
+    "verbatimModuleSyntax": true,
+    "inlineSources": false,
+
+    /* Interop Constraints */
+    "isolatedModules": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+
+    /* Type Checking */
+    "strict": true,
+    "strictNullChecks": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+
+    /* Completeness */
+    "skipLibCheck": true
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
+}
