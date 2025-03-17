@@ -1,7 +1,7 @@
 import { defineConfig, type Options } from 'tsup';
 
 export default defineConfig((options: Options) => ({
-  name: 'oauth-azure-ad',
+  name: 'oauth-entra-id',
   entry: {
     index: 'src/index.ts',
     express: 'src/express.ts',
