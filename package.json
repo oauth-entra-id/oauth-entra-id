@@ -1,7 +1,6 @@
 {
   "name": "oauth-entra-ad-monorepo",
   "private": true,
-  "author": "WolfieLeader",
   "scripts": {
     "start": "turbo run start",
     "build": "turbo run build",
@@ -14,7 +13,7 @@
     "prettier": "^3.5.3",
     "turbo": "^2.4.4"
   },
-  "packageManager": "pnpm@10.6.2",
+  "packageManager": "pnpm@10.6.5",
   "engines": {
     "node": ">=18"
   }

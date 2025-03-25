@@ -11,7 +11,7 @@ export const sharedRequireAuthentication = (server: ServerType) => {
     const debugLog = (message: string) => {
       if (req.oauthProvider?.debug) {
         const funName = server === 'express' ? 'requireAuthentication' : 'isAuthenticated';
-        console.log(`[oauth-azure-ad] ${funName}: ${message}`);
+        console.log(`[oauth-entra-id] ${funName}: ${message}`);
       }
     };
 

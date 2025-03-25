@@ -29,7 +29,7 @@ export function authConfig(config: OAuthConfig & { allowOtherSystems?: boolean }
       globalExpressOAuthProvider = new OAuthProvider(configuration);
     }
 
-    if (globalExpressOAuthProvider.debug) console.log(`[oauth-azure-ad] allowOtherSystems: ${!!allowOtherSystems}`);
+    if (globalExpressOAuthProvider.debug) console.log(`[oauth-entra-id] allowOtherSystems: ${!!allowOtherSystems}`);
 
     req.oauthProvider = globalExpressOAuthProvider;
     req.serverType = 'express';

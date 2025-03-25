@@ -116,11 +116,11 @@ export class OAuthProvider {
     this.debug = config.debug;
     this.cookieOptions = cookieOptions;
 
-    if (config.debug) console.log('[oauth-azure-ad] OAuthProvider is created.');
+    if (config.debug) console.log('[oauth-entra-id] OAuthProvider is created.');
   }
 
   private debugLog({ message, methodName }: { message: string; methodName: string }) {
-    if (this.debug) console.log(`[oauth-azure-ad] OAuthProvider.${methodName}: ${message}`);
+    if (this.debug) console.log(`[oauth-entra-id] OAuthProvider.${methodName}: ${message}`);
   }
 
   /**
@@ -373,7 +373,7 @@ export class OAuthProvider {
       if (err instanceof OAuthError) throw err;
       throw new OAuthError(401, {
         message: 'Unauthorized',
-        description: `Make sure you changed the 'requestedAccessTokenVersion' to '2' inside 'Manifest' in the Portal`,
+        description: `In Entra ID Portal, 'Manifest' area, the 'requestedAccessTokenVersion' must be set to '2'`,
       });
     }
   }

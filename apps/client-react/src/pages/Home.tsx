@@ -67,7 +67,7 @@ export default function Home() {
           {errorMsg ? <p className="text-xs text-red-500 text-center mt-2">{errorMsg}</p> : null}
         </CardFooter>
       </Card>
-      <p className="text-sm text-muted-foreground">There you have it secure authentication using OAuth2.0.</p>
+      <p className="text-sm text-muted-foreground">There you have it, secure authentication using OAuth2.0.</p>
 
       <Confetti
         className="absolute left-0 top-0 z-0 size-full"

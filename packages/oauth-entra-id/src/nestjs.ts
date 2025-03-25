@@ -29,7 +29,7 @@ export function authConfig(config: OAuthConfig & { allowOtherSystems?: boolean }
       globalNestjsOAuthProvider = new OAuthProvider(configuration);
     }
 
-    if (globalNestjsOAuthProvider.debug) console.log(`[oauth-azure-ad] allowOtherSystems: ${!!allowOtherSystems}`);
+    if (globalNestjsOAuthProvider.debug) console.log(`[oauth-entra-id] allowOtherSystems: ${!!allowOtherSystems}`);
 
     req.oauthProvider = globalNestjsOAuthProvider;
     req.serverType = 'nestjs';

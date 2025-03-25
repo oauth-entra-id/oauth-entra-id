@@ -1,8 +1,7 @@
 {
   "name": "oauth-entra-id",
   "version": "1.0.0",
-  "description": "Simple and Secure OAuth 2.0 for Entra ID",
-  "author": "WolfieLeader",
+  "description": "Simple and Secure OAuth 2.0 for Microsoft Entra ID",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.cjs",
