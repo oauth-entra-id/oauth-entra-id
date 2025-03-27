@@ -60,7 +60,3 @@ You will need to set up environment variables in several places:
 - `apps/server-fastify/.env`
 
 Each project includes an `.env.example` file that you can copy to `.env` and fill in the required values.
-
-## Contributing 🤝
-
-Contributions are welcome! Feel free to open an issue or submit a pull request if you have any recommendations on how to improve the project or fix bugs.

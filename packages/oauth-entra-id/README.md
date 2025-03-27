@@ -402,7 +402,3 @@ axiosInstance.get('http://localhost:3000/protected/user-info');
 ```
 
 - **NestJS**: The package uses the `express` instance of NestJS, so make sure to use the `express` instance for the package to work, or use the core utilities.
-
-## Contributing 🤝
-
-Contributions are welcome! Feel free to open an issue or submit a pull request if you have any improvements or bug fixes to the project.
