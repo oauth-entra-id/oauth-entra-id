@@ -1,10 +1,10 @@
 import { useCallback, useState } from 'react';
 import { FaGithub } from 'react-icons/fa6';
 import { GITHUB_REPO_URL } from '~/env';
-import { Button } from '~/components/ui/button';
-import { Separator } from '~/components/ui/separator';
-import { Confetti } from '~/components/ui/confetti';
-import { Card, CardHeader, CardTitle, CardFooter, CardContent, CardDescription } from '~/components/ui/card';
+import { Button } from '~/components/ui/Button';
+import { Separator } from '~/components/ui/Separator';
+import { Confetti } from '~/components/ui/Confetti';
+import { Card, CardHeader, CardTitle, CardFooter, CardContent, CardDescription } from '~/components/ui/Card';
 import { useUserStore } from '~/stores/userStore';
 import { logoutAndGetLogoutUrl } from '~/services/user';
 

@@ -4,7 +4,7 @@
   "scripts": {
     "start": "turbo run start",
     "build": "turbo run build",
-    "dev": "turbo run dev --filter=./apps/*",
+    "dev": "turbo run dev --filter=./backends/* --filter=./frontends/*",
     "format": "prettier --write \"**/*.{ts,tsx,js,cjs,mjs,json,md}\"",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck"

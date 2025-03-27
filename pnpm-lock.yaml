@@ -15,7 +15,296 @@ importers:
         specifier: ^2.4.4
         version: 2.4.4
 
-  apps/client-react:
+  backends/express:
+    dependencies:
+      cookie-parser:
+        specifier: ^1.4.7
+        version: 1.4.7
+      cors:
+        specifier: ^2.8.5
+        version: 2.8.5
+      dotenv:
+        specifier: ^16.4.7
+        version: 16.4.7
+      express:
+        specifier: ^4.21.2
+        version: 4.21.2
+      express-rate-limit:
+        specifier: ^7.5.0
+        version: 7.5.0(express@4.21.2)
+      helmet:
+        specifier: ^8.0.0
+        version: 8.0.0
+      morgan:
+        specifier: ^1.10.0
+        version: 1.10.0
+      oauth-entra-id:
+        specifier: workspace:*
+        version: link:../../packages/oauth-entra-id
+      zod:
+        specifier: ^3.24.2
+        version: 3.24.2
+    devDependencies:
+      '@eslint/js':
+        specifier: ^9.22.0
+        version: 9.22.0
+      '@types/cookie-parser':
+        specifier: ^1.4.8
+        version: 1.4.8(@types/express@5.0.0)
+      '@types/cors':
+        specifier: ^2.8.17
+        version: 2.8.17
+      '@types/express':
+        specifier: ^5.0.0
+        version: 5.0.0
+      '@types/morgan':
+        specifier: ^1.9.9
+        version: 1.9.9
+      '@types/node':
+        specifier: ^22.13.10
+        version: 22.13.10
+      eslint:
+        specifier: ^9.22.0
+        version: 9.22.0(jiti@1.21.7)
+      eslint-config-prettier:
+        specifier: ^10.1.1
+        version: 10.1.1(eslint@9.22.0(jiti@1.21.7))
+      eslint-plugin-prettier:
+        specifier: ^5.2.3
+        version: 5.2.3(@types/eslint@9.6.1)(eslint-config-prettier@10.1.1(eslint@9.22.0(jiti@1.21.7)))(eslint@9.22.0(jiti@1.21.7))(prettier@3.5.3)
+      globals:
+        specifier: ^16.0.0
+        version: 16.0.0
+      tsup:
+        specifier: ^8.4.0
+        version: 8.4.0(jiti@1.21.7)(postcss@8.5.3)(tsx@4.19.3)(typescript@5.8.2)(yaml@2.7.0)
+      tsx:
+        specifier: ^4.19.3
+        version: 4.19.3
+      typescript:
+        specifier: ^5.8.2
+        version: 5.8.2
+      typescript-eslint:
+        specifier: ^8.26.0
+        version: 8.26.1(eslint@9.22.0(jiti@1.21.7))(typescript@5.8.2)
+
+  backends/fastify:
+    dependencies:
+      '@fastify/cookie':
+        specifier: ^11.0.2
+        version: 11.0.2
+      '@fastify/cors':
+        specifier: ^10.1.0
+        version: 10.1.0
+      '@fastify/formbody':
+        specifier: ^8.0.2
+        version: 8.0.2
+      '@fastify/helmet':
+        specifier: ^12.0.1
+        version: 12.0.1
+      '@fastify/rate-limit':
+        specifier: ^10.2.2
+        version: 10.2.2
+      '@sinclair/typebox':
+        specifier: ^0.33.22
+        version: 0.33.22
+      dotenv:
+        specifier: ^16.4.7
+        version: 16.4.7
+      fastify:
+        specifier: ^5.2.1
+        version: 5.2.1
+      oauth-entra-id:
+        specifier: workspace:*
+        version: link:../../packages/oauth-entra-id
+      zod:
+        specifier: ^3.24.2
+        version: 3.24.2
+    devDependencies:
+      '@eslint/js':
+        specifier: ^9.22.0
+        version: 9.22.0
+      '@types/node':
+        specifier: ^22.13.10
+        version: 22.13.10
+      eslint:
+        specifier: ^9.22.0
+        version: 9.22.0(jiti@1.21.7)
+      eslint-config-prettier:
+        specifier: ^10.1.1
+        version: 10.1.1(eslint@9.22.0(jiti@1.21.7))
+      eslint-plugin-prettier:
+        specifier: ^5.2.3
+        version: 5.2.3(@types/eslint@9.6.1)(eslint-config-prettier@10.1.1(eslint@9.22.0(jiti@1.21.7)))(eslint@9.22.0(jiti@1.21.7))(prettier@3.5.3)
+      globals:
+        specifier: ^16.0.0
+        version: 16.0.0
+      tsup:
+        specifier: ^8.4.0
+        version: 8.4.0(jiti@1.21.7)(postcss@8.5.3)(tsx@4.19.3)(typescript@5.8.2)(yaml@2.7.0)
+      tsx:
+        specifier: ^4.19.3
+        version: 4.19.3
+      typescript:
+        specifier: ^5.8.2
+        version: 5.8.2
+      typescript-eslint:
+        specifier: ^8.26.0
+        version: 8.26.1(eslint@9.22.0(jiti@1.21.7))(typescript@5.8.2)
+
+  backends/honojs:
+    dependencies:
+      '@hono/node-server':
+        specifier: ^1.13.8
+        version: 1.13.8(hono@4.7.4)
+      dotenv:
+        specifier: ^16.4.7
+        version: 16.4.7
+      hono:
+        specifier: ^4.7.4
+        version: 4.7.4
+      hono-rate-limiter:
+        specifier: ^0.4.2
+        version: 0.4.2(hono@4.7.4)
+      oauth-entra-id:
+        specifier: workspace:*
+        version: link:../../packages/oauth-entra-id
+      zod:
+        specifier: ^3.24.2
+        version: 3.24.2
+    devDependencies:
+      '@eslint/js':
+        specifier: ^9.22.0
+        version: 9.22.0
+      '@types/node':
+        specifier: ^22.13.10
+        version: 22.13.10
+      eslint:
+        specifier: ^9.22.0
+        version: 9.22.0(jiti@1.21.7)
+      eslint-config-prettier:
+        specifier: ^10.1.1
+        version: 10.1.1(eslint@9.22.0(jiti@1.21.7))
+      eslint-plugin-prettier:
+        specifier: ^5.2.3
+        version: 5.2.3(@types/eslint@9.6.1)(eslint-config-prettier@10.1.1(eslint@9.22.0(jiti@1.21.7)))(eslint@9.22.0(jiti@1.21.7))(prettier@3.5.3)
+      globals:
+        specifier: ^16.0.0
+        version: 16.0.0
+      tsup:
+        specifier: ^8.4.0
+        version: 8.4.0(jiti@1.21.7)(postcss@8.5.3)(tsx@4.19.3)(typescript@5.8.2)(yaml@2.7.0)
+      tsx:
+        specifier: ^4.19.3
+        version: 4.19.3
+      typescript:
+        specifier: ^5.8.2
+        version: 5.8.2
+      typescript-eslint:
+        specifier: ^8.26.0
+        version: 8.26.1(eslint@9.22.0(jiti@1.21.7))(typescript@5.8.2)
+
+  backends/nestjs:
+    dependencies:
+      '@nestjs/common':
+        specifier: ^11.0.11
+        version: 11.0.11(class-transformer@0.5.1)(class-validator@0.14.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/config':
+        specifier: ^4.0.1
+        version: 4.0.1(@nestjs/common@11.0.11(class-transformer@0.5.1)(class-validator@0.14.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(rxjs@7.8.2)
+      '@nestjs/core':
+        specifier: ^11.0.11
+        version: 11.0.11(@nestjs/common@11.0.11(class-transformer@0.5.1)(class-validator@0.14.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@11.0.11)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/mapped-types':
+        specifier: ^2.1.0
+        version: 2.1.0(@nestjs/common@11.0.11(class-transformer@0.5.1)(class-validator@0.14.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(class-transformer@0.5.1)(class-validator@0.14.1)(reflect-metadata@0.2.2)
+      '@nestjs/platform-express':
+        specifier: ^11.0.11
+        version: 11.0.11(@nestjs/common@11.0.11(class-transformer@0.5.1)(class-validator@0.14.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.0.11)
+      '@nestjs/throttler':
+        specifier: ^6.4.0
+        version: 6.4.0(@nestjs/common@11.0.11(class-transformer@0.5.1)(class-validator@0.14.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.0.11)(reflect-metadata@0.2.2)
+      class-transformer:
+        specifier: ^0.5.1
+        version: 0.5.1
+      class-validator:
+        specifier: ^0.14.1
+        version: 0.14.1
+      cookie-parser:
+        specifier: ^1.4.7
+        version: 1.4.7
+      dotenv:
+        specifier: ^16.4.7
+        version: 16.4.7
+      helmet:
+        specifier: ^8.0.0
+        version: 8.0.0
+      morgan:
+        specifier: ^1.10.0
+        version: 1.10.0
+      oauth-entra-id:
+        specifier: workspace:*
+        version: link:../../packages/oauth-entra-id
+      reflect-metadata:
+        specifier: ^0.2.2
+        version: 0.2.2
+      rxjs:
+        specifier: ^7.8.2
+        version: 7.8.2
+      zod:
+        specifier: ^3.24.2
+        version: 3.24.2
+    devDependencies:
+      '@eslint/js':
+        specifier: ^9.22.0
+        version: 9.22.0
+      '@nestjs/cli':
+        specifier: ^11.0.5
+        version: 11.0.5(@types/node@22.13.10)
+      '@nestjs/schematics':
+        specifier: ^11.0.2
+        version: 11.0.2(chokidar@4.0.3)(typescript@5.8.2)
+      '@types/cookie-parser':
+        specifier: ^1.4.8
+        version: 1.4.8(@types/express@5.0.0)
+      '@types/express':
+        specifier: ^5.0.0
+        version: 5.0.0
+      '@types/node':
+        specifier: ^22.13.10
+        version: 22.13.10
+      eslint:
+        specifier: ^9.22.0
+        version: 9.22.0(jiti@1.21.7)
+      eslint-config-prettier:
+        specifier: ^10.1.1
+        version: 10.1.1(eslint@9.22.0(jiti@1.21.7))
+      eslint-plugin-prettier:
+        specifier: ^5.2.3
+        version: 5.2.3(@types/eslint@9.6.1)(eslint-config-prettier@10.1.1(eslint@9.22.0(jiti@1.21.7)))(eslint@9.22.0(jiti@1.21.7))(prettier@3.5.3)
+      globals:
+        specifier: ^16.0.0
+        version: 16.0.0
+      source-map-support:
+        specifier: ^0.5.21
+        version: 0.5.21
+      ts-loader:
+        specifier: ^9.5.2
+        version: 9.5.2(typescript@5.8.2)(webpack@5.98.0)
+      ts-node:
+        specifier: ^10.9.2
+        version: 10.9.2(@types/node@22.13.10)(typescript@5.8.2)
+      tsconfig-paths:
+        specifier: ^4.2.0
+        version: 4.2.0
+      typescript:
+        specifier: ^5.8.2
+        version: 5.8.2
+      typescript-eslint:
+        specifier: ^8.26.0
+        version: 8.26.1(eslint@9.22.0(jiti@1.21.7))(typescript@5.8.2)
+
+  frontends/react18:
     dependencies:
       '@radix-ui/react-dropdown-menu':
         specifier: ^2.1.6
@@ -132,295 +421,6 @@ importers:
       vite:
         specifier: ^5.4.14
         version: 5.4.14(@types/node@22.13.10)(terser@5.39.0)
-
-  apps/server-express:
-    dependencies:
-      cookie-parser:
-        specifier: ^1.4.7
-        version: 1.4.7
-      cors:
-        specifier: ^2.8.5
-        version: 2.8.5
-      dotenv:
-        specifier: ^16.4.7
-        version: 16.4.7
-      express:
-        specifier: ^4.21.2
-        version: 4.21.2
-      express-rate-limit:
-        specifier: ^7.5.0
-        version: 7.5.0(express@4.21.2)
-      helmet:
-        specifier: ^8.0.0
-        version: 8.0.0
-      morgan:
-        specifier: ^1.10.0
-        version: 1.10.0
-      oauth-entra-id:
-        specifier: workspace:*
-        version: link:../../packages/oauth-entra-id
-      zod:
-        specifier: ^3.24.2
-        version: 3.24.2
-    devDependencies:
-      '@eslint/js':
-        specifier: ^9.22.0
-        version: 9.22.0
-      '@types/cookie-parser':
-        specifier: ^1.4.8
-        version: 1.4.8(@types/express@5.0.0)
-      '@types/cors':
-        specifier: ^2.8.17
-        version: 2.8.17
-      '@types/express':
-        specifier: ^5.0.0
-        version: 5.0.0
-      '@types/morgan':
-        specifier: ^1.9.9
-        version: 1.9.9
-      '@types/node':
-        specifier: ^22.13.10
-        version: 22.13.10
-      eslint:
-        specifier: ^9.22.0
-        version: 9.22.0(jiti@1.21.7)
-      eslint-config-prettier:
-        specifier: ^10.1.1
-        version: 10.1.1(eslint@9.22.0(jiti@1.21.7))
-      eslint-plugin-prettier:
-        specifier: ^5.2.3
-        version: 5.2.3(@types/eslint@9.6.1)(eslint-config-prettier@10.1.1(eslint@9.22.0(jiti@1.21.7)))(eslint@9.22.0(jiti@1.21.7))(prettier@3.5.3)
-      globals:
-        specifier: ^16.0.0
-        version: 16.0.0
-      tsup:
-        specifier: ^8.4.0
-        version: 8.4.0(jiti@1.21.7)(postcss@8.5.3)(tsx@4.19.3)(typescript@5.8.2)(yaml@2.7.0)
-      tsx:
-        specifier: ^4.19.3
-        version: 4.19.3
-      typescript:
-        specifier: ^5.8.2
-        version: 5.8.2
-      typescript-eslint:
-        specifier: ^8.26.0
-        version: 8.26.1(eslint@9.22.0(jiti@1.21.7))(typescript@5.8.2)
-
-  apps/server-fastify:
-    dependencies:
-      '@fastify/cookie':
-        specifier: ^11.0.2
-        version: 11.0.2
-      '@fastify/cors':
-        specifier: ^10.1.0
-        version: 10.1.0
-      '@fastify/formbody':
-        specifier: ^8.0.2
-        version: 8.0.2
-      '@fastify/helmet':
-        specifier: ^12.0.1
-        version: 12.0.1
-      '@fastify/rate-limit':
-        specifier: ^10.2.2
-        version: 10.2.2
-      '@sinclair/typebox':
-        specifier: ^0.33.22
-        version: 0.33.22
-      dotenv:
-        specifier: ^16.4.7
-        version: 16.4.7
-      fastify:
-        specifier: ^5.2.1
-        version: 5.2.1
-      oauth-entra-id:
-        specifier: workspace:*
-        version: link:../../packages/oauth-entra-id
-      zod:
-        specifier: ^3.24.2
-        version: 3.24.2
-    devDependencies:
-      '@eslint/js':
-        specifier: ^9.22.0
-        version: 9.22.0
-      '@types/node':
-        specifier: ^22.13.10
-        version: 22.13.10
-      eslint:
-        specifier: ^9.22.0
-        version: 9.22.0(jiti@1.21.7)
-      eslint-config-prettier:
-        specifier: ^10.1.1
-        version: 10.1.1(eslint@9.22.0(jiti@1.21.7))
-      eslint-plugin-prettier:
-        specifier: ^5.2.3
-        version: 5.2.3(@types/eslint@9.6.1)(eslint-config-prettier@10.1.1(eslint@9.22.0(jiti@1.21.7)))(eslint@9.22.0(jiti@1.21.7))(prettier@3.5.3)
-      globals:
-        specifier: ^16.0.0
-        version: 16.0.0
-      tsup:
-        specifier: ^8.4.0
-        version: 8.4.0(jiti@1.21.7)(postcss@8.5.3)(tsx@4.19.3)(typescript@5.8.2)(yaml@2.7.0)
-      tsx:
-        specifier: ^4.19.3
-        version: 4.19.3
-      typescript:
-        specifier: ^5.8.2
-        version: 5.8.2
-      typescript-eslint:
-        specifier: ^8.26.0
-        version: 8.26.1(eslint@9.22.0(jiti@1.21.7))(typescript@5.8.2)
-
-  apps/server-honojs:
-    dependencies:
-      '@hono/node-server':
-        specifier: ^1.13.8
-        version: 1.13.8(hono@4.7.4)
-      dotenv:
-        specifier: ^16.4.7
-        version: 16.4.7
-      hono:
-        specifier: ^4.7.4
-        version: 4.7.4
-      hono-rate-limiter:
-        specifier: ^0.4.2
-        version: 0.4.2(hono@4.7.4)
-      oauth-entra-id:
-        specifier: workspace:*
-        version: link:../../packages/oauth-entra-id
-      zod:
-        specifier: ^3.24.2
-        version: 3.24.2
-    devDependencies:
-      '@eslint/js':
-        specifier: ^9.22.0
-        version: 9.22.0
-      '@types/node':
-        specifier: ^22.13.10
-        version: 22.13.10
-      eslint:
-        specifier: ^9.22.0
-        version: 9.22.0(jiti@1.21.7)
-      eslint-config-prettier:
-        specifier: ^10.1.1
-        version: 10.1.1(eslint@9.22.0(jiti@1.21.7))
-      eslint-plugin-prettier:
-        specifier: ^5.2.3
-        version: 5.2.3(@types/eslint@9.6.1)(eslint-config-prettier@10.1.1(eslint@9.22.0(jiti@1.21.7)))(eslint@9.22.0(jiti@1.21.7))(prettier@3.5.3)
-      globals:
-        specifier: ^16.0.0
-        version: 16.0.0
-      tsup:
-        specifier: ^8.4.0
-        version: 8.4.0(jiti@1.21.7)(postcss@8.5.3)(tsx@4.19.3)(typescript@5.8.2)(yaml@2.7.0)
-      tsx:
-        specifier: ^4.19.3
-        version: 4.19.3
-      typescript:
-        specifier: ^5.8.2
-        version: 5.8.2
-      typescript-eslint:
-        specifier: ^8.26.0
-        version: 8.26.1(eslint@9.22.0(jiti@1.21.7))(typescript@5.8.2)
-
-  apps/server-nestjs:
-    dependencies:
-      '@nestjs/common':
-        specifier: ^11.0.11
-        version: 11.0.11(class-transformer@0.5.1)(class-validator@0.14.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)
-      '@nestjs/config':
-        specifier: ^4.0.1
-        version: 4.0.1(@nestjs/common@11.0.11(class-transformer@0.5.1)(class-validator@0.14.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(rxjs@7.8.2)
-      '@nestjs/core':
-        specifier: ^11.0.11
-        version: 11.0.11(@nestjs/common@11.0.11(class-transformer@0.5.1)(class-validator@0.14.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@11.0.11)(reflect-metadata@0.2.2)(rxjs@7.8.2)
-      '@nestjs/mapped-types':
-        specifier: ^2.1.0
-        version: 2.1.0(@nestjs/common@11.0.11(class-transformer@0.5.1)(class-validator@0.14.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(class-transformer@0.5.1)(class-validator@0.14.1)(reflect-metadata@0.2.2)
-      '@nestjs/platform-express':
-        specifier: ^11.0.11
-        version: 11.0.11(@nestjs/common@11.0.11(class-transformer@0.5.1)(class-validator@0.14.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.0.11)
-      '@nestjs/throttler':
-        specifier: ^6.4.0
-        version: 6.4.0(@nestjs/common@11.0.11(class-transformer@0.5.1)(class-validator@0.14.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.0.11)(reflect-metadata@0.2.2)
-      class-transformer:
-        specifier: ^0.5.1
-        version: 0.5.1
-      class-validator:
-        specifier: ^0.14.1
-        version: 0.14.1
-      cookie-parser:
-        specifier: ^1.4.7
-        version: 1.4.7
-      dotenv:
-        specifier: ^16.4.7
-        version: 16.4.7
-      helmet:
-        specifier: ^8.0.0
-        version: 8.0.0
-      morgan:
-        specifier: ^1.10.0
-        version: 1.10.0
-      oauth-entra-id:
-        specifier: workspace:*
-        version: link:../../packages/oauth-entra-id
-      reflect-metadata:
-        specifier: ^0.2.2
-        version: 0.2.2
-      rxjs:
-        specifier: ^7.8.2
-        version: 7.8.2
-      zod:
-        specifier: ^3.24.2
-        version: 3.24.2
-    devDependencies:
-      '@eslint/js':
-        specifier: ^9.22.0
-        version: 9.22.0
-      '@nestjs/cli':
-        specifier: ^11.0.5
-        version: 11.0.5(@types/node@22.13.10)
-      '@nestjs/schematics':
-        specifier: ^11.0.2
-        version: 11.0.2(chokidar@4.0.3)(typescript@5.8.2)
-      '@types/cookie-parser':
-        specifier: ^1.4.8
-        version: 1.4.8(@types/express@5.0.0)
-      '@types/express':
-        specifier: ^5.0.0
-        version: 5.0.0
-      '@types/node':
-        specifier: ^22.13.10
-        version: 22.13.10
-      eslint:
-        specifier: ^9.22.0
-        version: 9.22.0(jiti@1.21.7)
-      eslint-config-prettier:
-        specifier: ^10.1.1
-        version: 10.1.1(eslint@9.22.0(jiti@1.21.7))
-      eslint-plugin-prettier:
-        specifier: ^5.2.3
-        version: 5.2.3(@types/eslint@9.6.1)(eslint-config-prettier@10.1.1(eslint@9.22.0(jiti@1.21.7)))(eslint@9.22.0(jiti@1.21.7))(prettier@3.5.3)
-      globals:
-        specifier: ^16.0.0
-        version: 16.0.0
-      source-map-support:
-        specifier: ^0.5.21
-        version: 0.5.21
-      ts-loader:
-        specifier: ^9.5.2
-        version: 9.5.2(typescript@5.8.2)(webpack@5.98.0)
-      ts-node:
-        specifier: ^10.9.2
-        version: 10.9.2(@types/node@22.13.10)(typescript@5.8.2)
-      tsconfig-paths:
-        specifier: ^4.2.0
-        version: 4.2.0
-      typescript:
-        specifier: ^5.8.2
-        version: 5.8.2
-      typescript-eslint:
-        specifier: ^8.26.0
-        version: 8.26.1(eslint@9.22.0(jiti@1.21.7))(typescript@5.8.2)
 
   packages/oauth-entra-id:
     dependencies:
@@ -8203,7 +8203,7 @@ snapshots:
 
   send@1.1.0:
     dependencies:
-      debug: 4.3.6
+      debug: 4.4.0
       destroy: 1.2.0
       encodeurl: 2.0.0
       escape-html: 1.0.3

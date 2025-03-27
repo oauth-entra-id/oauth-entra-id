@@ -5,9 +5,10 @@
     }
   ],
   "cSpell.words": [
-    "msal",
     "entra",
-    "PKCE",
-    "honojs"
+    "frontends",
+    "honojs",
+    "msal",
+    "PKCE"
   ],
 }

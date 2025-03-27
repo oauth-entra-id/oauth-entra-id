@@ -6,8 +6,8 @@ import type {
   CreateTypes as ConfettiInstance,
   Options as ConfettiOptions,
 } from 'canvas-confetti';
-import type { ButtonProps } from '~/components/ui/button';
-import { Button } from '~/components/ui/button';
+import type { ButtonProps } from '~/components/ui/Button';
+import { Button } from '~/components/ui/Button';
 
 interface Api {
   fire: (options?: ConfettiOptions) => void;

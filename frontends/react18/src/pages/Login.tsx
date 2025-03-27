@@ -3,11 +3,11 @@ import { z } from 'zod';
 import type { IconType } from 'react-icons';
 import { FaCaretDown } from 'react-icons/fa6';
 import { SiHono, SiExpress, SiNestjs, SiFastify } from 'react-icons/si';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '~/components/ui/card';
-import { Button } from '~/components/ui/button';
-import { Input } from '~/components/ui/input';
-import { Label } from '~/components/ui/label';
-import { MicrosoftSVG } from '~/components/microsoft-icon';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '~/components/ui/Card';
+import { Button } from '~/components/ui/Button';
+import { Input } from '~/components/ui/Input';
+import { Label } from '~/components/ui/Label';
+import { Switch } from '~/components/ui/Switch';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,10 +15,10 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '~/components/ui/dropdown-menu';
+} from '~/components/ui/DropdownMenu';
+import { MicrosoftSVG } from '~/components/MicrosoftIcon';
 import { type Server, useServerStore } from '~/stores/serverStore';
 import { getAuthUrl } from '~/services/user';
-import { Switch } from '~/components/ui/switch';
 
 export default function Login() {
   return (

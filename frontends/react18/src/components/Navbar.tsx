@@ -1,13 +1,13 @@
 import { useToggle } from '~/hooks/useToggle';
 import { useDevTools } from '~/hooks/useDevTools';
 import { RxMoon as Moon, RxSun as Sun } from 'react-icons/rx';
-import { Button } from '~/components/ui/button';
+import { Button } from '~/components/ui/Button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '~/components/ui/dropdown-menu';
+} from '~/components/ui/DropdownMenu';
 import { useThemeStore } from '~/stores/themeStore';
 
 export default function Navbar() {
