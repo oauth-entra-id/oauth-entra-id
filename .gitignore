@@ -8,7 +8,6 @@ dist-ssr
 *.local
 .env
 .env.backends
-.env.frontends
 .cache
 server/dist
 public/dist
