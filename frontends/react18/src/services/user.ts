@@ -20,7 +20,10 @@ export async function getUserData() {
 
 export async function getAuthUrl({ email, loginPrompt }: { email?: string; loginPrompt?: string }) {
   try {
-    const res = await axiosInstance.post(`${useServerStore.getState().serverUrl}/auth/authenticate`, { loginPrompt, email });
+    const res = await axiosInstance.post(`${useServerStore.getState().serverUrl}/auth/authenticate`, {
+      loginPrompt,
+      email,
+    });
     if (!res.data.url) throw new Error('No auth URL');
     return res.data.url;
   } catch {

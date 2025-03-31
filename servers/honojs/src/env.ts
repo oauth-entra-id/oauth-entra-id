@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 import { z } from 'zod';
 
-dotenv.config({path:"../../.env.backends"});
+dotenv.config({ path: '../../.env' });
 if (!process.env.NODE_ENV) dotenv.config();
 
 const zStr = z.string().trim().min(1);

@@ -4,8 +4,8 @@
   "scripts": {
     "start": "turbo run start",
     "build": "turbo run build",
-    "dev": "turbo run dev --filter=./backends/* --filter=./frontends/*",
-    "format": "prettier --write \"**/*.{ts,tsx,js,cjs,mjs,json,md}\"",
+    "dev": "turbo run dev --filter=./servers/* --filter=./frontends/*",
+    "format": "prettier --write \"**/*.{ts,tsx,js,cjs,mjs,json,md,yaml,yml}\"",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck"
   },

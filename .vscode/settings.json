@@ -4,13 +4,5 @@
       "mode": "auto"
     }
   ],
-  "cSpell.words": [
-    "entra",
-    "vite",
-    "fastify",
-    "frontends",
-    "honojs",
-    "msal",
-    "PKCE"
-  ],
+  "cSpell.words": ["entra", "vite", "fastify", "frontends", "honojs", "msal", "PKCE"]
 }
