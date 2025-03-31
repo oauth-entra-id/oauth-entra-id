@@ -5,7 +5,7 @@ import cors from 'cors';
 import rateLimiter from 'express-rate-limit';
 import morgan from 'morgan';
 import { authConfig } from 'oauth-entra-id/express';
-import { AZURE, EXPRESS_SECRET, EXPRESS_FRONTEND_URL, EXPRESS_PROXIES, EXPRESS_URL, NODE_ENV } from './env';
+import { AZURE, SECRET_KEY, REACT_FRONTEND_URL, PROXIES, EXPRESS_URL, NODE_ENV } from './env';
 import { notFound } from './middlewares/not-found';
 import { routesRouter } from './routes';
 import { errorCatcher } from './error/errorCatcher';
@@ -13,8 +13,8 @@ import { errorCatcher } from './error/errorCatcher';
 export default function createApp(): Application {
   const app = express();
 
-  if (NODE_ENV === 'production' && EXPRESS_PROXIES) {
-    app.set('trust proxy', EXPRESS_PROXIES);
+  if (NODE_ENV === 'production' && PROXIES) {
+    app.set('trust proxy', PROXIES);
   }
 
   app.disable('x-powered-by');
@@ -23,7 +23,7 @@ export default function createApp(): Application {
 
   app.use(
     cors({
-      origin: [EXPRESS_URL, EXPRESS_FRONTEND_URL],
+      origin: [EXPRESS_URL, REACT_FRONTEND_URL],
       methods: 'GET,POST,PUT,DELETE,OPTIONS',
       allowedHeaders: ['Content-Type', 'Authorization'],
       credentials: true,
@@ -88,9 +88,9 @@ export default function createApp(): Application {
   app.use(
     authConfig({
       azure: AZURE,
-      frontendUrl: EXPRESS_FRONTEND_URL,
+      frontendUrl: REACT_FRONTEND_URL,
       serverFullCallbackUrl: `${EXPRESS_URL}/auth/callback`,
-      secretKey: EXPRESS_SECRET,
+      secretKey: SECRET_KEY,
     }),
   );
 

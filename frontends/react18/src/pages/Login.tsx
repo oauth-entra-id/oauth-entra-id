@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { z } from 'zod';
 import type { IconType } from 'react-icons';
 import { FaCaretDown } from 'react-icons/fa6';
-import { SiHono, SiExpress, SiNestjs, SiFastify } from 'react-icons/si';
+import { SiExpress, SiNestjs, SiFastify, SiHono } from 'react-icons/si';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '~/components/ui/Card';
 import { Button } from '~/components/ui/Button';
 import { Input } from '~/components/ui/Input';
@@ -50,8 +50,7 @@ export function LoginCard() {
   const loginUser = useCallback(
     async (email?: string) => {
       if (email && !isEmailValid) return;
-      const loginPrompt = email ? 'email' : ssoEnabled ? 'sso' : 'select-account';
-      const url = await getAuthUrl({ email, loginPrompt });
+      const url = await getAuthUrl({ email, loginPrompt: ssoEnabled ? undefined : 'select-account' });
       if (url) {
         window.location.href = url;
       }
@@ -115,10 +114,10 @@ export function LoginCard() {
 }
 
 const serversMap = {
-  honojs: { Icon: SiHono, label: 'HonoJS', value: 'honojs' },
   express: { Icon: SiExpress, label: 'Express', value: 'express' },
   nestjs: { Icon: SiNestjs, label: 'NestJS', value: 'nestjs' },
   fastify: { Icon: SiFastify, label: 'Fastify', value: 'fastify' },
+  honojs: { Icon: SiHono, label: 'HonoJS', value: 'honojs' },
 } as { [key: string]: { Icon: IconType; label: string; value: Server } };
 
 export function ChooseServer() {

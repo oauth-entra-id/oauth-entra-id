@@ -1,6 +1,6 @@
 import http from 'node:http';
 import createApp from './app';
-import { EXPRESS_FRONTEND_URL, EXPRESS_PORT, EXPRESS_URL } from './env';
+import { REACT_FRONTEND_URL, EXPRESS_PORT, EXPRESS_URL } from './env';
 
 function bootstrap() {
   const app = createApp();
@@ -9,7 +9,7 @@ function bootstrap() {
     console.log(
       '============= 📫  Express Server 📫  =============\n',
       `🚀 Server runs on: ${EXPRESS_URL}\n`,
-      `👤 Client is set to: ${EXPRESS_FRONTEND_URL}\n`,
+      `👤 Client is set to: ${REACT_FRONTEND_URL}\n`,
       '==============================================',
     );
   });

@@ -4,14 +4,14 @@ import helmet from '@fastify/helmet';
 import rateLimiter from '@fastify/rate-limit';
 import cookieParser from '@fastify/cookie';
 import formBody from '@fastify/formbody';
-import { FASTIFY_URL, NODE_ENV, FASTIFY_PROXIES, FASTIFY_FRONTEND_URL } from './env';
+import { FASTIFY_URL, NODE_ENV, PROXIES, REACT_FRONTEND_URL } from './env';
 import baseRoute from './routes';
 import { HttpException } from './error/HttpException';
 
 export default async function createApp() {
   const app = Fastify({
     logger: true,
-    trustProxy: NODE_ENV === 'production' && FASTIFY_PROXIES ? FASTIFY_PROXIES : false,
+    trustProxy: NODE_ENV === 'production' && PROXIES ? PROXIES : false,
   });
 
   app.setErrorHandler((error, req, reply) => {
@@ -25,7 +25,7 @@ export default async function createApp() {
   });
 
   await app.register(cors, {
-    origin: [FASTIFY_URL, FASTIFY_FRONTEND_URL],
+    origin: [FASTIFY_URL, REACT_FRONTEND_URL],
     methods: 'GET,POST,PUT,DELETE,OPTIONS',
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,

@@ -1,7 +1,8 @@
 import dotenv from 'dotenv';
 import { z } from 'zod';
 
-dotenv.config();
+dotenv.config({path:"../../.env.backends"});
+if (!process.env.NODE_ENV) dotenv.config();
 
 const zStr = z.string().trim().min(1);
 
@@ -9,9 +10,9 @@ const zEnv = z.object({
   NODE_ENV: z.enum(['development', 'production']).default('development'),
   HONOJS_URL: zStr.url().default('http://localhost:3003'),
   HONOJS_PORT: z.union([z.number().nonnegative(), zStr.regex(/^\d+$/).transform(Number)]).default(3003),
-  HONOJS_FRONTEND_URL: zStr.url().default('http://localhost:5173'),
-  HONOJS_SECRET: zStr,
-  HONOJS_PROXIES: z.union([z.number().nonnegative(), zStr.regex(/^\d+$/).transform(Number)]).default(0),
+  REACT_FRONTEND_URL: zStr.url().default('http://localhost:5173'),
+  SECRET_KEY: zStr,
+  PROXIES: z.union([z.number().nonnegative(), zStr.regex(/^\d+$/).transform(Number)]).default(0),
   AZURE_CLIENT_ID: zStr.uuid(),
   AZURE_TENANT_ID: zStr.uuid(),
   AZURE_CLIENT_SCOPES: zStr,
@@ -32,4 +33,4 @@ export const AZURE = {
   clientSecret: env.AZURE_CLIENT_SECRET,
 };
 
-export const { NODE_ENV, HONOJS_URL, HONOJS_PORT, HONOJS_FRONTEND_URL, HONOJS_SECRET, HONOJS_PROXIES } = env;
+export const { NODE_ENV, HONOJS_URL, HONOJS_PORT, REACT_FRONTEND_URL, SECRET_KEY, PROXIES } = env;

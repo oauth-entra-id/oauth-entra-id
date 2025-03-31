@@ -1,7 +1,8 @@
 import dotenv from 'dotenv';
 import { z } from 'zod';
 
-dotenv.config();
+dotenv.config({path:"../../.env.backends"});
+if (!process.env.NODE_ENV) dotenv.config();
 
 const zStr = z.string().trim().min(1);
 
@@ -9,9 +10,9 @@ const zEnv = z.object({
   NODE_ENV: z.enum(['development', 'production']).default('development'),
   EXPRESS_URL: zStr.url().default('https://localhost:3001'),
   EXPRESS_PORT: z.union([z.number().nonnegative(), zStr.regex(/^\d+$/).transform(Number)]).default(3001),
-  EXPRESS_FRONTEND_URL: zStr.url().default('http://localhost:5173'),
-  EXPRESS_SECRET: zStr,
-  EXPRESS_PROXIES: z.union([z.number().nonnegative(), zStr.regex(/^\d+$/).transform(Number)]).default(0),
+  REACT_FRONTEND_URL: zStr.url().default('http://localhost:5173'),
+  SECRET_KEY: zStr,
+  PROXIES: z.union([z.number().nonnegative(), zStr.regex(/^\d+$/).transform(Number)]).default(0),
   AZURE_CLIENT_ID: zStr.uuid(),
   AZURE_TENANT_ID: zStr.uuid(),
   AZURE_CLIENT_SCOPES: zStr,
@@ -32,4 +33,4 @@ export const AZURE = {
   clientSecret: parsedEnv.AZURE_CLIENT_SECRET,
 };
 
-export const { NODE_ENV, EXPRESS_URL, EXPRESS_PORT, EXPRESS_FRONTEND_URL, EXPRESS_SECRET, EXPRESS_PROXIES } = parsedEnv;
+export const { NODE_ENV, EXPRESS_URL, EXPRESS_PORT, REACT_FRONTEND_URL, SECRET_KEY, PROXIES } = parsedEnv;

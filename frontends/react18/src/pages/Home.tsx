@@ -1,6 +1,5 @@
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { FaGithub } from 'react-icons/fa6';
-import { GITHUB_REPO_URL } from '~/env';
 import { Button } from '~/components/ui/Button';
 import { Separator } from '~/components/ui/Separator';
 import { Confetti } from '~/components/ui/Confetti';
@@ -10,7 +9,6 @@ import { logoutAndGetLogoutUrl } from '~/services/user';
 
 export default function Home() {
   const { user, setUser } = useUserStore();
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const logoutUser = useCallback(async () => {
     const url = await logoutAndGetLogoutUrl();
@@ -19,15 +17,6 @@ export default function Home() {
       window.open(url, '_blank');
     }
   }, [setUser]);
-
-  const redirectToGithub = useCallback(() => {
-    if (!user?.email.startsWith('xd.')) {
-      setErrorMsg("Sorry, you're not allowed to access this page.");
-      return;
-    }
-    setErrorMsg(null);
-    window.open(GITHUB_REPO_URL, '_blank');
-  }, [user]);
 
   if (!user) return null;
 
@@ -60,11 +49,12 @@ export default function Home() {
         </CardContent>
 
         <CardFooter className="flex flex-col">
-          <Button className="w-full" onClick={() => redirectToGithub()}>
-            <FaGithub className="w-6 h-6 mr-2" />
-            Checkout our Repo!
-          </Button>
-          {errorMsg ? <p className="text-xs text-red-500 text-center mt-2">{errorMsg}</p> : null}
+          <a href="https://github.com/oauth-entra-id/oauth-entra-id" target="_blank" rel="noopener noreferrer">
+            <Button className="w-full">
+              <FaGithub className="w-6 h-6 mr-2" />
+              Checkout our Repo!
+            </Button>
+          </a>
         </CardFooter>
       </Card>
       <p className="text-sm text-muted-foreground">There you have it, secure authentication using OAuth2.0.</p>

@@ -4,19 +4,19 @@ import { authConfig } from 'oauth-entra-id/nestjs';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import { NODE_ENV, NESTJS_PORT, NESTJS_PROXIES, NESTJS_URL, NESTJS_FRONTEND_URL, NESTJS_SECRET, AZURE } from './env';
+import { NODE_ENV, NESTJS_PORT, PROXIES, NESTJS_URL, REACT_FRONTEND_URL, SECRET_KEY, AZURE } from './env';
 import { AppModule } from './app.module';
 import { ErrorCatcher } from './error/error-catcher.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  if (NODE_ENV === 'production' && NESTJS_PROXIES) {
-    app.getHttpAdapter().getInstance().set('trust proxy', NESTJS_PROXIES);
+  if (NODE_ENV === 'production' && PROXIES) {
+    app.getHttpAdapter().getInstance().set('trust proxy', PROXIES);
   }
 
   app.enableCors({
-    origin: [NESTJS_URL, NESTJS_FRONTEND_URL],
+    origin: [NESTJS_URL, REACT_FRONTEND_URL],
     methods: 'GET,POST,PUT,DELETE,OPTIONS',
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
@@ -64,9 +64,9 @@ async function bootstrap() {
   app.use(
     authConfig({
       azure: AZURE,
-      frontendUrl: NESTJS_FRONTEND_URL,
+      frontendUrl: REACT_FRONTEND_URL,
       serverFullCallbackUrl: `${NESTJS_URL}/auth/callback`,
-      secretKey: NESTJS_SECRET,
+      secretKey: SECRET_KEY,
     }),
   );
 
@@ -88,7 +88,7 @@ async function bootstrap() {
   console.log(
     '============= 🪺  NestJS Server 🪺  =============\n',
     `🚀 Server runs on: ${NESTJS_URL}\n`,
-    `👤 Client is set to: ${NESTJS_FRONTEND_URL}\n`,
+    `👤 Client is set to: ${REACT_FRONTEND_URL}\n`,
     '==============================================',
   );
 }

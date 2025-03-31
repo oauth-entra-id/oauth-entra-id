@@ -1,6 +1,6 @@
 import { serve } from '@hono/node-server';
 import { createApp } from './app';
-import { HONOJS_PORT, HONOJS_URL, HONOJS_FRONTEND_URL } from './env';
+import { HONOJS_PORT, HONOJS_URL, REACT_FRONTEND_URL } from './env';
 
 function bootstrap() {
   const app = createApp();
@@ -13,7 +13,7 @@ function bootstrap() {
       console.log(
         '============= 🔥  HonoJS Server 🔥  ===========\n',
         `🚀 Server runs on: ${HONOJS_URL}\n`,
-        `👤 Client is set to: ${HONOJS_FRONTEND_URL}\n`,
+        `👤 Client is set to: ${REACT_FRONTEND_URL}\n`,
         '==============================================',
       );
     },
