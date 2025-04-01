@@ -5,16 +5,16 @@
     "start": "turbo run start",
     "build": "turbo run build",
     "dev": "turbo run dev --filter=./servers/* --filter=./frontends/*",
-    "format": "prettier --write \"**/*.{ts,tsx,js,cjs,mjs,json,md,yaml,yml}\"",
-    "lint": "turbo run lint",
+    "format": "pnpm biome format --write .",
+    "lint": "pnpm biome lint --write .",
     "typecheck": "turbo run typecheck"
   },
   "devDependencies": {
-    "prettier": "^3.5.3",
+    "@biomejs/biome": "1.9.4",
     "turbo": "^2.4.4"
   },
   "packageManager": "pnpm@10.7.0",
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
   }
 }

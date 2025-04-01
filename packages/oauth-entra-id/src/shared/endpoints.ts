@@ -2,7 +2,11 @@ import type { Request, Response } from 'express';
 import { OAuthError } from '~/core/OAuthError';
 import type { ServerType } from '~/shared/request-extension';
 
-type AuthenticationBody = { loginPrompt?: 'email' | 'select-account' | 'sso'; email?: string; frontendUrl: string };
+type AuthenticationBody = {
+  loginPrompt?: 'email' | 'select-account' | 'sso';
+  email?: string;
+  frontendUrl: string;
+};
 
 export const sharedHandleAuthentication = (server: ServerType) => {
   return async (req: Request, res: Response) => {
@@ -30,7 +34,10 @@ export const sharedHandleCallback = (server: ServerType) => {
 
     const body = req.body as CallbackBody | undefined;
     if (!body) {
-      throw new OAuthError(400, { message: 'Invalid params', description: 'Body must contain code and state' });
+      throw new OAuthError(400, {
+        message: 'Invalid params',
+        description: 'Body must contain code and state',
+      });
     }
 
     const { frontendUrl, accessToken, refreshToken } = await req.oauthProvider.exchangeCodeForToken({

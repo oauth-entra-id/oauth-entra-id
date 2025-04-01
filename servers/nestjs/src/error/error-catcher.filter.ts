@@ -1,5 +1,5 @@
-import { ExceptionFilter, Catch, ArgumentsHost, HttpException } from '@nestjs/common';
-import { HttpAdapterHost } from '@nestjs/core';
+import { type ExceptionFilter, Catch, type ArgumentsHost, HttpException } from '@nestjs/common';
+import type { HttpAdapterHost } from '@nestjs/core';
 import { OAuthError } from 'oauth-entra-id';
 
 @Catch()

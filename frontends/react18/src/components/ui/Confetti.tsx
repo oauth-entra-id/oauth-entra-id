@@ -1,4 +1,5 @@
-import React, { createContext, forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef } from 'react';
+import type React from 'react';
+import { createContext, forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef } from 'react';
 import type { ReactNode } from 'react';
 import confetti from 'canvas-confetti';
 import type {
@@ -72,8 +73,7 @@ const Confetti = forwardRef<ConfettiRef, Props>((props, ref) => {
 
   return (
     <ConfettiContext.Provider value={api}>
-      <canvas ref={canvasRef} {...rest} />
-      {children}
+      <canvas ref={canvasRef} {...rest} /> {children}
     </ConfettiContext.Provider>
   );
 });

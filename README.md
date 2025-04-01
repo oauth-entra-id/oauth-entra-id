@@ -30,7 +30,7 @@ All server apps include the following features:
 
 ## How Does Our Flow Work? 🌊
 
-![oauth-entra-id-flow](./assets/oauth-entra-id-flow.png)
+![oauth-entra-id-flow](./oauth-entra-id-flow.png)
 
 ## How to Run the Project Locally 🚀
 

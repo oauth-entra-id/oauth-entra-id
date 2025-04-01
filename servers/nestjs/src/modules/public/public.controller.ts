@@ -1,4 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
+// biome-ignore lint/style/useImportType: NestJS
 import { PublicService } from './public.service';
 
 @Controller('')

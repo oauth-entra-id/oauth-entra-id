@@ -33,7 +33,10 @@ const route = async (app: FastifyInstance) => {
   app.post('/auth/callback', async (req, reply) => {
     const { code, state } = req.body as { code: string; state: string };
 
-    const { frontendUrl, accessToken, refreshToken } = await oauthProvider.exchangeCodeForToken({ code, state });
+    const { frontendUrl, accessToken, refreshToken } = await oauthProvider.exchangeCodeForToken({
+      code,
+      state,
+    });
 
     reply.setCookie(accessToken.name, accessToken.value, accessToken.options);
     if (refreshToken) reply.setCookie(refreshToken.name, refreshToken.value, refreshToken.options);

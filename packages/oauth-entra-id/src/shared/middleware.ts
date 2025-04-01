@@ -46,7 +46,10 @@ export const sharedRequireAuthentication = (server: ServerType) => {
     const refreshTokenCookie = req.cookies[refreshTokenName] as string | undefined;
     debugLog(`Cookies: ${accessTokenName}=${!!accessTokenCookie}, ${refreshTokenName}=${!!refreshTokenCookie}`);
     if (!accessTokenCookie && !refreshTokenCookie) {
-      throw new OAuthError(401, { message: 'Unauthorized', description: 'No access token or refresh token' });
+      throw new OAuthError(401, {
+        message: 'Unauthorized',
+        description: 'No access token or refresh token',
+      });
     }
 
     const microsoftInfo = await req.oauthProvider.verifyAccessToken(accessTokenCookie);

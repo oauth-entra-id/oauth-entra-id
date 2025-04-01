@@ -7,8 +7,7 @@
     "start": "node dist/index.js",
     "dev": "tsx watch --clear-screen=false src/index.ts",
     "build": "tsup",
-    "typecheck": "tsc --noEmit",
-    "lint": "eslint src/"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "oauth-entra-id": "workspace:*",
@@ -23,15 +22,9 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
-    "@eslint/js": "^9.22.0",
     "@types/node": "^22.13.10",
-    "eslint": "^9.22.0",
-    "eslint-config-prettier": "^10.1.1",
-    "eslint-plugin-prettier": "^5.2.3",
-    "globals": "^16.0.0",
     "tsup": "^8.4.0",
     "tsx": "^4.19.3",
-    "typescript": "^5.8.2",
-    "typescript-eslint": "^8.26.0"
+    "typescript": "^5.8.2"
   }
 }

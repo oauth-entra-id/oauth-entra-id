@@ -40,27 +40,17 @@
   },
   "typesVersions": {
     "*": {
-      "*": [
-        "./dist/index.d.ts"
-      ],
-      "express": [
-        "./dist/express.d.ts"
-      ],
-      "nestjs": [
-        "./dist/nestjs.d.ts"
-      ]
+      "*": ["./dist/index.d.ts"],
+      "express": ["./dist/express.d.ts"],
+      "nestjs": ["./dist/nestjs.d.ts"]
     }
   },
-  "files": [
-    "dist",
-    "README.md"
-  ],
+  "files": ["dist", "README.md"],
   "sideEffects": false,
   "scripts": {
     "build": "tsup",
     "prepare": "npm run build",
     "dev": "tsup --watch",
-    "lint": "eslint src/",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -82,17 +72,11 @@
     }
   },
   "devDependencies": {
-    "@eslint/js": "^9.22.0",
     "@types/cookie-parser": "^1.4.8",
     "@types/express": "^5.0.0",
     "@types/jsonwebtoken": "^9.0.9",
     "@types/node": "^22.13.10",
-    "eslint": "^9.22.0",
-    "eslint-config-prettier": "^10.1.1",
-    "eslint-plugin-prettier": "^5.2.3",
-    "globals": "^16.0.0",
     "tsup": "^8.4.0",
-    "typescript": "^5.8.2",
-    "typescript-eslint": "^8.26.0"
+    "typescript": "^5.8.2"
   }
 }

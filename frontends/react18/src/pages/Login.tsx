@@ -50,7 +50,10 @@ export function LoginCard() {
   const loginUser = useCallback(
     async (email?: string) => {
       if (email && !isEmailValid) return;
-      const url = await getAuthUrl({ email, loginPrompt: ssoEnabled ? undefined : 'select-account' });
+      const url = await getAuthUrl({
+        email,
+        loginPrompt: ssoEnabled ? undefined : 'select-account',
+      });
       if (url) {
         window.location.href = url;
       }
@@ -66,7 +69,6 @@ export function LoginCard() {
           Enter your email below to login into your account
         </CardDescription>
       </CardHeader>
-
       <CardContent className="space-y-1 px-6 pb-6 flex flex-col items-start text-md">
         <div className="flex flex-col space-y-2 text-center" />
         <div className="grid gap-6 w-full">
@@ -140,13 +142,11 @@ export function ChooseServer() {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuLabel>Choose server</DropdownMenuLabel>
-          <DropdownMenuSeparator />
+          <DropdownMenuLabel>Choose server</DropdownMenuLabel> <DropdownMenuSeparator />
           {Object.entries(serversMap).map(([key, { Icon, label, value }]) => (
             <DropdownMenuItem key={key} onClick={() => setServer(value)}>
               <div className="flex items-center justify-between">
-                <Icon className="h-4 w-4 mr-2.5" />
-                <span className="text-sm">{label}</span>
+                <Icon className="h-4 w-4 mr-2.5" /> <span className="text-sm">{label}</span>
               </div>
             </DropdownMenuItem>
           ))}

@@ -3,14 +3,22 @@ import { useId } from 'react';
 import { cn } from '~/lib/utils';
 
 interface DotPatternProps {
+  // biome-ignore lint/suspicious/noExplicitAny: Outside of our control
   width?: any;
+  // biome-ignore lint/suspicious/noExplicitAny: Outside of our control
   height?: any;
+  // biome-ignore lint/suspicious/noExplicitAny: Outside of our control
   x?: any;
+  // biome-ignore lint/suspicious/noExplicitAny: Outside of our control
   y?: any;
+  // biome-ignore lint/suspicious/noExplicitAny: Outside of our control
   cx?: any;
+  // biome-ignore lint/suspicious/noExplicitAny: Outside of our control
   cy?: any;
+  // biome-ignore lint/suspicious/noExplicitAny: Outside of our control
   cr?: any;
   className?: string;
+  // biome-ignore lint/suspicious/noExplicitAny: Outside of our control
   [key: string]: any;
 }
 export function DotPattern({

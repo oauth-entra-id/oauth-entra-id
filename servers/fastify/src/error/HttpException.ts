@@ -4,8 +4,9 @@ import { OAuthError } from 'oauth-entra-id';
 export class HttpException extends Error {
   readonly statusCode: number;
 
-  constructor(err: unknown, statusCode = 500) {
+  constructor(err: unknown, defaultStatusCode = 500) {
     let message = 'Something went wrong...';
+    let statusCode = defaultStatusCode;
 
     if (typeof err === 'string') {
       message = err;
