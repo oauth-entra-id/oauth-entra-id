@@ -1,11 +1,12 @@
 {
-  "name": "react",
+  "name": "frontend-react",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite --port 5000",
+    "dev": "vite",
     "build": "vite build && tsc",
     "serve": "vite preview",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
@@ -29,6 +30,7 @@
     "@types/react-dom": "^19.0.4",
     "@vitejs/plugin-react": "^4.3.4",
     "jsdom": "^26.0.0",
+    "terser": "^5.39.0",
     "typescript": "^5.8.2",
     "vite": "^6.2.4",
     "vitest": "^3.1.1",
