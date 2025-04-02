@@ -21,11 +21,13 @@ function App() {
       </h1>
       <Card>
         <CardHeader>
-          <CardTitle>You are Connected! 🎉</CardTitle>
-          <CardDescription>Account details using Microsoft Entra ID</CardDescription>
+          <CardTitle className="text-2xl text-center font-semibold tracking-tight">You are Connected! 🎉</CardTitle>
+          <CardDescription className="text-sm text-muted-foreground">
+            Account details using Microsoft Entra ID
+          </CardDescription>
           <Separator />
         </CardHeader>
-        <CardContent className="flex flex-col items-start text-md space-y-1 p-6 ">
+        <CardContent className="space-y-1">
           <div>
             <span className="font-bold">Unique ID:</span> {user.uniqueId}
           </div>
@@ -35,13 +37,13 @@ function App() {
           <div>
             <span className="font-bold">Name:</span> {user.name}
           </div>
-          <Button variant="outline" className="mx-auto">
-            Logout
-          </Button>
+          <div className="flex justify-center">
+            <Button variant="outline">Logout</Button>
+          </div>
         </CardContent>
-        <CardFooter className="flex flex-col">
+        <CardFooter>
           <a href="https://github.com/oauth-entra-id/oauth-entra-id" target="_blank" rel="noopener noreferrer">
-            <Button className="w-full">
+            <Button className="w-full mt-1">
               <GitHub />
               Checkout our Repo!
             </Button>

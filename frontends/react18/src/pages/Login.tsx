@@ -1,13 +1,11 @@
 import { useCallback, useState } from 'react';
-import { z } from 'zod';
 import type { IconType } from 'react-icons';
 import { FaCaretDown } from 'react-icons/fa6';
-import { SiExpress, SiNestjs, SiFastify, SiHono } from 'react-icons/si';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '~/components/ui/Card';
+import { SiExpress, SiFastify, SiHono, SiNestjs } from 'react-icons/si';
+import { z } from 'zod';
+import { MicrosoftSVG } from '~/components/MicrosoftIcon';
 import { Button } from '~/components/ui/Button';
-import { Input } from '~/components/ui/Input';
-import { Label } from '~/components/ui/Label';
-import { Switch } from '~/components/ui/Switch';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/Card';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,9 +14,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '~/components/ui/DropdownMenu';
-import { MicrosoftSVG } from '~/components/MicrosoftIcon';
-import { type Server, useServerStore } from '~/stores/serverStore';
+import { Input } from '~/components/ui/Input';
+import { Label } from '~/components/ui/Label';
+import { Switch } from '~/components/ui/Switch';
 import { getAuthUrl } from '~/services/user';
+import { type Server, useServerStore } from '~/stores/serverStore';
 
 export default function Login() {
   return (

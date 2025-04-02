@@ -1,10 +1,14 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { ChevronDown } from 'lucide-react';
+import { useState } from 'react';
+import { z } from 'zod';
 import { Express } from '~/components/icons/Express';
 import { Fastify } from '~/components/icons/Fastify';
 import { HonoJS } from '~/components/icons/HonoJS';
+import { Microsoft } from '~/components/icons/Microsoft';
 import { NestJS } from '~/components/icons/NestJS';
 import { Button } from '~/components/ui/Button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/Card';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,6 +17,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '~/components/ui/DropdownMenu';
+import { Input } from '~/components/ui/Input';
+import { Label } from '~/components/ui/Label';
+import { Switch } from '~/components/ui/Switch';
+import { getAuthUrl } from '~/services/user';
 import { type Server, useServerStore } from '~/stores/serverStore';
 
 export const Route = createFileRoute('/login')({
@@ -32,12 +40,82 @@ function RouteComponent() {
   const CurrentServerIcon = serversMap[server]?.Icon || HonoJS;
   const CurrentServerLabel = serversMap[server]?.label || 'HonoJS';
 
+  const [email, setEmail] = useState('');
+  const [isEmailValid, setIsEmailValid] = useState(false);
+  const [ssoEnabled, setSsoEnabled] = useState(true);
+
+  function handleOnChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setEmail(e.target.value);
+    setIsEmailValid(z.string().email().safeParse(e.target.value).success);
+  }
+
+  const loginUser = async (email?: string) => {
+    if (email && !isEmailValid) return;
+    const url = await getAuthUrl({
+      email,
+      loginPrompt: ssoEnabled ? undefined : 'select-account',
+    });
+    if (url) {
+      window.location.href = url;
+    }
+  };
+
   return (
     <div className="mx-auto mt-4 flex flex-col items-center justify-center max-w-xl space-y-8">
       <h1 className="text-5xl font-bold text-center">
         Welcome, <div>Guest</div>
       </h1>
       <div className="flex flex-col items-center space-y-2">
+        <Card className="relative z-10">
+          <CardHeader className="px-6 pt-6 pb-2">
+            <CardTitle className="text-2xl text-center font-semibold tracking-tight">Login into account</CardTitle>
+            <CardDescription className="text-sm text-muted-foreground">
+              Enter your email below to login into your account
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-1 px-6 pb-6 flex flex-col items-start text-md">
+            <div className="flex flex-col space-y-2 text-center" />
+            <div className="grid gap-6 w-full">
+              <div className="grid gap-2">
+                <div className="grid gap-1">
+                  <Label className="sr-only" htmlFor="email">
+                    Email
+                  </Label>
+                  <Input
+                    autoCapitalize="none"
+                    autoComplete="email"
+                    autoCorrect="off"
+                    id="email"
+                    onChange={handleOnChange}
+                    placeholder="name@work.com"
+                    type="email"
+                    value={email}
+                  />
+                </div>
+                <Button disabled={!isEmailValid} onClick={() => loginUser(email)}>
+                  Sign In with Email
+                </Button>
+              </div>
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="px-2 bg-background text-muted-foreground">Or continue with</span>
+                </div>
+              </div>
+              <Button variant="outline" onClick={() => loginUser()}>
+                <Microsoft className="mr-1" /> Microsoft
+              </Button>
+              <div className="flex items-center justify-center space-x-2">
+                <Switch id="sso" checked={ssoEnabled} onCheckedChange={setSsoEnabled} />
+                <Label htmlFor="sso" className={`text-sm ${ssoEnabled ? 'text-foreground' : 'text-muted-foreground'}`}>
+                  Single Sign-On
+                </Label>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button size="sm" variant="outline" className="relative bg-background opacity-85 z-10">
