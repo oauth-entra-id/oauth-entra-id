@@ -10,13 +10,13 @@ export const Route = createRootRoute({
     return (
       <>
         <div className="relative w-full min-h-screen max-h-screen bg-background text-foreground overflow-x-hidden dark">
-          <div className="min-h-full flex flex-col max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 w-full h-full">
+          <div className="min-h-full flex flex-col max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 size-full">
             <Navbar />
             <Outlet />
             {/* Dots Background */}
             <svg
               aria-hidden="true"
-              className="pointer-events-none absolute inset-0 h-full w-full fill-neutral-400/80 [mask-image:radial-gradient(350px_circle_at_center,white,transparent)] md:[mask-image:radial-gradient(450px_circle_at_center,white,transparent)] lg:[mask-image:radial-gradient(550px_circle_at_center,white,transparent)]">
+              className="pointer-events-none absolute inset-0 size-full fill-neutral-400/80 [mask-image:radial-gradient(350px_circle_at_center,white,transparent)] md:[mask-image:radial-gradient(450px_circle_at_center,white,transparent)] lg:[mask-image:radial-gradient(550px_circle_at_center,white,transparent)]">
               <defs>
                 <pattern
                   x={0}

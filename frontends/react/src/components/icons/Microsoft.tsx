@@ -1,15 +1,15 @@
-import type React from 'react';
 import { cn } from '~/lib/utils';
 
-export function MicrosoftSVG({ className, ...props }: React.SVGProps<SVGSVGElement>) {
+export function Microsoft({ className, ...props }: React.SVGProps<SVGSVGElement>) {
   return (
     <svg
-      className={cn('aspect-square size-5', className)}
+      className={cn('aspect-square size-6', className)}
       fill="none"
       viewBox="0 0 16 16"
       xmlns="http://www.w3.org/2000/svg"
       {...props}>
-      <title>Microsoft Logo</title> <g strokeWidth="0" />
+      <title>Microsoft</title>
+      <g strokeWidth="0" />
       <g strokeLinecap="round" strokeLinejoin="round" />
       <g>
         <path d="M1 1h6.5v6.5H1V1z" fill="#F35325" />
