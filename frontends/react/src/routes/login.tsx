@@ -1,3 +1,4 @@
+import { useForm } from '@tanstack/react-form';
 import { createFileRoute } from '@tanstack/react-router';
 import { ChevronDown } from 'lucide-react';
 import { useState } from 'react';
@@ -17,113 +18,126 @@ import { Input } from '~/components/ui/Input';
 import { Label } from '~/components/ui/Label';
 import { Switch } from '~/components/ui/Switch';
 import { MutedText, Title } from '~/components/ui/Text';
+import { cn } from '~/lib/utils';
 import { getAuthUrl } from '~/services/user';
 import { serversMap, useServerStore } from '~/stores/serverStore';
 
 export const Route = createFileRoute('/login')({
   component: () => {
-    const { setServer, server, label } = useServerStore();
-    const [email, setEmail] = useState('');
-    const [isEmailValid, setIsEmailValid] = useState(false);
     const [ssoEnabled, setSsoEnabled] = useState(true);
+    const { setServer, server, label } = useServerStore();
 
-    function handleOnChange(e: React.ChangeEvent<HTMLInputElement>) {
-      setEmail(e.target.value);
-      setIsEmailValid(z.string().email().safeParse(e.target.value).success);
+    async function loginUser(email?: string) {
+      const url = await getAuthUrl({ email, loginPrompt: ssoEnabled ? undefined : 'select-account' });
+      if (url) window.location.href = url;
     }
 
-    const loginUser = async (email?: string) => {
-      if (email && !isEmailValid) return;
-      const url = await getAuthUrl({
-        email,
-        loginPrompt: ssoEnabled ? undefined : 'select-account',
-      });
-      if (url) {
-        window.location.href = url;
-      }
-    };
+    const form = useForm({
+      defaultValues: {
+        email: '',
+      },
+      validators: {
+        onChange: z.object({ email: z.string().trim().email().min(1).max(128) }),
+      },
+      onSubmit: async ({ value }) => {
+        loginUser(value.email);
+      },
+    });
+
     const CurrentServerIcon = serversMap[server].Icon;
 
     return (
-      <div className="flex flex-col items-center justify-center space-y-8">
+      <div className="flex flex-col items-center justify-center space-y-3">
         <Title>
           Welcome,
           <br /> Guest
         </Title>
-        <div className="flex flex-col items-center space-y-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Login into account</CardTitle>
-              <CardDescription>Enter your email below to login</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-col space-y-4 w-full">
-                <div className="flex flex-col space-y-2 w-full">
-                  <Label className="sr-only" htmlFor="email">
+        <Card className="mt-5">
+          <CardHeader>
+            <CardTitle>Login into account</CardTitle>
+            <CardDescription>Enter your email below to login</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <form.Field name="email">
+              {(field) => (
+                <>
+                  <Label className="sr-only" htmlFor={field.name}>
                     Email
                   </Label>
                   <Input
+                    type="email"
+                    name={field.name}
+                    id={field.name}
+                    value={field.state.value}
+                    onChange={(e) => field.handleChange(e.target.value)}
+                    onBlur={field.handleBlur}
+                    placeholder="name@work.com"
+                    autoCorrect="off"
                     autoCapitalize="none"
                     autoComplete="email"
-                    autoCorrect="off"
-                    id="email"
-                    onChange={handleOnChange}
-                    placeholder="name@work.com"
-                    type="email"
-                    value={email}
                   />
-                  <Button disabled={!isEmailValid} onClick={() => loginUser(email)}>
-                    Sign In with Email
-                  </Button>
-                </div>
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="px-2 bg-background text-muted-foreground">Or continue with</span>
-                  </div>
-                </div>
-                <Button variant="outline" onClick={() => loginUser()}>
-                  <Microsoft /> Microsoft
+                </>
+              )}
+            </form.Field>
+            <form.Subscribe>
+              {({ canSubmit, isDirty, isSubmitting }) => (
+                <Button className="w-full" disabled={!(canSubmit && isDirty)} onClick={() => form.handleSubmit()}>
+                  {isSubmitting ? 'Submitting...' : 'Sign In with Email'}
                 </Button>
-                <div className="flex items-center justify-center space-x-2">
-                  <Switch id="sso" checked={ssoEnabled} onCheckedChange={setSsoEnabled} />
-                  <Label
-                    htmlFor="sso"
-                    className={`text-sm ${ssoEnabled ? 'text-foreground' : 'text-muted-foreground'}`}>
-                    Single Sign-On
-                  </Label>
-                </div>
+              )}
+            </form.Subscribe>
+            <OrContinueWith />
+            <Button variant="outline" className="w-full" onClick={async () => await loginUser()}>
+              <Microsoft /> Microsoft
+            </Button>
+            <div className="flex items-center justify-center mt-2">
+              <Switch id="sso" checked={ssoEnabled} onCheckedChange={setSsoEnabled} />
+              <Label
+                htmlFor="sso"
+                className={cn('text-sm mx-2', ssoEnabled ? 'text-foreground' : 'text-muted-foreground')}>
+                Single Sign-On
+              </Label>
+            </div>
+          </CardContent>
+        </Card>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="sm" variant="outline">
+              <div className="flex items-center justify-between">
+                <CurrentServerIcon />
+                <span className="text-sm mx-2">{label}</span>
+                <ChevronDown />
               </div>
-            </CardContent>
-          </Card>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button size="sm" variant="outline">
-                <div className="flex items-center justify-between">
-                  <CurrentServerIcon />
-                  <span className="text-sm mx-2">{label}</span>
-                  <ChevronDown />
+              <span className="sr-only">Toggle server</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>Choose server</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {Object.entries(serversMap).map(([key, { Icon, label, value }]) => (
+              <DropdownMenuItem key={key} onClick={() => setServer(value)}>
+                <div className="flex items-center justify-between space-x-2.5">
+                  <Icon className="size-4" /> <span className="text-sm">{label}</span>
                 </div>
-                <span className="sr-only">Toggle server</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Choose server</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {Object.entries(serversMap).map(([key, { Icon, label, value }]) => (
-                <DropdownMenuItem key={key} onClick={() => setServer(value)}>
-                  <div className="flex items-center justify-between space-x-2.5">
-                    <Icon className="size-4" /> <span className="text-sm">{label}</span>
-                  </div>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
         <MutedText>This demo is supposed to show you how to use Microsoft Entra ID OAuth2.0.</MutedText>
       </div>
     );
   },
 });
+
+function OrContinueWith() {
+  return (
+    <div className="relative my-4">
+      <div className="absolute inset-0 flex items-center">
+        <span className="w-full border-t" />
+      </div>
+      <div className="relative flex justify-center text-xs uppercase">
+        <span className="px-2 bg-background text-muted-foreground">Or continue with</span>
+      </div>
+    </div>
+  );
+}

@@ -24,14 +24,14 @@ export async function getUserData() {
 
 export async function getAuthUrl({ email, loginPrompt }: { email?: string; loginPrompt?: string }) {
   const serverUrl = useServerStore.getState().serverUrl;
-  const res = await tryCatch(axiosFetch.post(`${serverUrl}/auth/authenticate`, { loginPrompt, email }));
+  const res = await tryCatch(axiosFetch.post(`${serverUrl}/auth/authenticate`, { email, loginPrompt }));
   if (!res || !res.data.url) return null;
-  return res.data.url;
+  return res.data.url as string;
 }
 
 export async function logoutAndGetLogoutUrl() {
   const serverUrl = useServerStore.getState().serverUrl;
   const res = await tryCatch(axiosFetch.post(`${serverUrl}/auth/logout`));
   if (!res || !res.data.url) return null;
-  return res.data.url;
+  return res.data.url as string;
 }
