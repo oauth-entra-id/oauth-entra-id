@@ -114,7 +114,7 @@ export const Route = createFileRoute('/login')({
           </Card>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button size="sm" variant="outline" className="relative bg-background opacity-85 z-10">
+              <Button size="sm" variant="outline">
                 <div className="flex items-center justify-between">
                   <CurrentServerIcon />
                   <span className="text-sm mx-2">{CurrentServerLabel}</span>

@@ -48,7 +48,7 @@ function CardAction({ className, ...props }: React.ComponentProps<'div'>) {
 }
 
 function CardContent({ className, ...props }: React.ComponentProps<'div'>) {
-  return <div data-slot="card-content" className={cn('px-6 space-y-1.5 text-xl sm:text-base', className)} {...props} />;
+  return <div data-slot="card-content" className={cn('px-6 space-y-1.5 text-lg sm:text-base', className)} {...props} />;
 }
 
 function CardFooter({ className, ...props }: React.ComponentProps<'div'>) {

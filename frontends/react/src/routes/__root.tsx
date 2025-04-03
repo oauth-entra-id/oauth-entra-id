@@ -2,6 +2,7 @@ import { Outlet, createRootRoute, useNavigate } from '@tanstack/react-router';
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools';
 import { useEffect, useId } from 'react';
 import { Navbar } from '~/components/NavBar';
+import { useThemeStore } from '~/stores/themeStore';
 
 export const Route = createRootRoute({
   notFoundComponent: () => {
@@ -14,10 +15,13 @@ export const Route = createRootRoute({
     return null;
   },
   component: () => {
+    const theme = useThemeStore((state) => state.theme);
+    const usePrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const darkClassname = theme === 'dark' || (theme === 'system' && usePrefersDark) ? 'dark' : '';
     const id = useId();
     return (
       <>
-        <div className="relative w-full h-screen bg-background text-foreground overflow-x-hidden dark">
+        <div className={`relative w-full h-screen bg-background text-foreground overflow-x-hidden ${darkClassname}`}>
           <div className="h-full px-4 sm:px-6 lg:px-8">
             <Navbar />
             <div className="flex flex-col items-center justify-center h-[80%]">

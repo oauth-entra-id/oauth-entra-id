@@ -20,8 +20,8 @@ interface ServerStore {
 export const useServerStore = create<ServerStore>()(
   persist(
     (set) => ({
-      server: 'express',
-      serverUrl: EXPRESS_SERVER,
+      server: 'honojs',
+      serverUrl: HONOJS_SERVER,
       setServer: (server) =>
         set({
           server,
