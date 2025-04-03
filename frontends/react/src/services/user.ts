@@ -1,40 +1,37 @@
 import axios from 'axios';
 import { useServerStore } from '~/stores/serverStore';
 
-const axiosInstance = axios.create({
+const axiosFetch = axios.create({
   // in real usage, you might want to set the baseURL to your server's URL
   // baseURL: env.VITE_SERVER_URL,
   withCredentials: true,
 });
 
-export async function getUserData() {
+async function tryCatch<T>(promise: Promise<T>): Promise<T | null> {
   try {
-    const res = await axiosInstance.get(`${useServerStore.getState().serverUrl}/protected/user-info`);
-    if (!res.data.user) throw new Error('No user data');
-    return res.data.user;
+    return await promise;
   } catch {
     return null;
   }
+}
+
+export async function getUserData() {
+  const serverUrl = useServerStore.getState().serverUrl;
+  const res = await tryCatch(axiosFetch.get(`${serverUrl}/protected/user-info`));
+  if (!res || !res.data.user) return null;
+  return res.data.user;
 }
 
 export async function getAuthUrl({ email, loginPrompt }: { email?: string; loginPrompt?: string }) {
-  try {
-    const res = await axiosInstance.post(`${useServerStore.getState().serverUrl}/auth/authenticate`, {
-      loginPrompt,
-      email,
-    });
-    if (!res.data.url) throw new Error('No auth URL');
-    return res.data.url;
-  } catch {
-    return null;
-  }
+  const serverUrl = useServerStore.getState().serverUrl;
+  const res = await tryCatch(axiosFetch.post(`${serverUrl}/auth/authenticate`, { loginPrompt, email }));
+  if (!res || !res.data.url) return null;
+  return res.data.url;
 }
 
 export async function logoutAndGetLogoutUrl() {
-  try {
-    const res = await axiosInstance.post(`${useServerStore.getState().serverUrl}/auth/logout`);
-    return res.data.url;
-  } catch {
-    return null;
-  }
+  const serverUrl = useServerStore.getState().serverUrl;
+  const res = await tryCatch(axiosFetch.post(`${serverUrl}/auth/logout`));
+  if (!res || !res.data.url) return null;
+  return res.data.url;
 }

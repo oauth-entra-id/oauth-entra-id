@@ -2,11 +2,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 import { z } from 'zod';
-import { Express } from '~/components/icons/Express';
-import { Fastify } from '~/components/icons/Fastify';
-import { HonoJS } from '~/components/icons/HonoJS';
 import { Microsoft } from '~/components/icons/Microsoft';
-import { NestJS } from '~/components/icons/NestJS';
 import { Button } from '~/components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/Card';
 import {
@@ -22,22 +18,11 @@ import { Label } from '~/components/ui/Label';
 import { Switch } from '~/components/ui/Switch';
 import { MutedText, Title } from '~/components/ui/Text';
 import { getAuthUrl } from '~/services/user';
-import { type Server, useServerStore } from '~/stores/serverStore';
-
-const serversMap = {
-  express: { Icon: Express, label: 'Express', value: 'express' },
-  nestjs: { Icon: NestJS, label: 'NestJS', value: 'nestjs' },
-  fastify: { Icon: Fastify, label: 'Fastify', value: 'fastify' },
-  honojs: { Icon: HonoJS, label: 'HonoJS', value: 'honojs' },
-} as { [key: string]: { Icon: React.FC<React.SVGProps<SVGSVGElement>>; label: string; value: Server } };
+import { serversMap, useServerStore } from '~/stores/serverStore';
 
 export const Route = createFileRoute('/login')({
   component: () => {
-    const { setServer, server } = useServerStore();
-
-    const CurrentServerIcon = serversMap[server]?.Icon || HonoJS;
-    const CurrentServerLabel = serversMap[server]?.label || 'HonoJS';
-
+    const { setServer, server, label } = useServerStore();
     const [email, setEmail] = useState('');
     const [isEmailValid, setIsEmailValid] = useState(false);
     const [ssoEnabled, setSsoEnabled] = useState(true);
@@ -57,6 +42,7 @@ export const Route = createFileRoute('/login')({
         window.location.href = url;
       }
     };
+    const CurrentServerIcon = serversMap[server].Icon;
 
     return (
       <div className="flex flex-col items-center justify-center space-y-8">
@@ -99,7 +85,7 @@ export const Route = createFileRoute('/login')({
                   </div>
                 </div>
                 <Button variant="outline" onClick={() => loginUser()}>
-                  <Microsoft className="mr-1" /> Microsoft
+                  <Microsoft /> Microsoft
                 </Button>
                 <div className="flex items-center justify-center space-x-2">
                   <Switch id="sso" checked={ssoEnabled} onCheckedChange={setSsoEnabled} />
@@ -117,7 +103,7 @@ export const Route = createFileRoute('/login')({
               <Button size="sm" variant="outline">
                 <div className="flex items-center justify-between">
                   <CurrentServerIcon />
-                  <span className="text-sm mx-2">{CurrentServerLabel}</span>
+                  <span className="text-sm mx-2">{label}</span>
                   <ChevronDown />
                 </div>
                 <span className="sr-only">Toggle server</span>

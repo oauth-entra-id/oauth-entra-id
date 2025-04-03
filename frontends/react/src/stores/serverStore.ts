@@ -1,18 +1,25 @@
 import { z } from 'zod';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import { Express } from '~/components/icons/Express';
+import { Fastify } from '~/components/icons/Fastify';
+import { HonoJS } from '~/components/icons/HonoJS';
+import { NestJS } from '~/components/icons/NestJS';
 import { EXPRESS_SERVER, FASTIFY_SERVER, HONOJS_SERVER, NESTJS_SERVER } from '~/env';
 
 const zServer = z.enum(['express', 'nestjs', 'fastify', 'honojs']);
 
-export type Server = z.infer<typeof zServer>;
+type Server = z.infer<typeof zServer>;
 
-const serverMap: Record<Server, { url: string; label: string }> = {
-  express: { url: EXPRESS_SERVER, label: 'Express' },
-  nestjs: { url: NESTJS_SERVER, label: 'NestJS' },
-  fastify: { url: FASTIFY_SERVER, label: 'Fastify' },
-  honojs: { url: HONOJS_SERVER, label: 'HonoJS' },
-};
+export const serversMap = {
+  express: { value: 'express', label: 'Express', url: EXPRESS_SERVER, Icon: Express },
+  nestjs: { value: 'nestjs', label: 'NestJS', url: NESTJS_SERVER, Icon: NestJS },
+  fastify: { value: 'fastify', label: 'Fastify', url: FASTIFY_SERVER, Icon: Fastify },
+  honojs: { value: 'honojs', label: 'HonoJS', url: HONOJS_SERVER, Icon: HonoJS },
+} as const as Record<
+  Server,
+  { value: Server; label: string; url: string; Icon: React.FC<React.SVGProps<SVGSVGElement>> }
+>;
 
 interface ServerStore {
   server: Server;
@@ -25,13 +32,13 @@ export const useServerStore = create<ServerStore>()(
   persist(
     (set) => ({
       server: 'honojs',
-      label: serverMap.honojs.label,
-      serverUrl: serverMap.honojs.url,
+      label: serversMap.honojs.label,
+      serverUrl: serversMap.honojs.url,
       setServer: (server) =>
         set({
           server,
-          label: serverMap[server].label,
-          serverUrl: serverMap[server].url,
+          label: serversMap[server].label,
+          serverUrl: serversMap[server].url,
         }),
     }),
     {
@@ -48,8 +55,8 @@ export const useServerStore = create<ServerStore>()(
         return {
           ...currentState,
           server,
-          serverUrl: serverMap[server].url,
-          label: serverMap[server].label,
+          serverUrl: serversMap[server].url,
+          label: serversMap[server].label,
         };
       },
     },

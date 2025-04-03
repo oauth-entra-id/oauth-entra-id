@@ -48,8 +48,7 @@ export const Route = createFileRoute('/')({
             <CardFooter>
               <Button className="w-full mt-1" asChild>
                 <a href="https://github.com/oauth-entra-id/oauth-entra-id" target="_blank" rel="noopener noreferrer">
-                  <GitHub />
-                  Checkout our Repo!
+                  <GitHub /> Checkout our Repo!
                 </a>
               </Button>
             </CardFooter>
