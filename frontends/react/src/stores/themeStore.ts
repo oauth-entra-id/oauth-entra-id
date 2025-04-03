@@ -1,19 +1,51 @@
+import { z } from 'zod';
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
 
-type Theme = 'dark' | 'light' | 'system';
+const zTheme = z.enum(['dark', 'light', 'system']);
+
+type Theme = z.infer<typeof zTheme>;
 
 interface ThemeStore {
-  theme: Theme;
-  setTheme: (theme: Theme) => void;
+  settings: Theme;
+  theme: 'dark' | 'light';
+  setTheme: (settings: Theme) => void;
 }
 
 export const useThemeStore = create<ThemeStore>()(
   persist(
     (set) => ({
+      settings: 'dark',
       theme: 'dark',
-      setTheme: (theme) => set({ theme }),
+      setTheme: (settings) =>
+        set({
+          settings,
+          theme:
+            settings === 'dark' || (settings === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+              ? 'dark'
+              : 'light',
+        }),
     }),
-    { name: 'theme', storage: createJSONStorage(() => localStorage) },
+    {
+      name: 'theme',
+      storage: createJSONStorage(() => localStorage),
+      version: 0,
+      partialize: (state) => state.settings,
+      merge: (persistedState, currentState) => {
+        const { data: settings } = zTheme.safeParse(persistedState);
+        if (!settings) {
+          localStorage.setItem('theme', JSON.stringify({ state: currentState.settings, version: 0 }));
+          return currentState;
+        }
+        return {
+          ...currentState,
+          settings,
+          theme:
+            settings === 'dark' || (settings === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+              ? 'dark'
+              : 'light',
+        };
+      },
+    },
   ),
 );

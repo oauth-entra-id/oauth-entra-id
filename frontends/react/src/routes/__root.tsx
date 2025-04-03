@@ -16,15 +16,13 @@ export const Route = createRootRoute({
   },
   component: () => {
     const theme = useThemeStore((state) => state.theme);
-    const usePrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const darkClassname = theme === 'dark' || (theme === 'system' && usePrefersDark) ? 'dark' : '';
     const id = useId();
     return (
       <>
-        <div className={`relative w-full h-screen bg-background text-foreground overflow-x-hidden ${darkClassname}`}>
+        <div className={`relative w-full h-screen bg-background text-foreground overflow-x-hidden ${theme}`}>
           <div className="h-full px-4 sm:px-6 lg:px-8">
             <Navbar />
-            <div className="flex flex-col items-center justify-center h-[80%]">
+            <div className="flex flex-col items-center justify-center mt-2">
               <Outlet />
             </div>
             {/* Dots Background */}

@@ -1,11 +1,10 @@
-import { useServerStore } from '~/stores/serverStore';
 import axios from 'axios';
+import { useServerStore } from '~/stores/serverStore';
 
 const axiosInstance = axios.create({
   // in real usage, you might want to set the baseURL to your server's URL
   // baseURL: env.VITE_SERVER_URL,
   withCredentials: true,
-  headers: { 'Content-Type': 'application/json' },
 });
 
 export async function getUserData() {
