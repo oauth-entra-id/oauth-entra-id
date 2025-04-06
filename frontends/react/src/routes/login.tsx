@@ -22,86 +22,88 @@ import { cn } from '~/lib/utils';
 import { getAuthUrl } from '~/services/user';
 import { serversMap, useServerStore } from '~/stores/serverStore';
 
+export const Route = createFileRoute('/login')({
+  component: Login,
+});
+
 async function loginUser(ssoEnabled: boolean, email?: string) {
   const url = await getAuthUrl({ email, loginPrompt: ssoEnabled ? undefined : 'select-account' });
   if (url) window.location.href = url;
 }
 
-export const Route = createFileRoute('/login')({
-  component: () => {
-    const [ssoEnabled, setSsoEnabled] = useState(true);
-    const form = useForm({
-      defaultValues: {
-        email: '',
-      },
-      validators: {
-        onChange: z.object({ email: z.string().trim().email().min(1).max(128) }),
-      },
-      onSubmit: async ({ value }) => {
-        loginUser(false, value.email);
-      },
-    });
+function Login() {
+  const [ssoEnabled, setSsoEnabled] = useState(true);
+  const form = useForm({
+    defaultValues: {
+      email: '',
+    },
+    validators: {
+      onChange: z.object({ email: z.string().trim().email().min(1).max(128) }),
+    },
+    onSubmit: async ({ value }) => {
+      loginUser(false, value.email);
+    },
+  });
 
-    return (
-      <div className="flex flex-col items-center justify-center space-y-3">
-        <Title>
-          Welcome,
-          <br /> Guest
-        </Title>
-        <Card className="mt-5">
-          <CardHeader>
-            <CardTitle>Login into account</CardTitle>
-            <CardDescription>Enter your email below to login</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <form.Field name="email">
-              {(field) => (
-                <>
-                  <Label className="sr-only" htmlFor={field.name}>
-                    Email
-                  </Label>
-                  <Input
-                    type="email"
-                    name={field.name}
-                    id={field.name}
-                    value={field.state.value}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                    onBlur={field.handleBlur}
-                    placeholder="name@work.com"
-                    autoCorrect="off"
-                    autoCapitalize="none"
-                    autoComplete="email"
-                  />
-                </>
-              )}
-            </form.Field>
-            <form.Subscribe>
-              {({ canSubmit, isDirty, isSubmitting }) => (
-                <Button className="w-full" disabled={!(canSubmit && isDirty)} onClick={() => form.handleSubmit()}>
-                  {isSubmitting ? 'Submitting...' : 'Sign In with Email'}
-                </Button>
-              )}
-            </form.Subscribe>
-            <OrContinueWith />
-            <Button variant="outline" className="w-full" onClick={async () => await loginUser(ssoEnabled)}>
-              <Microsoft /> Microsoft
-            </Button>
-            <div className="flex items-center justify-center mt-2">
-              <Switch id="sso" checked={ssoEnabled} onCheckedChange={setSsoEnabled} />
-              <Label
-                htmlFor="sso"
-                className={cn('text-sm mx-2', ssoEnabled ? 'text-foreground' : 'text-muted-foreground')}>
-                Single Sign-On
-              </Label>
-            </div>
-          </CardContent>
-        </Card>
-        <Dropdown />
-        <MutedText>This demo is supposed to show you how to use Microsoft Entra ID OAuth2.0.</MutedText>
-      </div>
-    );
-  },
-});
+  return (
+    <div className="flex flex-col items-center justify-center space-y-3">
+      <Title>
+        Welcome,
+        <br /> Guest
+      </Title>
+      <Card className="mt-5">
+        <CardHeader>
+          <CardTitle>Login into account</CardTitle>
+          <CardDescription>Enter your email below to login</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <form.Field name="email">
+            {(field) => (
+              <>
+                <Label className="sr-only" htmlFor={field.name}>
+                  Email
+                </Label>
+                <Input
+                  type="email"
+                  name={field.name}
+                  id={field.name}
+                  value={field.state.value}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                  onBlur={field.handleBlur}
+                  placeholder="name@work.com"
+                  autoCorrect="off"
+                  autoCapitalize="none"
+                  autoComplete="email"
+                />
+              </>
+            )}
+          </form.Field>
+          <form.Subscribe>
+            {({ canSubmit, isDirty, isSubmitting }) => (
+              <Button className="w-full" disabled={!(canSubmit && isDirty)} onClick={() => form.handleSubmit()}>
+                {isSubmitting ? 'Submitting...' : 'Sign In with Email'}
+              </Button>
+            )}
+          </form.Subscribe>
+          <OrContinueWith />
+          <Button variant="outline" className="w-full" onClick={async () => await loginUser(ssoEnabled)}>
+            <Microsoft /> Microsoft
+          </Button>
+          <div className="flex items-center justify-center mt-2">
+            <Switch id="sso" checked={ssoEnabled} onCheckedChange={setSsoEnabled} />
+            <Label
+              htmlFor="sso"
+              className={cn('text-sm mx-2', ssoEnabled ? 'text-foreground' : 'text-muted-foreground')}>
+              Single Sign-On
+            </Label>
+          </div>
+        </CardContent>
+      </Card>
+      <Dropdown />
+      <MutedText>This demo is supposed to show you how to use Microsoft Entra ID OAuth2.0.</MutedText>
+    </div>
+  );
+}
 
 function Dropdown() {
   const { setServer, server, label } = useServerStore();

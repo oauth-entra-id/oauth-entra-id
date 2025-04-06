@@ -16,10 +16,7 @@ export const serversMap = {
   nestjs: { value: 'nestjs', label: 'NestJS', url: NESTJS_SERVER, Icon: NestJS },
   fastify: { value: 'fastify', label: 'Fastify', url: FASTIFY_SERVER, Icon: Fastify },
   honojs: { value: 'honojs', label: 'HonoJS', url: HONOJS_SERVER, Icon: HonoJS },
-} as const as Record<
-  Server,
-  { value: Server; label: string; url: string; Icon: React.FC<React.SVGProps<SVGSVGElement>> }
->;
+} as Record<Server, { value: Server; label: string; url: string; Icon: React.FC<React.SVGProps<SVGSVGElement>> }>;
 
 interface ServerStore {
   server: Server;
