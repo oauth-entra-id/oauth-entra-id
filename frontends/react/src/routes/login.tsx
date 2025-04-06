@@ -22,16 +22,14 @@ import { cn } from '~/lib/utils';
 import { getAuthUrl } from '~/services/user';
 import { serversMap, useServerStore } from '~/stores/serverStore';
 
+async function loginUser(ssoEnabled: boolean, email?: string) {
+  const url = await getAuthUrl({ email, loginPrompt: ssoEnabled ? undefined : 'select-account' });
+  if (url) window.location.href = url;
+}
+
 export const Route = createFileRoute('/login')({
   component: () => {
     const [ssoEnabled, setSsoEnabled] = useState(true);
-    const { setServer, server, label } = useServerStore();
-
-    async function loginUser(email?: string) {
-      const url = await getAuthUrl({ email, loginPrompt: ssoEnabled ? undefined : 'select-account' });
-      if (url) window.location.href = url;
-    }
-
     const form = useForm({
       defaultValues: {
         email: '',
@@ -40,11 +38,9 @@ export const Route = createFileRoute('/login')({
         onChange: z.object({ email: z.string().trim().email().min(1).max(128) }),
       },
       onSubmit: async ({ value }) => {
-        loginUser(value.email);
+        loginUser(false, value.email);
       },
     });
-
-    const CurrentServerIcon = serversMap[server].Icon;
 
     return (
       <div className="flex flex-col items-center justify-center space-y-3">
@@ -87,7 +83,7 @@ export const Route = createFileRoute('/login')({
               )}
             </form.Subscribe>
             <OrContinueWith />
-            <Button variant="outline" className="w-full" onClick={async () => await loginUser()}>
+            <Button variant="outline" className="w-full" onClick={async () => await loginUser(ssoEnabled)}>
               <Microsoft /> Microsoft
             </Button>
             <div className="flex items-center justify-center mt-2">
@@ -100,34 +96,43 @@ export const Route = createFileRoute('/login')({
             </div>
           </CardContent>
         </Card>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button size="sm" variant="outline">
-              <div className="flex items-center justify-between">
-                <CurrentServerIcon />
-                <span className="text-sm mx-2">{label}</span>
-                <ChevronDown />
-              </div>
-              <span className="sr-only">Toggle server</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Choose server</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {Object.entries(serversMap).map(([key, { Icon, label, value }]) => (
-              <DropdownMenuItem key={key} onClick={() => setServer(value)}>
-                <div className="flex items-center justify-between space-x-2.5">
-                  <Icon className="size-4" /> <span className="text-sm">{label}</span>
-                </div>
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <Dropdown />
         <MutedText>This demo is supposed to show you how to use Microsoft Entra ID OAuth2.0.</MutedText>
       </div>
     );
   },
 });
+
+function Dropdown() {
+  const { setServer, server, label } = useServerStore();
+  const CurrentServerIcon = serversMap[server].Icon;
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button size="sm" variant="outline">
+          <div className="flex items-center justify-between">
+            <CurrentServerIcon />
+            <span className="text-sm mx-2">{label}</span>
+            <ChevronDown />
+          </div>
+          <span className="sr-only">Toggle server</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuLabel>Choose server</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {Object.entries(serversMap).map(([key, { Icon, label, value }]) => (
+          <DropdownMenuItem key={key} onClick={() => setServer(value)}>
+            <div className="flex items-center justify-between space-x-2.5">
+              <Icon className="size-4" /> <span className="text-sm">{label}</span>
+            </div>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 function OrContinueWith() {
   return (

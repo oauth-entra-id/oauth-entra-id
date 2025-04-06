@@ -17,7 +17,7 @@ export const Route = createFileRoute('/')({
     };
     return (
       <>
-        <div className="absolute inset-0 z-0">
+        <div className="absolute inset-0 -z-10">
           <Confetti width={width} height={height} numberOfPieces={300} recycle={false} gravity={1} friction={0.95} />
         </div>
         <div className="flex flex-col items-center justify-center space-y-8">
