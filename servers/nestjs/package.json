@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "main": "dist/main.js",
+  "type": "commonjs",
   "scripts": {
     "build": "nest build",
     "start": "nest start",
@@ -11,33 +12,33 @@
     "start:prod": "node dist/main"
   },
   "dependencies": {
-    "oauth-entra-id": "workspace:*",
-    "@nestjs/common": "^11.0.11",
-    "@nestjs/config": "^4.0.1",
-    "@nestjs/core": "^11.0.11",
+    "@nestjs/common": "^11.0.13",
+    "@nestjs/config": "^4.0.2",
+    "@nestjs/core": "^11.0.13",
     "@nestjs/mapped-types": "^2.1.0",
-    "@nestjs/platform-express": "^11.0.11",
+    "@nestjs/platform-express": "^11.0.13",
     "@nestjs/throttler": "^6.4.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
     "cookie-parser": "^1.4.7",
     "dotenv": "^16.4.7",
-    "helmet": "^8.0.0",
+    "helmet": "^8.1.0",
     "morgan": "^1.10.0",
+    "oauth-entra-id": "workspace:*",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "zod": "^3.24.2"
   },
   "devDependencies": {
-    "@nestjs/cli": "^11.0.5",
-    "@nestjs/schematics": "^11.0.2",
+    "@nestjs/cli": "^11.0.6",
+    "@nestjs/schematics": "^11.0.4",
     "@types/cookie-parser": "^1.4.8",
-    "@types/express": "^5.0.0",
-    "@types/node": "^22.13.10",
+    "@types/express": "^5.0.1",
+    "@types/node": "^22.14.0",
     "source-map-support": "^0.5.21",
     "ts-loader": "^9.5.2",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.8.2"
+    "typescript": "^5.8.3"
   }
 }

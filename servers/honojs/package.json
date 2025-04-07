@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "main": "dist/index.js",
+  "type": "module",
   "scripts": {
     "start": "node dist/index.js",
     "dev": "tsx watch --clear-screen=false src/index.ts",
@@ -10,17 +11,17 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "oauth-entra-id": "workspace:*",
-    "@hono/node-server": "^1.13.8",
+    "@hono/node-server": "^1.14.0",
     "dotenv": "^16.4.7",
-    "hono": "^4.7.4",
+    "hono": "^4.7.5",
     "hono-rate-limiter": "^0.4.2",
+    "oauth-entra-id": "workspace:*",
     "zod": "^3.24.2"
   },
   "devDependencies": {
-    "@types/node": "^22.13.10",
+    "@types/node": "^22.14.0",
     "tsup": "^8.4.0",
     "tsx": "^4.19.3",
-    "typescript": "^5.8.2"
+    "typescript": "^5.8.3"
   }
 }
