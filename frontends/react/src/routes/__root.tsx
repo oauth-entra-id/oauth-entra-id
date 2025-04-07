@@ -1,4 +1,4 @@
-import { Outlet, createRootRoute, useNavigate } from '@tanstack/react-router';
+import { Outlet, createRootRoute, useLocation, useNavigate } from '@tanstack/react-router';
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools';
 import { useEffect, useId } from 'react';
 import { Loading } from '~/components/Loading';
@@ -14,18 +14,23 @@ export const Route = createRootRoute({
 });
 
 function Root() {
-  const { user, setUser } = useUserStore();
   const theme = useThemeStore((state) => state.theme);
+  const { user, setUser } = useUserStore();
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
-    async function loadUser() {
-      const user = await getUserData();
-      setUser(user);
-      if (user === null) navigate({ to: '/login' });
+    (async () => setUser(await getUserData()))();
+  }, [setUser]);
+
+  useEffect(() => {
+    if (!user && location.pathname !== '/login') {
+      navigate({ to: '/login' });
+    } else if (user && location.pathname === '/login') {
+      navigate({ to: '/' });
     }
-    loadUser();
-  }, [setUser, navigate]);
+  }, [user, location.pathname, navigate]);
+
   return (
     <>
       <div className={`relative w-full h-screen bg-background text-foreground overflow-x-hidden ${theme}`}>

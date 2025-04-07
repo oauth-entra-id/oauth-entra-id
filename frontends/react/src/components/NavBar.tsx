@@ -7,17 +7,17 @@ import { useThemeStore } from '~/stores/themeStore';
 
 export function Navbar() {
   const setTheme = useThemeStore((state) => state.setTheme);
-  const [inspectDisabled, toggleInspectDisabled] = useToggle(true);
-  useDevTools(inspectDisabled);
+  const [devToolsDisabled, toggleDevTools] = useToggle(true);
+  useDevTools(devToolsDisabled);
 
   return (
     <nav className="w-full flex flex-row items-center justify-between px-4 py-2">
       <div
-        className="font-mono font-black text-xl tracking-wide bg-gradient-to-br from-foreground to-50% to-muted-foreground bg-clip-text text-transparent"
+        className="font-mono font-black text-xl bg-gradient-to-br from-foreground to-70% to-muted-foreground bg-clip-text text-transparent"
         onDoubleClick={() => {
-          toggleInspectDisabled();
+          toggleDevTools();
         }}>
-        Demo
+        React Demo
       </div>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>

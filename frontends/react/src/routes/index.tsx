@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { createFileRoute } from '@tanstack/react-router';
 import Confetti from 'react-confetti';
 import { GitHub } from '~/components/icons/GitHub';
 import { Button } from '~/components/ui/Button';
@@ -16,12 +16,10 @@ export const Route = createFileRoute('/')({
 function Home() {
   const { width, height } = useWindowDimensions();
   const { user, setUser } = useUserStore();
-  const navigate = useNavigate();
 
   async function logout() {
     const url = await logoutAndGetLogoutUrl();
     setUser(null);
-    navigate({ to: '/login' });
     if (url) window.open(url, '_blank');
   }
 

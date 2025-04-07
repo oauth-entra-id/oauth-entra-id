@@ -1,7 +1,7 @@
 import { useForm } from '@tanstack/react-form';
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { ChevronDown } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { z } from 'zod';
 import { Microsoft } from '~/components/icons/Microsoft';
 import { Button } from '~/components/ui/Button';
@@ -21,6 +21,7 @@ import { MutedText, Title } from '~/components/ui/Text';
 import { cn } from '~/lib/utils';
 import { getAuthUrl } from '~/services/user';
 import { serversMap, useServerStore } from '~/stores/serverStore';
+import { useUserStore } from '~/stores/userStore';
 
 export const Route = createFileRoute('/login')({
   component: Login,
@@ -33,6 +34,8 @@ async function loginUser(ssoEnabled: boolean, email?: string) {
 
 function Login() {
   const [ssoEnabled, setSsoEnabled] = useState(true);
+  const user = useUserStore((state) => state.user);
+  const navigate = useNavigate();
   const form = useForm({
     defaultValues: {
       email: '',
@@ -44,6 +47,14 @@ function Login() {
       loginUser(false, value.email);
     },
   });
+
+  useEffect(() => {
+    if (user) {
+      navigate({ to: '/' });
+    }
+  }, [user, navigate]);
+
+  if (user) return null;
 
   return (
     <div className="flex flex-col items-center justify-center space-y-3">
