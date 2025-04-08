@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
-import { setCookie, deleteCookie } from 'hono/cookie';
-import { oauthProvider } from '~/oauth';
+import { deleteCookie, setCookie } from 'hono/cookie';
 import { HTTPException } from 'hono/http-exception';
+import { oauthProvider } from '~/oauth';
 
 export const authRouter = new Hono();
 

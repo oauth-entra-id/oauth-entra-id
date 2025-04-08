@@ -11,9 +11,12 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@chneau/elysia-logger": "^1.0.10",
+    "@elysiajs/cors": "^1.2.0",
     "@elysiajs/node": "^1.2.6",
     "dotenv": "^16.4.7",
     "elysia": "^1.2.25",
+    "elysia-helmet": "^2.0.0",
     "oauth-entra-id": "workspace:*",
     "zod": "^3.24.2"
   },

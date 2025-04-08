@@ -163,6 +163,12 @@ importers:
 
   servers/elysia:
     dependencies:
+      '@chneau/elysia-logger':
+        specifier: ^1.0.10
+        version: 1.0.10(@sinclair/typebox@0.34.33)(typescript@5.8.3)
+      '@elysiajs/cors':
+        specifier: ^1.2.0
+        version: 1.2.0(elysia@1.2.25(@sinclair/typebox@0.34.33)(typescript@5.8.3))
       '@elysiajs/node':
         specifier: ^1.2.6
         version: 1.2.6(elysia@1.2.25(@sinclair/typebox@0.34.33)(typescript@5.8.3))(formidable@3.5.2)(ws@8.18.1)
@@ -172,6 +178,9 @@ importers:
       elysia:
         specifier: ^1.2.25
         version: 1.2.25(@sinclair/typebox@0.34.33)(typescript@5.8.3)
+      elysia-helmet:
+        specifier: ^2.0.0
+        version: 2.0.0(elysia@1.2.25(@sinclair/typebox@0.34.33)(typescript@5.8.3))
       oauth-entra-id:
         specifier: workspace:*
         version: link:../../packages/oauth-entra-id
@@ -592,6 +601,9 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@chneau/elysia-logger@1.0.10':
+    resolution: {integrity: sha512-DemJhELQjz+mGGRrfHh9PLImi54sjwaORcS9PeX3fepBIb+DZudbR1exyBdEgQIqSsr2NwU9TiWwJZDCTl5iiQ==}
+
   '@clack/core@0.3.5':
     resolution: {integrity: sha512-5cfhQNH+1VQ2xLQlmzXMqUoiaH0lRBq9/CLW9lTyMbuKLC3+xEK01tHVvyut++mLOn5urSHmkm6I0Lg9MaJSTQ==}
 
@@ -633,6 +645,11 @@ packages:
   '@csstools/css-tokenizer@3.0.3':
     resolution: {integrity: sha512-UJnjoFsmxfKUdNYdWgOB0mWUypuLvAfQPH1+pyvRJs6euowbFkFC6P13w1l8mJyi3vxYMxc9kld5jZEGRQs6bw==}
     engines: {node: '>=18'}
+
+  '@elysiajs/cors@1.2.0':
+    resolution: {integrity: sha512-qsJwDAg6WfdQRMfj6uSMcDPSpXvm/zQFeAX1uuJXhIgazH8itSfcDxcH9pMuXVRX1yQNi2pPwNQLJmAcw5mzvw==}
+    peerDependencies:
+      elysia: '>= 1.2.0'
 
   '@elysiajs/node@1.2.6':
     resolution: {integrity: sha512-qauTs0YNLvfSyqW8k8pDCazd3nPQtFOeDH/cSz1wBhAGn1HL1PQlywnK6V0+bOGemkKlxLIjhmvbHxGrNzZMSg==}
@@ -2886,6 +2903,11 @@ packages:
   electron-to-chromium@1.5.132:
     resolution: {integrity: sha512-QgX9EBvWGmvSRa74zqfnG7+Eno0Ak0vftBll0Pt2/z5b3bEGYL6OUXLgKPtvx73dn3dvwrlyVkjPKRRlhLYTEg==}
 
+  elysia-helmet@2.0.0:
+    resolution: {integrity: sha512-GsNmF6cZmyY0eqMotLHSvVbDdo6RYotj5e3oxJ5PHrtwpsvPSi+sj2QbyjOa+6zgfB1ekmvpDH1nUOvXbDTsTg==}
+    peerDependencies:
+      elysia: '>= 1.0.0'
+
   elysia@1.2.25:
     resolution: {integrity: sha512-WsdQpORJvb4uszzeqYT0lg97knw1iBW1NTzJ1Jm57tiHg+DfAotlWXYbjmvQ039ssV0fYELDHinLLoUazZkEHg==}
     peerDependencies:
@@ -5094,6 +5116,14 @@ snapshots:
   '@biomejs/cli-win32-x64@1.9.4':
     optional: true
 
+  '@chneau/elysia-logger@1.0.10(@sinclair/typebox@0.34.33)(typescript@5.8.3)':
+    dependencies:
+      elysia: 1.2.25(@sinclair/typebox@0.34.33)(typescript@5.8.3)
+    transitivePeerDependencies:
+      - '@sinclair/typebox'
+      - openapi-types
+      - typescript
+
   '@clack/core@0.3.5':
     dependencies:
       picocolors: 1.1.1
@@ -5131,6 +5161,10 @@ snapshots:
       '@csstools/css-tokenizer': 3.0.3
 
   '@csstools/css-tokenizer@3.0.3': {}
+
+  '@elysiajs/cors@1.2.0(elysia@1.2.25(@sinclair/typebox@0.34.33)(typescript@5.8.3))':
+    dependencies:
+      elysia: 1.2.25(@sinclair/typebox@0.34.33)(typescript@5.8.3)
 
   '@elysiajs/node@1.2.6(elysia@1.2.25(@sinclair/typebox@0.34.33)(typescript@5.8.3))(formidable@3.5.2)(ws@8.18.1)':
     dependencies:
@@ -7141,6 +7175,10 @@ snapshots:
   ee-first@1.1.1: {}
 
   electron-to-chromium@1.5.132: {}
+
+  elysia-helmet@2.0.0(elysia@1.2.25(@sinclair/typebox@0.34.33)(typescript@5.8.3)):
+    dependencies:
+      elysia: 1.2.25(@sinclair/typebox@0.34.33)(typescript@5.8.3)
 
   elysia@1.2.25(@sinclair/typebox@0.34.33)(typescript@5.8.3):
     dependencies:
