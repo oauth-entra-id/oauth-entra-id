@@ -8,9 +8,9 @@ const zStr = z.string().trim().min(1);
 
 const zEnv = z.object({
   NODE_ENV: z.enum(['development', 'production']).default('development'),
-  HONOJS_URL: zStr.url().default('http://localhost:3003'),
-  HONOJS_PORT: z.union([z.number().nonnegative(), zStr.regex(/^\d+$/).transform(Number)]).default(3003),
-  REACT_FRONTEND_URL: zStr.url().default('http://localhost:5173'),
+  HONOJS_URL: zStr.url().default('http://localhost:3004'),
+  HONOJS_PORT: z.union([z.number().nonnegative(), zStr.regex(/^\d+$/).transform(Number)]).default(3004),
+  REACT_FRONTEND_URL: zStr.url().default('http://localhost:5000'),
   SECRET_KEY: zStr,
   PROXIES: z.union([z.number().nonnegative(), zStr.regex(/^\d+$/).transform(Number)]).default(0),
   AZURE_CLIENT_ID: zStr.uuid(),

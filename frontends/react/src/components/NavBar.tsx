@@ -13,11 +13,9 @@ export function Navbar() {
   return (
     <nav className="w-full flex flex-row items-center justify-between px-4 py-2">
       <div
-        className="font-mono font-black text-xl bg-gradient-to-br from-foreground to-70% to-muted-foreground bg-clip-text text-transparent"
-        onDoubleClick={() => {
-          toggleDevTools();
-        }}>
-        React Demo
+        className="font-mono font-black italic text-xl bg-gradient-to-br from-foreground to-50% to-muted-foreground bg-clip-text text-transparent"
+        onDoubleClick={() => toggleDevTools()}>
+        React
       </div>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>

@@ -10,7 +10,7 @@ const zEnv = z.object({
   NODE_ENV: z.enum(['development', 'production']).default('development'),
   EXPRESS_URL: zStr.url().default('https://localhost:3001'),
   EXPRESS_PORT: z.union([z.number().nonnegative(), zStr.regex(/^\d+$/).transform(Number)]).default(3001),
-  REACT_FRONTEND_URL: zStr.url().default('http://localhost:5173'),
+  REACT_FRONTEND_URL: zStr.url().default('http://localhost:5000'),
   SECRET_KEY: zStr,
   PROXIES: z.union([z.number().nonnegative(), zStr.regex(/^\d+$/).transform(Number)]).default(0),
   AZURE_CLIENT_ID: zStr.uuid(),

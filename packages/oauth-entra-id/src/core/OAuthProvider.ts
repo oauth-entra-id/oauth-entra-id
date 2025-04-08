@@ -1,18 +1,18 @@
+import type { KeyObject } from 'node:crypto';
+import * as msal from '@azure/msal-node';
+import type { AuthenticationResult, ConfidentialClientApplication, CryptoProvider } from '@azure/msal-node';
 import jwt, { type JwtPayload } from 'jsonwebtoken';
 import jwks, { type JwksClient } from 'jwks-rsa';
-import * as msal from '@azure/msal-node';
-import type { KeyObject } from 'node:crypto';
-import type { AuthenticationResult, ConfidentialClientApplication, CryptoProvider } from '@azure/msal-node';
+import { createSecretKey, decrypt, decryptObject, encrypt, encryptObject } from '~/core/crypto';
 import {
-  zUrl,
-  zState,
-  zEncrypted,
-  zJwt,
   zConfig,
-  zGenerateAuthUrlOptions,
+  zEncrypted,
   zExchangeCodeForTokenOptions,
+  zGenerateAuthUrlOptions,
+  zJwt,
+  zState,
+  zUrl,
 } from '~/core/zod';
-import { createSecretKey, encrypt, decrypt, encryptObject, decryptObject } from '~/core/crypto';
 import { OAuthError } from './OAuthError';
 
 type LoginPrompt = 'email' | 'select-account' | 'sso';
@@ -27,7 +27,13 @@ export interface OAuthConfig {
   debug?: boolean;
 }
 
-/** * ### The Core of the Package * OAuthProvider handles authentication with Microsoft Entra ID using OAuth 2.0. * It manages authentication flows, token exchange, and JWT verification. * * @class */
+/**
+ * ### The Core of the Package
+ * OAuthProvider handles authentication with Microsoft Entra ID using OAuth 2.0.
+ * It manages authentication flows, token exchange, and JWT verification.
+ *
+ * @class
+ */
 export class OAuthProvider {
   private readonly azure: OAuthConfig['azure'];
   private readonly frontendUrl: string[];
@@ -41,7 +47,11 @@ export class OAuthProvider {
   private readonly cookieOptions: CookieOptions;
   readonly debug: boolean;
 
-  /**   * Creates an instance of OAuthProvider.   * @param configuration - The OAuth configuration object.   * @throws {OAuthError} If the configuration is invalid.   */
+  /**
+   * Creates an instance of OAuthProvider.
+   * @param configuration - The OAuth configuration object.
+   * @throws {OAuthError} If the configuration is invalid.
+   */
   constructor(configuration: OAuthConfig) {
     const { data: config, error: configError } = zConfig.safeParse(configuration);
 
@@ -72,7 +82,7 @@ export class OAuthProvider {
 
     const cookieOptions = {
       accessToken: {
-        name: config.isHttps ? '__Host-AccessToken' : 'AccessToken',
+        name: config.isHttps ? `__Host-AccessToken-${config.azure.clientId}` : `AccessToken-${config.azure.clientId}`,
         options: {
           ...cookieBaseOptions,
           sameSite: config.isCrossOrigin ? (config.isHttps ? 'none' : undefined) : 'strict',
@@ -80,7 +90,7 @@ export class OAuthProvider {
         },
       },
       refreshToken: {
-        name: config.isHttps ? '__Host-RefreshToken' : 'RefreshToken',
+        name: config.isHttps ? `__Host-RefreshToken-${config.azure.clientId}` : `RefreshToken-${config.azure.clientId}`,
         options: {
           ...cookieBaseOptions,
           sameSite: config.isCrossOrigin ? (config.isHttps ? 'none' : undefined) : 'strict',
@@ -113,7 +123,10 @@ export class OAuthProvider {
     if (this.debug) console.log(`[oauth-entra-id] OAuthProvider.${methodName}: ${message}`);
   }
 
-  /**   * Returns the names of the access and refresh token cookies.   * @returns The cookie names.   */
+  /**
+   * Returns the names of the access and refresh token cookies.
+   * @returns The cookie names.
+   */
   getCookieNames() {
     return {
       accessTokenName: this.cookieOptions.accessToken.name,
@@ -121,7 +134,12 @@ export class OAuthProvider {
     } as const;
   }
 
-  /**   * Generates an authorization URL for OAuth authentication.   * @param options - The options for generating the authorization URL.   * @returns The authorization URL.   * @throws {OAuthError} If options are invalid.   */
+  /**
+   * Generates an authorization URL for OAuth authentication.
+   * @param options - The options for generating the authorization URL.
+   * @returns The authorization URL.
+   * @throws {OAuthError} If options are invalid.
+   */
   async generateAuthUrl(
     options: { loginPrompt?: LoginPrompt; email?: string; frontendUrl?: string } = {},
   ): Promise<{ authUrl: string }> {
@@ -192,7 +210,11 @@ export class OAuthProvider {
     }
   }
 
-  /**   * Retrieves the refresh token from the cache and clears the account if it exists.   * @param msalResponse - The MSAL authentication result.   * @returns The refresh token or null if not found.   */
+  /**
+   * Retrieves the refresh token from the cache and clears the account if it exists.
+   * @param msalResponse - The MSAL authentication result.
+   * @returns The refresh token or null if not found.
+   */
   private async getRefreshTokenFromCache(msalResponse: msal.AuthenticationResult) {
     const tokenCache = this.cca.getTokenCache();
     const refreshTokenMap = JSON.parse(tokenCache.serialize()).RefreshToken;
@@ -201,7 +223,12 @@ export class OAuthProvider {
     return userRefreshTokenKey ? (refreshTokenMap[userRefreshTokenKey].secret as string) : null;
   }
 
-  /**   * Exchanges an authorization code for an access token and refresh token.   * @param options - The options (code and state) for exchanging the code.   * @returns The access token, refresh token, frontend URL, and MSAL response.   * @throws {OAuthError} If options are invalid.   */
+  /**
+   * Exchanges an authorization code for an access token and refresh token.
+   * @param options - The options (code and state) for exchanging the code.
+   * @returns The access token, refresh token, frontend URL, and MSAL response.
+   * @throws {OAuthError} If options are invalid.
+   */
   async exchangeCodeForToken(options: { code: string; state: string }): Promise<{
     accessToken: AccessToken;
     refreshToken: RefreshToken | null;
@@ -263,7 +290,12 @@ export class OAuthProvider {
     }
   }
 
-  /**   * Generates a logout URL for OAuth authentication.   * @param options - The options for generating the logout URL.   * @returns The logout URL and cookie deletion options.   * @throws {OAuthError} If options are invalid.   */
+  /**
+   * Generates a logout URL for OAuth authentication.
+   * @param options - The options for generating the logout URL.
+   * @returns The logout URL and cookie deletion options.
+   * @throws {OAuthError} If options are invalid.
+   */
   getLogoutUrl(options: { frontendUrl?: string } = {}): {
     logoutUrl: string;
     accessToken: DeleteAccessToken;
@@ -298,7 +330,12 @@ export class OAuthProvider {
     };
   }
 
-  /**   * Retrieves the public key for verifying JWT tokens.   * @param keyId - The key ID from the JWT header.   * @returns The public key.   * @throws {Error} If the key is not found.   */
+  /**
+   * Retrieves the public key for verifying JWT tokens.
+   * @param keyId - The key ID from the JWT header.
+   * @returns The public key.
+   * @throws {Error} If the key is not found.
+   */
   private getSigningKey(keyId: string): Promise<string> {
     return new Promise((resolve, reject) => {
       this.jwksClient.getSigningKey(keyId, (err, key) => {
@@ -316,7 +353,12 @@ export class OAuthProvider {
     });
   }
 
-  /**   * Verifies a JWT token and returns the payload.   * @param jwtToken - The JWT token to verify.   * @returns The JWT payload.   * @throws {OAuthError} If the token is invalid.   */
+  /**
+   * Verifies a JWT token and returns the payload.
+   * @param jwtToken - The JWT token to verify.
+   * @returns The JWT payload.
+   * @throws {OAuthError} If the token is invalid.
+   */
   private async verifyJwt(jwtToken: string): Promise<JwtPayload> {
     try {
       const decodedJwt = jwt.decode(jwtToken, { complete: true });
@@ -351,7 +393,12 @@ export class OAuthProvider {
     }
   }
 
-  /**   * Verifies an access token and returns the Microsoft token and payload.   * @param accessToken - An encrypted access token or JWT access token.   * @returns The Microsoft token and JWT payload.   * @throws {OAuthError} If the token is invalid.   */
+  /**
+   * Verifies an access token and returns the Microsoft token and payload.
+   * @param accessToken - An encrypted access token or JWT access token.
+   * @returns The Microsoft token and JWT payload.
+   * @throws {OAuthError} If the token is invalid.
+   */
   async verifyAccessToken(
     accessToken: string | undefined,
   ): Promise<{ microsoftToken: string; payload: JwtPayload } | null> {
@@ -369,7 +416,12 @@ export class OAuthProvider {
     }
   }
 
-  /**   * Refreshes an access token using a refresh token.   * @param refreshToken - The encrypted refresh token.   * @returns The new access token, refresh token, original JWT with its payload, and MSAL response.   * @throws {OAuthError} If the refresh token is invalid.   */
+  /**
+   * Refreshes an access token using a refresh token.
+   * @param refreshToken - The encrypted refresh token.
+   * @returns The new access token, refresh token, original JWT with its payload, and MSAL response.
+   * @throws {OAuthError} If the refresh token is invalid.
+   */
   async refreshAccessToken(refreshToken: string): Promise<{
     newAccessToken: AccessToken;
     newRefreshToken: RefreshToken | null;
@@ -436,7 +488,7 @@ interface DeleteRefreshToken {
 
 interface CookieOptions {
   readonly accessToken: {
-    readonly name: 'AccessToken' | '__Host-AccessToken';
+    readonly name: string;
     readonly options: {
       readonly httpOnly: true;
       readonly secure: boolean;
@@ -446,7 +498,7 @@ interface CookieOptions {
     };
   };
   readonly refreshToken: {
-    readonly name: 'RefreshToken' | '__Host-RefreshToken';
+    readonly name: string;
     readonly options: {
       readonly httpOnly: true;
       readonly secure: boolean;
