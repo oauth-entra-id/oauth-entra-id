@@ -8,6 +8,7 @@
   - [ ] Add type feature for when the allowOtherSystem is false the userInfo will be only user
 
 - Demos:
+  - [ ] Add Swagger and Proxies
   - [ ] ElysiaJS
   - [ ] Vue
   - [ ] Svelte
