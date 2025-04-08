@@ -19,18 +19,24 @@ const zEnv = z.object({
   AZURE_CLIENT_SECRET: zStr,
 });
 
-const { success, error, data: parsedEnv } = zEnv.safeParse(process.env);
+const parsedEnv = zEnv.safeParse(process.env);
 
-if (!success) {
-  console.error('❌ Fastify App environment variables are invalid. Errors:', error.format());
+if (parsedEnv.error) {
+  console.error('❌ Fastify App environment variables are invalid. Errors:', parsedEnv.error.format());
   process.exit(1);
 }
 
-export const AZURE = {
-  clientId: parsedEnv.AZURE_CLIENT_ID,
-  tenantId: parsedEnv.AZURE_TENANT_ID,
-  clientScopes: parsedEnv.AZURE_CLIENT_SCOPES,
-  clientSecret: parsedEnv.AZURE_CLIENT_SECRET,
+export const env = {
+  AZURE: {
+    clientId: parsedEnv.data.AZURE_CLIENT_ID,
+    tenantId: parsedEnv.data.AZURE_TENANT_ID,
+    clientScopes: parsedEnv.data.AZURE_CLIENT_SCOPES,
+    clientSecret: parsedEnv.data.AZURE_CLIENT_SECRET,
+  },
+  NODE_ENV: parsedEnv.data.NODE_ENV,
+  SERVER_URL: parsedEnv.data.FASTIFY_URL,
+  SERVER_PORT: parsedEnv.data.FASTIFY_PORT,
+  REACT_FRONTEND_URL: parsedEnv.data.REACT_FRONTEND_URL,
+  SECRET_KEY: parsedEnv.data.SECRET_KEY,
+  PROXIES: parsedEnv.data.PROXIES,
 };
-
-export const { NODE_ENV, FASTIFY_URL, FASTIFY_PORT, REACT_FRONTEND_URL, SECRET_KEY, PROXIES } = parsedEnv;

@@ -1,10 +1,10 @@
 import { OAuthProvider } from 'oauth-entra-id';
-import { AZURE, REACT_FRONTEND_URL, SECRET_KEY, FASTIFY_URL } from './env';
+import { env } from './env';
 
 export const oauthProvider = new OAuthProvider({
-  azure: AZURE,
-  serverFullCallbackUrl: `${FASTIFY_URL}/auth/callback`,
-  frontendUrl: REACT_FRONTEND_URL,
-  secretKey: SECRET_KEY,
+  azure: env.AZURE,
+  serverFullCallbackUrl: `${env.SERVER_URL}/auth/callback`,
+  frontendUrl: env.REACT_FRONTEND_URL,
+  secretKey: env.SECRET_KEY,
   cookieTimeFrame: 'sec',
 });

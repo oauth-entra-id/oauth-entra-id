@@ -19,18 +19,24 @@ const zEnv = z.object({
   AZURE_CLIENT_SECRET: zStr,
 });
 
-const { data: env, error } = zEnv.safeParse(process.env);
+const parsedEnv = zEnv.safeParse(process.env);
 
-if (error) {
-  console.error('❌ HonoJS App environment variables are invalid. Errors:', error.format());
+if (parsedEnv.error) {
+  console.error('❌ HonoJS App environment variables are invalid. Errors:', parsedEnv.error.format());
   process.exit(1);
 }
 
-export const AZURE = {
-  clientId: env.AZURE_CLIENT_ID,
-  tenantId: env.AZURE_TENANT_ID,
-  clientScopes: env.AZURE_CLIENT_SCOPES,
-  clientSecret: env.AZURE_CLIENT_SECRET,
+export const env = {
+  AZURE: {
+    clientId: parsedEnv.data.AZURE_CLIENT_ID,
+    tenantId: parsedEnv.data.AZURE_TENANT_ID,
+    clientScopes: parsedEnv.data.AZURE_CLIENT_SCOPES,
+    clientSecret: parsedEnv.data.AZURE_CLIENT_SECRET,
+  },
+  NODE_ENV: parsedEnv.data.NODE_ENV,
+  SERVER_URL: parsedEnv.data.HONOJS_URL,
+  SERVER_PORT: parsedEnv.data.HONOJS_PORT,
+  REACT_FRONTEND_URL: parsedEnv.data.REACT_FRONTEND_URL,
+  SECRET_KEY: parsedEnv.data.SECRET_KEY,
+  PROXIES: parsedEnv.data.PROXIES,
 };
-
-export const { NODE_ENV, HONOJS_URL, HONOJS_PORT, REACT_FRONTEND_URL, SECRET_KEY, PROXIES } = env;

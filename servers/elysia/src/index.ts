@@ -1,13 +1,13 @@
 import { createApp } from './app';
-import { ELYSIA_PORT, ELYSIA_URL, REACT_FRONTEND_URL } from './env';
+import { env } from './env';
 
 function bootstrap() {
   const app = createApp();
-  app.listen(ELYSIA_PORT, () => {
+  app.listen(env.SERVER_PORT, () => {
     console.log(
       '============= 🦊  Elysia Server 🦊  ===========\n',
-      `🚀 Server runs on: ${ELYSIA_URL}\n`,
-      `👤 Client is set to: ${REACT_FRONTEND_URL}\n`,
+      `🚀 Server runs on: ${env.SERVER_URL}\n`,
+      `👤 Client is set to: ${env.REACT_FRONTEND_URL}\n`,
       '==============================================',
     );
   });

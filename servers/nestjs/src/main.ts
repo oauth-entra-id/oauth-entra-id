@@ -1,22 +1,22 @@
-import { HttpAdapterHost, NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
-import { authConfig } from 'oauth-entra-id/nestjs';
+import { HttpAdapterHost, NestFactory } from '@nestjs/core';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import { NODE_ENV, NESTJS_PORT, PROXIES, NESTJS_URL, REACT_FRONTEND_URL, SECRET_KEY, AZURE } from './env';
+import { authConfig } from 'oauth-entra-id/nestjs';
 import { AppModule } from './app.module';
+import { env } from './env';
 import { ErrorCatcher } from './error/error-catcher.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  if (NODE_ENV === 'production' && PROXIES) {
-    app.getHttpAdapter().getInstance().set('trust proxy', PROXIES);
+  if (env.NODE_ENV === 'production' && env.PROXIES) {
+    app.getHttpAdapter().getInstance().set('trust proxy', env.PROXIES);
   }
 
   app.enableCors({
-    origin: [NESTJS_URL, REACT_FRONTEND_URL],
+    origin: [env.SERVER_URL, env.REACT_FRONTEND_URL],
     methods: 'GET,POST,PUT,DELETE,OPTIONS',
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
@@ -56,17 +56,17 @@ async function bootstrap() {
     }),
   );
 
-  app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'));
+  app.use(morgan(env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
-  app.setGlobalPrefix(new URL(NESTJS_URL).pathname);
+  app.setGlobalPrefix(new URL(env.SERVER_URL).pathname);
 
   app.use(cookieParser());
   app.use(
     authConfig({
-      azure: AZURE,
-      frontendUrl: REACT_FRONTEND_URL,
-      serverFullCallbackUrl: `${NESTJS_URL}/auth/callback`,
-      secretKey: SECRET_KEY,
+      azure: env.AZURE,
+      frontendUrl: env.REACT_FRONTEND_URL,
+      serverFullCallbackUrl: `${env.SERVER_URL}/auth/callback`,
+      secretKey: env.SECRET_KEY,
     }),
   );
 
@@ -83,12 +83,12 @@ async function bootstrap() {
 
   app.useGlobalFilters(new ErrorCatcher(httpAdapter));
 
-  await app.listen(NESTJS_PORT);
+  await app.listen(env.SERVER_PORT);
 
   console.log(
     '============= 🪺  NestJS Server 🪺  =============\n',
-    `🚀 Server runs on: ${NESTJS_URL}\n`,
-    `👤 Client is set to: ${REACT_FRONTEND_URL}\n`,
+    `🚀 Server runs on: ${env.SERVER_URL}\n`,
+    `👤 Client is set to: ${env.REACT_FRONTEND_URL}\n`,
     '==============================================',
   );
 }

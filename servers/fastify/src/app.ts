@@ -1,23 +1,23 @@
-import Fastify from 'fastify';
+import cookieParser from '@fastify/cookie';
 import cors from '@fastify/cors';
+import formBody from '@fastify/formbody';
 import helmet from '@fastify/helmet';
 import rateLimiter from '@fastify/rate-limit';
-import cookieParser from '@fastify/cookie';
-import formBody from '@fastify/formbody';
-import { FASTIFY_URL, NODE_ENV, PROXIES, REACT_FRONTEND_URL } from './env';
-import baseRoute from './routes';
+import Fastify from 'fastify';
+import { env } from './env';
 import { HttpException } from './error/HttpException';
+import baseRoute from './routes';
 
 export default async function createApp() {
   const app = Fastify({
     logger: true,
-    trustProxy: NODE_ENV === 'production' && PROXIES ? PROXIES : false,
+    trustProxy: env.NODE_ENV === 'production' && env.PROXIES ? env.PROXIES : false,
   });
 
   app.setErrorHandler((error, req, reply) => {
     const { message, statusCode } = new HttpException(error);
-    if (NODE_ENV === 'development' && ![401, 403, 404].includes(statusCode)) console.error(error);
-    if (NODE_ENV === 'production' && [401, 403].includes(statusCode)) {
+    if (env.NODE_ENV === 'development' && ![401, 403, 404].includes(statusCode)) console.error(error);
+    if (env.NODE_ENV === 'production' && [401, 403].includes(statusCode)) {
       reply.status(404).send({ error: 'Not Found', statusCode: 404 });
       return;
     }
@@ -25,7 +25,7 @@ export default async function createApp() {
   });
 
   await app.register(cors, {
-    origin: [FASTIFY_URL, REACT_FRONTEND_URL],
+    origin: [env.SERVER_URL, env.REACT_FRONTEND_URL],
     methods: 'GET,POST,PUT,DELETE,OPTIONS',
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
@@ -79,7 +79,7 @@ export default async function createApp() {
   await app.register(formBody);
   await app.register(cookieParser);
 
-  await app.register(baseRoute, { prefix: new URL(FASTIFY_URL).pathname });
+  await app.register(baseRoute, { prefix: new URL(env.SERVER_URL).pathname });
 
   return app;
 }

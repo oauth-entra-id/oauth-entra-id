@@ -1,20 +1,20 @@
-import express, { type Application } from 'express';
 import cookieParser from 'cookie-parser';
-import helmet from 'helmet';
 import cors from 'cors';
+import express, { type Application } from 'express';
 import rateLimiter from 'express-rate-limit';
+import helmet from 'helmet';
 import morgan from 'morgan';
 import { authConfig } from 'oauth-entra-id/express';
-import { AZURE, SECRET_KEY, REACT_FRONTEND_URL, PROXIES, EXPRESS_URL, NODE_ENV } from './env';
+import { env } from './env';
+import { errorCatcher } from './error/errorCatcher';
 import { notFound } from './middlewares/not-found';
 import { routesRouter } from './routes';
-import { errorCatcher } from './error/errorCatcher';
 
 export default function createApp(): Application {
   const app = express();
 
-  if (NODE_ENV === 'production' && PROXIES) {
-    app.set('trust proxy', PROXIES);
+  if (env.NODE_ENV === 'production' && env.PROXIES) {
+    app.set('trust proxy', env.PROXIES);
   }
 
   app.disable('x-powered-by');
@@ -23,7 +23,7 @@ export default function createApp(): Application {
 
   app.use(
     cors({
-      origin: [EXPRESS_URL, REACT_FRONTEND_URL],
+      origin: [env.SERVER_URL, env.REACT_FRONTEND_URL],
       methods: 'GET,POST,PUT,DELETE,OPTIONS',
       allowedHeaders: ['Content-Type', 'Authorization'],
       credentials: true,
@@ -76,25 +76,25 @@ export default function createApp(): Application {
     }),
   );
 
-  if (NODE_ENV === 'production') {
+  if (env.NODE_ENV === 'production') {
     app.get('/', (_req, res) => {
       res.sendStatus(200);
     });
   }
-  app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'));
+  app.use(morgan(env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
   app.use(cookieParser());
 
   app.use(
     authConfig({
-      azure: AZURE,
-      frontendUrl: REACT_FRONTEND_URL,
-      serverFullCallbackUrl: `${EXPRESS_URL}/auth/callback`,
-      secretKey: SECRET_KEY,
+      azure: env.AZURE,
+      frontendUrl: env.REACT_FRONTEND_URL,
+      serverFullCallbackUrl: `${env.SERVER_URL}/auth/callback`,
+      secretKey: env.SECRET_KEY,
     }),
   );
 
-  app.use(new URL(EXPRESS_URL).pathname, routesRouter);
+  app.use(new URL(env.SERVER_URL).pathname, routesRouter);
 
   app.use('*', notFound);
 

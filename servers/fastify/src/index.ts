@@ -1,18 +1,18 @@
 import createApp from './app';
-import { FASTIFY_PORT, FASTIFY_URL, REACT_FRONTEND_URL } from './env';
+import { env } from './env';
 
 async function bootstrap() {
   const app = await createApp();
 
   await app.listen({
-    port: FASTIFY_PORT,
+    port: env.SERVER_PORT,
     host: '0.0.0.0',
   });
 
   console.log(
     '============= ⚡  Fastify Server ⚡  =============\n',
-    `🚀 Server runs on: ${FASTIFY_URL}\n`,
-    `👤 Client is set to: ${REACT_FRONTEND_URL}\n`,
+    `🚀 Server runs on: ${env.SERVER_URL}\n`,
+    `👤 Client is set to: ${env.REACT_FRONTEND_URL}\n`,
     '==============================================',
   );
 }

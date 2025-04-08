@@ -1,10 +1,10 @@
 import { OAuthProvider } from 'oauth-entra-id';
-import { AZURE, HONOJS_URL, REACT_FRONTEND_URL, SECRET_KEY } from './env';
+import { env } from './env';
 
 export const oauthProvider = new OAuthProvider({
-  azure: AZURE,
-  frontendUrl: REACT_FRONTEND_URL,
-  serverFullCallbackUrl: `${HONOJS_URL}/auth/callback`,
-  secretKey: SECRET_KEY,
+  azure: env.AZURE,
+  frontendUrl: env.REACT_FRONTEND_URL,
+  serverFullCallbackUrl: `${env.SERVER_URL}/auth/callback`,
+  secretKey: env.SECRET_KEY,
   cookieTimeFrame: 'sec',
 });
