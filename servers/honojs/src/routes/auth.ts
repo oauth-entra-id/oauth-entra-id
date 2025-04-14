@@ -18,10 +18,12 @@ authRouter.post('/callback', async (c) => {
     throw new HTTPException(400, { message: 'Invalid content type' });
 
   const { code, state } = await c.req.parseBody();
-  const { frontendUrl, accessToken, refreshToken } = await oauthProvider.exchangeCodeForToken({
+  const { frontendUrl, accessToken, refreshToken, msalResponse } = await oauthProvider.exchangeCodeForToken({
     code: code as string,
     state: state as string,
   });
+
+  console.log(msalResponse.accessToken);
 
   setCookie(c, accessToken.name, accessToken.value, accessToken.options);
   if (refreshToken) setCookie(c, refreshToken.name, refreshToken.value, refreshToken.options);

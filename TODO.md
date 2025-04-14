@@ -1,11 +1,11 @@
 # TODO List:
 
 - Package:
-  - [ ] Add client id to the token names
-  - [ ] Add silent endpoint mechanism
-  - [ ] Add refresh token time settings
-  - [ ] Add error endpoint settings
-  - [ ] Add type feature for when the allowOtherSystem is false the userInfo will be only user
+  - [ ] Silent endpoint mechanism
+  - [ ] Refresh token time settings
+  - [ ] Error endpoint settings
+  - [ ] Type feature for when the `allowOtherSystem` is `false` the `userInfo` will be only `user`
+  - [ ] Type help with common scopes and make it into an Array
 
 - Demos:
   - [ ] Add Swagger and Proxies

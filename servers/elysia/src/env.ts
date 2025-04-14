@@ -30,7 +30,7 @@ export const env = {
   AZURE: {
     clientId: parsedEnv.data.AZURE_CLIENT_ID,
     tenantId: parsedEnv.data.AZURE_TENANT_ID,
-    clientScopes: parsedEnv.data.AZURE_CLIENT_SCOPES,
+    clientScopes: [parsedEnv.data.AZURE_CLIENT_SCOPES],
     clientSecret: parsedEnv.data.AZURE_CLIENT_SECRET,
   },
   NODE_ENV: parsedEnv.data.NODE_ENV,

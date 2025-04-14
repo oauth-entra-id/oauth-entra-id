@@ -13,10 +13,10 @@ const zEnv = z.object({
   REACT_FRONTEND_URL: zStr.url().default('http://localhost:5000'),
   SECRET_KEY: zStr,
   PROXIES: z.union([z.number().nonnegative(), zStr.regex(/^\d+$/).transform(Number)]).default(0),
-  AZURE_CLIENT_ID: zStr.uuid(),
-  AZURE_TENANT_ID: zStr.uuid(),
-  AZURE_CLIENT_SCOPES: zStr,
-  AZURE_CLIENT_SECRET: zStr,
+  AZURE2_CLIENT_ID: zStr.uuid(),
+  AZURE2_TENANT_ID: zStr.uuid(),
+  AZURE2_CLIENT_SCOPES: zStr,
+  AZURE2_CLIENT_SECRET: zStr,
 });
 
 const parsedEnv = zEnv.safeParse(process.env);
@@ -28,10 +28,10 @@ if (parsedEnv.error) {
 
 export const env = {
   AZURE: {
-    clientId: parsedEnv.data.AZURE_CLIENT_ID,
-    tenantId: parsedEnv.data.AZURE_TENANT_ID,
-    clientScopes: parsedEnv.data.AZURE_CLIENT_SCOPES,
-    clientSecret: parsedEnv.data.AZURE_CLIENT_SECRET,
+    clientId: parsedEnv.data.AZURE2_CLIENT_ID,
+    tenantId: parsedEnv.data.AZURE2_TENANT_ID,
+    clientScopes: [parsedEnv.data.AZURE2_CLIENT_SCOPES],
+    clientSecret: parsedEnv.data.AZURE2_CLIENT_SECRET,
   },
   NODE_ENV: parsedEnv.data.NODE_ENV,
   SERVER_URL: parsedEnv.data.HONOJS_URL,

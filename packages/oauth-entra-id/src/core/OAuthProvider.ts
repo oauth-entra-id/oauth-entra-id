@@ -15,10 +15,14 @@ import {
 } from '~/core/zod';
 import { OAuthError } from './OAuthError';
 
+const SECURE_COOKIE_PREFIX = '__Host';
+const ACCESS_TOKEN_NAME = 'AccessToken';
+const REFRESH_TOKEN_NAME = 'RefreshToken';
+
 type LoginPrompt = 'email' | 'select-account' | 'sso';
 
 export interface OAuthConfig {
-  azure: { clientId: string; tenantId: string; clientScopes: string; clientSecret: string };
+  azure: { clientId: string; tenantId: string; clientScopes: string[]; clientSecret: string };
   frontendUrl: string | string[];
   serverFullCallbackUrl: string;
   secretKey: string;
@@ -45,6 +49,7 @@ export class OAuthProvider {
   private readonly msalCryptoProvider: CryptoProvider;
   private readonly jwksClient: JwksClient;
   private readonly cookieOptions: CookieOptions;
+  private readonly isHttps: boolean;
   readonly debug: boolean;
 
   /**
@@ -82,7 +87,9 @@ export class OAuthProvider {
 
     const cookieOptions = {
       accessToken: {
-        name: config.isHttps ? `__Host-AccessToken-${config.azure.clientId}` : `AccessToken-${config.azure.clientId}`,
+        name: config.isHttps
+          ? `${SECURE_COOKIE_PREFIX}-${ACCESS_TOKEN_NAME}-${config.azure.clientId}`
+          : `${ACCESS_TOKEN_NAME}-${config.azure.clientId}`,
         options: {
           ...cookieBaseOptions,
           sameSite: config.isCrossOrigin ? (config.isHttps ? 'none' : undefined) : 'strict',
@@ -90,7 +97,9 @@ export class OAuthProvider {
         },
       },
       refreshToken: {
-        name: config.isHttps ? `__Host-RefreshToken-${config.azure.clientId}` : `RefreshToken-${config.azure.clientId}`,
+        name: config.isHttps
+          ? `${SECURE_COOKIE_PREFIX}-${REFRESH_TOKEN_NAME}-${config.azure.clientId}`
+          : `${REFRESH_TOKEN_NAME}-${config.azure.clientId}`,
         options: {
           ...cookieBaseOptions,
           sameSite: config.isCrossOrigin ? (config.isHttps ? 'none' : undefined) : 'strict',
@@ -113,8 +122,9 @@ export class OAuthProvider {
     this.cca = cca;
     this.msalCryptoProvider = new msal.CryptoProvider();
     this.jwksClient = jwksClient;
-    this.debug = config.debug;
     this.cookieOptions = cookieOptions;
+    this.isHttps = config.isHttps;
+    this.debug = config.debug;
 
     if (config.debug) console.log('[oauth-entra-id] OAuthProvider is created.');
   }
@@ -190,7 +200,7 @@ export class OAuthProvider {
       const microsoftUrl = await this.cca.getAuthCodeUrl({
         ...params,
         state: state,
-        scopes: this.azure.clientScopes.split(' '),
+        scopes: this.azure.clientScopes,
         redirectUri: this.serverFullCallbackUrl,
         responseMode: 'form_post',
         codeChallengeMethod: 'S256',
@@ -266,7 +276,7 @@ export class OAuthProvider {
 
       const msalResponse = await this.cca.acquireTokenByCode({
         code: validOptions.code,
-        scopes: this.azure.clientScopes.split(' '),
+        scopes: this.azure.clientScopes,
         redirectUri: this.serverFullCallbackUrl,
         ...state,
       });
@@ -435,7 +445,7 @@ export class OAuthProvider {
       const token = decrypt(encryptedToken, this.secretKey);
       const msalResponse = await this.cca.acquireTokenByRefreshToken({
         refreshToken: token,
-        scopes: this.azure.clientScopes.split(' '),
+        scopes: this.azure.clientScopes,
         forceCache: true,
       });
       if (!msalResponse)
@@ -459,6 +469,15 @@ export class OAuthProvider {
       this.debugLog({ message: `Error refreshing token: ${error}`, methodName: 'refreshToken' });
       return null;
     }
+  }
+
+  async getTokenRemotely(options: { accessToken: string; scopeOfRemoteServer: string }) {
+    const newToken = await this.cca.acquireTokenOnBehalfOf({
+      oboAssertion: options.accessToken,
+      scopes: [options.scopeOfRemoteServer],
+      skipCache: false,
+    });
+    return newToken;
   }
 }
 

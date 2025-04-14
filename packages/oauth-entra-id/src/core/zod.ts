@@ -15,7 +15,7 @@ export const zConfig = z
     azure: z.object({
       clientId: zUuid,
       tenantId: zUuid,
-      clientScopes: zStr.min(3),
+      clientScopes: z.array(zStr.min(3)).min(1),
       clientSecret: zStr.min(32),
     }),
     frontendUrl: z.union([zUrl.transform((url) => [url]), z.array(zUrl).min(1)]),
