@@ -22,7 +22,9 @@ interface ServerStore {
   server: Server;
   label: string;
   serverUrl: string;
+  appId: undefined | string | null;
   setServer: (server: Server) => void;
+  setAppId: (appId: string | null) => void;
 }
 
 export const useServerStore = create<ServerStore>()(
@@ -31,12 +33,14 @@ export const useServerStore = create<ServerStore>()(
       server: 'honojs',
       label: serversMap.honojs.label,
       serverUrl: serversMap.honojs.url,
+      appId: undefined,
       setServer: (server) =>
         set({
           server,
           label: serversMap[server].label,
           serverUrl: serversMap[server].url,
         }),
+      setAppId: (appId) => set({ appId }),
     }),
     {
       name: 'server',
@@ -54,6 +58,7 @@ export const useServerStore = create<ServerStore>()(
           server,
           serverUrl: serversMap[server].url,
           label: serversMap[server].label,
+          appId: currentState.appId,
         };
       },
     },

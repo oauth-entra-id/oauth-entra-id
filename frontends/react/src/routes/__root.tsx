@@ -1,9 +1,12 @@
 import { Outlet, createRootRoute, useLocation, useNavigate } from '@tanstack/react-router';
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools';
-import { useEffect, useId } from 'react';
+import { useEffect } from 'react';
+import { DotsBackground } from '~/components/DotsBackground';
 import { Loading } from '~/components/Loading';
 import { Navbar } from '~/components/NavBar';
 import { NotFound } from '~/components/NotFound';
+import { ServersDropdown } from '~/components/ServersDropdown';
+import { MutedText, SmallMutedText, Title } from '~/components/ui/Text';
 import { getAppId, getUserData } from '~/services/user';
 import { useServerStore } from '~/stores/serverStore';
 import { useThemeStore } from '~/stores/themeStore';
@@ -16,29 +19,37 @@ export const Route = createRootRoute({
 
 function Root() {
   const theme = useThemeStore((state) => state.theme);
-  const user = useUserStore((state) => state.user);
-  const setUser = useUserStore((state) => state.setUser);
-  const setAppId = useUserStore((state) => state.setAppId);
+  const { user, setUser } = useUserStore();
   const server = useServerStore((state) => state.server);
+  const appId = useServerStore((state) => state.appId);
+  const setAppId = useServerStore((state) => state.setAppId);
   const navigate = useNavigate();
   const location = useLocation();
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: There is a correlation between the server and appId
+  // biome-ignore lint/correctness/useExhaustiveDependencies: There is a correlation
   useEffect(() => {
-    (async () => setAppId(await getAppId()))();
-  }, [setAppId, server]);
+    (async () => {
+      setAppId(await getAppId());
+      setUser(await getUserData());
+    })();
+  }, [setAppId, setUser, server]);
 
   useEffect(() => {
-    (async () => setUser(await getUserData()))();
-  }, [setUser]);
-
-  useEffect(() => {
-    if (!user && location.pathname !== '/login') {
+    const inLoginPage = location.pathname === '/login';
+    if (!user && !inLoginPage) {
       navigate({ to: '/login' });
-    } else if (user && location.pathname === '/login') {
+    } else if (user && inLoginPage) {
       navigate({ to: '/' });
     }
   }, [user, location.pathname, navigate]);
+
+  if (user === undefined || appId === undefined) {
+    return (
+      <div className={theme}>
+        <Loading />
+      </div>
+    );
+  }
 
   return (
     <>
@@ -46,36 +57,24 @@ function Root() {
         <div className="h-full px-4 sm:px-6 lg:px-8">
           <Navbar />
           <div className="flex flex-col items-center justify-center mt-2">
-            {user === undefined ? <Loading /> : <Outlet />}
+            <div className="flex flex-col items-center justify-center space-y-3 z-10">
+              <Title>
+                Welcome,
+                <br /> {user ? user.name : 'Guest'}
+              </Title>
+              <SmallMutedText className="mb-1">
+                <span className="font-bold">App Id: </span>
+                {appId}
+              </SmallMutedText>
+              <Outlet />
+              <ServersDropdown />
+              <MutedText>React demo that shows how to integrate OAuth2.0 Flow.</MutedText>
+            </div>
           </div>
           <DotsBackground />
         </div>
       </div>
       <TanStackRouterDevtools />
     </>
-  );
-}
-
-function DotsBackground() {
-  const id = useId();
-
-  return (
-    <svg
-      aria-hidden="true"
-      className="pointer-events-none absolute inset-0 size-full fill-neutral-400/80 [mask-image:radial-gradient(350px_circle_at_center,white,transparent)] md:[mask-image:radial-gradient(450px_circle_at_center,white,transparent)] lg:[mask-image:radial-gradient(550px_circle_at_center,white,transparent)]">
-      <defs>
-        <pattern
-          x={0}
-          y={0}
-          width={16}
-          height={16}
-          id={id}
-          patternContentUnits="userSpaceOnUse"
-          patternUnits="userSpaceOnUse">
-          <circle cx={1} cy={1} r={1} id="pattern-circle" />
-        </pattern>
-      </defs>
-      <rect fill={`url(#${id})`} height="100%" width="100%" strokeWidth={0} />
-    </svg>
   );
 }

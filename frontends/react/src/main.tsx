@@ -9,7 +9,7 @@ import { routeTree } from './routeTree.gen';
 import './styles.css';
 
 scan({
-  enabled: false,
+  enabled: true,
 });
 
 // Create a new router instance
