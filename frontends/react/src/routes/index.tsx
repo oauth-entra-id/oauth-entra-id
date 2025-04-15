@@ -5,7 +5,7 @@ import { Button } from '~/components/ui/Button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '~/components/ui/Card';
 import { Separator } from '~/components/ui/Separator';
 import { useWindowDimensions } from '~/hooks/useWindowDimensions';
-import { logoutAndGetLogoutUrl } from '~/services/user';
+import { getTokensOnBehalfOf, logoutAndGetLogoutUrl } from '~/services/user';
 import { useUserStore } from '~/stores/userStore';
 
 export const Route = createFileRoute('/')({
@@ -43,8 +43,11 @@ function Home() {
           <div>
             <span className="font-bold">Name:</span> {user.name}
           </div>
-          <div className="flex justify-center">
-            <Button variant="outline" onClick={() => logout()}>
+          <div className="flex justify-center w-full space-x-2 px-1">
+            <Button variant="outline" className="flex-1" onClick={async () => await getTokensOnBehalfOf()}>
+              New Tokens
+            </Button>
+            <Button variant="destructive" className="flex-1" onClick={async () => await logout()}>
               Logout
             </Button>
           </div>

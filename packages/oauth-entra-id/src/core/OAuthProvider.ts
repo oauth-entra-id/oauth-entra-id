@@ -466,7 +466,6 @@ export class OAuthProvider {
       const accessTokenPayload = await this.verifyJwt(msalResponse.accessToken);
       const cachedRefreshToken = await this.getRefreshTokenFromCache(msalResponse);
       const refreshToken = cachedRefreshToken ? encrypt(cachedRefreshToken, this.secretKey) : null;
-
       const cookieOptions = this.getCookieOptions();
 
       return {
@@ -481,13 +480,49 @@ export class OAuthProvider {
     }
   }
 
-  async getTokenOnBehalfOf(options: { accessToken: string; scopeOfRemoteServer: string }) {
-    const newToken = await this.cca.acquireTokenOnBehalfOf({
-      oboAssertion: options.accessToken,
-      scopes: [options.scopeOfRemoteServer],
-      skipCache: false,
-    });
-    return newToken;
+  async getTokenOnBehalfOf(options: { accessToken: string; scopeOfRemoteServer: string }): Promise<{
+    accessToken: SetToken;
+    refreshToken: SetToken | null;
+    msalResponse: AuthenticationResult;
+  }> {
+    try {
+      const { data: token, error: tokenError } = zJwt.safeParse(
+        zEncrypted.safeParse(options.accessToken).success
+          ? decrypt(options.accessToken, this.secretKey)
+          : options.accessToken,
+      );
+      if (tokenError) throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid JWT Token' });
+
+      const msalResponse = await this.cca.acquireTokenOnBehalfOf({
+        oboAssertion: token,
+        scopes: [options.scopeOfRemoteServer],
+        skipCache: false,
+      });
+
+      if (!msalResponse) throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid Access Token' });
+
+      const accessToken = encrypt(msalResponse.accessToken, this.secretKey);
+      const cachedRefreshToken = await this.getRefreshTokenFromCache(msalResponse);
+      const refreshToken = cachedRefreshToken ? encrypt(cachedRefreshToken, this.secretKey) : null;
+
+      const decodedAccessToken = jwt.decode(msalResponse.accessToken, { json: true });
+      if (!decodedAccessToken) {
+        throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid Access Token' });
+      }
+      const cookieOptions = this.getCookieOptions(decodedAccessToken.aud as string);
+
+      return {
+        accessToken: { value: accessToken, ...cookieOptions.accessToken },
+        refreshToken: refreshToken ? { value: refreshToken, ...cookieOptions.refreshToken } : null,
+        msalResponse,
+      };
+    } catch (error) {
+      if (error instanceof OAuthError) throw error;
+      throw new OAuthError(500, {
+        message: 'Error exchanging code for token',
+        description: error as string,
+      });
+    }
   }
 }
 

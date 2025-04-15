@@ -6,5 +6,5 @@ export const oauthProvider = new OAuthProvider({
   frontendUrl: env.REACT_FRONTEND_URL,
   serverCallbackUrl: `${env.SERVER_URL}/auth/callback`,
   secretKey: env.SECRET_KEY,
-  advanced: { cookieTimeFrame: 'sec' },
+  advanced: { cookieTimeFrame: 'sec', debug: true },
 });

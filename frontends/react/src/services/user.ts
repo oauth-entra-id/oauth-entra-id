@@ -64,3 +64,8 @@ export async function getAppId() {
   if (parsed.error) return null;
   return parsed.data.appId;
 }
+
+export async function getTokensOnBehalfOf() {
+  const serverUrl = useServerStore.getState().serverUrl;
+  await tryCatch(axiosFetch.post(`${serverUrl}/protected/on-behalf-of`));
+}
