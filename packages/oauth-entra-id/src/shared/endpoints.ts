@@ -16,7 +16,7 @@ export const sharedHandleAuthentication = (server: ServerType) => {
 
     const body = req.body as AuthenticationBody | undefined;
 
-    const { authUrl } = await req.oauthProvider.generateAuthUrl(
+    const { authUrl } = await req.oauthProvider.getAuthUrl(
       body ? { loginPrompt: body.loginPrompt, email: body.email, frontendUrl: body.frontendUrl } : {},
     );
 
@@ -40,7 +40,7 @@ export const sharedHandleCallback = (server: ServerType) => {
       });
     }
 
-    const { frontendUrl, accessToken, refreshToken } = await req.oauthProvider.exchangeCodeForToken({
+    const { frontendUrl, accessToken, refreshToken } = await req.oauthProvider.getTokenByCode({
       code: body.code,
       state: body.state,
     });

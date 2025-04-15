@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
-import type { ServerType } from '~/shared/request-extension';
 import { OAuthError } from '~/core/OAuthError';
+import type { ServerType } from '~/shared/request-extension';
 
 export const sharedRequireAuthentication = (server: ServerType) => {
   return async (req: Request, res: Response): Promise<boolean> => {
@@ -68,7 +68,7 @@ export const sharedRequireAuthentication = (server: ServerType) => {
     debugLog('Access token is invalid, trying to refresh it...');
     if (!refreshTokenCookie) throw new OAuthError(401, { message: 'Unauthorized', description: 'No refresh token' });
 
-    const newTokens = await req.oauthProvider.refreshAccessToken(refreshTokenCookie);
+    const newTokens = await req.oauthProvider.getTokenByRefresh(refreshTokenCookie);
     if (!newTokens) throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid refresh token' });
     const { newAccessToken, newRefreshToken, msal } = newTokens;
     debugLog('Access token refreshed successfully');

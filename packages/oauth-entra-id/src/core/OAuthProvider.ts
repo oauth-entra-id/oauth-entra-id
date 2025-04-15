@@ -4,31 +4,25 @@ import type { AuthenticationResult, ConfidentialClientApplication, CryptoProvide
 import jwt, { type JwtPayload } from 'jsonwebtoken';
 import jwks, { type JwksClient } from 'jwks-rsa';
 import { createSecretKey, decrypt, decryptObject, encrypt, encryptObject } from '~/core/crypto';
-import {
-  zConfig,
-  zEncrypted,
-  zExchangeCodeForTokenOptions,
-  zGenerateAuthUrlOptions,
-  zJwt,
-  zState,
-  zUrl,
-} from '~/core/zod';
+import { zConfig, zEncrypted, zGetAuthUrl, zGetTokenByCode, zJwt, zState, zUrl } from '~/core/zod';
 import { OAuthError } from './OAuthError';
 
-const SECURE_COOKIE_PREFIX = '__Host';
-const ACCESS_TOKEN_NAME = 'AccessToken';
-const REFRESH_TOKEN_NAME = 'RefreshToken';
+const ACCESS_TOKEN_NAME = 'AccessToken' as const;
+const REFRESH_TOKEN_NAME = 'RefreshToken' as const;
 
 type LoginPrompt = 'email' | 'select-account' | 'sso';
 
 export interface OAuthConfig {
-  azure: { clientId: string; tenantId: string; clientScopes: string[]; clientSecret: string };
+  azure: { clientId: string; tenantId: string; scopes: string[]; secret: string };
   frontendUrl: string | string[];
-  serverFullCallbackUrl: string;
+  serverCallbackUrl: string;
   secretKey: string;
-  cookieTimeFrame?: 'ms' | 'sec';
-  loginPrompt?: LoginPrompt;
-  debug?: boolean;
+  advanced?: {
+    loginPrompt?: LoginPrompt;
+    cookieTimeFrame?: 'ms' | 'sec';
+    refreshTokenExpiry?: number; // in seconds
+    debug?: boolean;
+  };
 }
 
 /**
@@ -41,16 +35,18 @@ export interface OAuthConfig {
 export class OAuthProvider {
   private readonly azure: OAuthConfig['azure'];
   private readonly frontendUrl: string[];
-  private readonly frontendHosts: string[];
-  private readonly serverFullCallbackUrl: string;
+  private readonly serverCallbackUrl: string;
   private readonly secretKey: KeyObject;
+  private readonly frontendHosts: string[];
+  private readonly isHttps: boolean;
+  private readonly isCrossOrigin: boolean;
   private readonly loginPrompt: LoginPrompt;
+  private readonly cookieTimeFrame: 'ms' | 'sec';
+  private readonly refreshTokenExpiry: number;
+  readonly debug: boolean;
   private readonly cca: ConfidentialClientApplication;
   private readonly msalCryptoProvider: CryptoProvider;
   private readonly jwksClient: JwksClient;
-  private readonly cookieOptions: CookieOptions;
-  private readonly isHttps: boolean;
-  readonly debug: boolean;
 
   /**
    * Creates an instance of OAuthProvider.
@@ -67,11 +63,17 @@ export class OAuthProvider {
       });
     }
 
+    const frontendHosts = config.frontendUrl.map((url) => new URL(url).host);
+    const serverHost = new URL(config.serverCallbackUrl).host;
+    const isHttps =
+      config.serverCallbackUrl.startsWith('https') && config.frontendUrl.every((url) => url.startsWith('https'));
+    const isCrossOrigin = config.frontendUrl.length === 1 ? frontendHosts[0] !== serverHost : true;
+
     const cca = new msal.ConfidentialClientApplication({
       auth: {
         clientId: config.azure.clientId,
         authority: `https://login.microsoftonline.com/${config.azure.tenantId}`,
-        clientSecret: config.azure.clientSecret,
+        clientSecret: config.azure.secret,
       },
     });
 
@@ -83,50 +85,22 @@ export class OAuthProvider {
       rateLimit: true,
     });
 
-    const cookieBaseOptions = { httpOnly: true, secure: config.isHttps, path: '/' } as const;
-
-    const cookieOptions = {
-      accessToken: {
-        name: config.isHttps
-          ? `${SECURE_COOKIE_PREFIX}-${ACCESS_TOKEN_NAME}-${config.azure.clientId}`
-          : `${ACCESS_TOKEN_NAME}-${config.azure.clientId}`,
-        options: {
-          ...cookieBaseOptions,
-          sameSite: config.isCrossOrigin ? (config.isHttps ? 'none' : undefined) : 'strict',
-          maxAge: config.cookieTimeFrame === 'sec' ? 3600 : 3600000,
-        },
-      },
-      refreshToken: {
-        name: config.isHttps
-          ? `${SECURE_COOKIE_PREFIX}-${REFRESH_TOKEN_NAME}-${config.azure.clientId}`
-          : `${REFRESH_TOKEN_NAME}-${config.azure.clientId}`,
-        options: {
-          ...cookieBaseOptions,
-          sameSite: config.isCrossOrigin ? (config.isHttps ? 'none' : undefined) : 'strict',
-          maxAge: config.cookieTimeFrame === 'sec' ? 2592000 : 2592000000,
-        },
-      },
-      deleteOptions: {
-        ...cookieBaseOptions,
-        sameSite: config.isHttps ? 'none' : undefined,
-        maxAge: 0,
-      },
-    } as const;
-
     this.azure = config.azure;
     this.frontendUrl = config.frontendUrl;
-    this.serverFullCallbackUrl = config.serverFullCallbackUrl;
+    this.serverCallbackUrl = config.serverCallbackUrl;
     this.secretKey = createSecretKey(config.secretKey);
-    this.frontendHosts = config.frontendHosts;
-    this.loginPrompt = config.loginPrompt;
+    this.frontendHosts = frontendHosts;
+    this.isHttps = isHttps;
+    this.isCrossOrigin = isCrossOrigin;
+    this.loginPrompt = config.advanced.loginPrompt;
+    this.cookieTimeFrame = config.advanced.cookieTimeFrame;
+    this.refreshTokenExpiry = config.advanced.refreshTokenExpiry;
+    this.debug = config.advanced.debug;
     this.cca = cca;
     this.msalCryptoProvider = new msal.CryptoProvider();
     this.jwksClient = jwksClient;
-    this.cookieOptions = cookieOptions;
-    this.isHttps = config.isHttps;
-    this.debug = config.debug;
 
-    if (config.debug) console.log('[oauth-entra-id] OAuthProvider is created.');
+    if (config.advanced.debug) console.log('[oauth-entra-id] OAuthProvider is created.');
   }
 
   private debugLog({ message, methodName }: { message: string; methodName: string }) {
@@ -139,8 +113,39 @@ export class OAuthProvider {
    */
   getCookieNames() {
     return {
-      accessTokenName: this.cookieOptions.accessToken.name,
-      refreshTokenName: this.cookieOptions.refreshToken.name,
+      accessTokenName: `${`${this.isHttps ? '__Host-' : ''}${ACCESS_TOKEN_NAME}-${this.azure.clientId}`}`,
+      refreshTokenName: `${`${this.isHttps ? '__Host-' : ''}${REFRESH_TOKEN_NAME}-${this.azure.clientId}`}`,
+    } as const;
+  }
+
+  private getCookieOptions(clientId?: string) {
+    const cookieBaseOptions = {
+      httpOnly: true,
+      secure: this.isHttps,
+      sameSite: this.isCrossOrigin ? (this.isHttps ? 'none' : undefined) : 'strict',
+      path: '/',
+    } as const;
+
+    return {
+      accessToken: {
+        name: `${`${this.isHttps ? '__Host-' : ''}${ACCESS_TOKEN_NAME}-${clientId ? clientId : this.azure.clientId}`}`,
+        options: {
+          ...cookieBaseOptions,
+          maxAge: 3600 * (this.cookieTimeFrame === 'sec' ? 1 : 1000),
+        },
+      },
+      refreshToken: {
+        name: `${`${this.isHttps ? '__Host-' : ''}${REFRESH_TOKEN_NAME}-${clientId ? clientId : this.azure.clientId}`}`,
+        options: {
+          ...cookieBaseOptions,
+          maxAge: this.refreshTokenExpiry * (this.cookieTimeFrame === 'sec' ? 1 : 1000),
+        },
+      },
+      deleteOptions: {
+        ...cookieBaseOptions,
+        sameSite: this.isHttps ? 'none' : undefined,
+        maxAge: 0,
+      },
     } as const;
   }
 
@@ -150,7 +155,7 @@ export class OAuthProvider {
    * @returns The authorization URL.
    * @throws {OAuthError} If options are invalid.
    */
-  async generateAuthUrl(
+  async getAuthUrl(
     options: { loginPrompt?: LoginPrompt; email?: string; frontendUrl?: string } = {},
   ): Promise<{ authUrl: string }> {
     this.debugLog({
@@ -158,7 +163,7 @@ export class OAuthProvider {
       methodName: 'generateAuthUrl',
     });
 
-    const { data: validOptions, error: optionsError } = zGenerateAuthUrlOptions.safeParse(options);
+    const { data: validOptions, error: optionsError } = zGetAuthUrl.safeParse(options);
     if (optionsError) {
       throw new OAuthError(400, {
         message: 'Invalid params',
@@ -200,8 +205,8 @@ export class OAuthProvider {
       const microsoftUrl = await this.cca.getAuthCodeUrl({
         ...params,
         state: state,
-        scopes: this.azure.clientScopes,
-        redirectUri: this.serverFullCallbackUrl,
+        scopes: this.azure.scopes,
+        redirectUri: this.serverCallbackUrl,
         responseMode: 'form_post',
         codeChallengeMethod: 'S256',
         codeChallenge: challenge,
@@ -239,9 +244,9 @@ export class OAuthProvider {
    * @returns The access token, refresh token, frontend URL, and MSAL response.
    * @throws {OAuthError} If options are invalid.
    */
-  async exchangeCodeForToken(options: { code: string; state: string }): Promise<{
-    accessToken: AccessToken;
-    refreshToken: RefreshToken | null;
+  async getTokenByCode(options: { code: string; state: string }): Promise<{
+    accessToken: SetToken;
+    refreshToken: SetToken | null;
     frontendUrl: string;
     msalResponse: AuthenticationResult;
   }> {
@@ -250,7 +255,7 @@ export class OAuthProvider {
       methodName: 'exchangeCodeForToken',
     });
 
-    const { data: validOptions, error: optionsError } = zExchangeCodeForTokenOptions.safeParse(options);
+    const { data: validOptions, error: optionsError } = zGetTokenByCode.safeParse(options);
     if (optionsError) {
       throw new OAuthError(400, {
         message: 'Invalid params',
@@ -276,18 +281,19 @@ export class OAuthProvider {
 
       const msalResponse = await this.cca.acquireTokenByCode({
         code: validOptions.code,
-        scopes: this.azure.clientScopes,
-        redirectUri: this.serverFullCallbackUrl,
+        scopes: this.azure.scopes,
+        redirectUri: this.serverCallbackUrl,
         ...state,
       });
 
       const accessToken = encrypt(msalResponse.accessToken, this.secretKey);
       const cachedRefreshToken = await this.getRefreshTokenFromCache(msalResponse);
       const refreshToken = cachedRefreshToken ? encrypt(cachedRefreshToken, this.secretKey) : null;
+      const cookieOptions = this.getCookieOptions();
 
       return {
-        accessToken: { value: accessToken, ...this.cookieOptions.accessToken },
-        refreshToken: refreshToken ? { value: refreshToken, ...this.cookieOptions.refreshToken } : null,
+        accessToken: { value: accessToken, ...cookieOptions.accessToken },
+        refreshToken: refreshToken ? { value: refreshToken, ...cookieOptions.refreshToken } : null,
         frontendUrl: state.frontendUrl,
         msalResponse,
       };
@@ -308,8 +314,8 @@ export class OAuthProvider {
    */
   getLogoutUrl(options: { frontendUrl?: string } = {}): {
     logoutUrl: string;
-    accessToken: DeleteAccessToken;
-    refreshToken: DeleteRefreshToken;
+    accessToken: DeleteToken;
+    refreshToken: DeleteToken;
   } {
     this.debugLog({ message: `Options: ${JSON.stringify(options)}`, methodName: 'getLogoutUrl' });
     const { data: frontendUrl, error: frontendUrlError } = zUrl.optional().safeParse(options.frontendUrl);
@@ -325,17 +331,19 @@ export class OAuthProvider {
     const logoutUrl = new URL(`https://login.microsoftonline.com/${this.azure.tenantId}/oauth2/v2.0/logout`);
     logoutUrl.searchParams.set('post_logout_redirect_uri', frontendUrl ?? (this.frontendUrl[0] as string));
 
+    const cookieOptions = this.getCookieOptions();
+
     return {
       logoutUrl: logoutUrl.toString(),
       accessToken: {
-        name: this.cookieOptions.accessToken.name,
+        name: cookieOptions.accessToken.name,
         value: '',
-        options: this.cookieOptions.deleteOptions,
+        options: cookieOptions.deleteOptions,
       },
       refreshToken: {
-        name: this.cookieOptions.refreshToken.name,
+        name: cookieOptions.refreshToken.name,
         value: '',
-        options: this.cookieOptions.deleteOptions,
+        options: cookieOptions.deleteOptions,
       },
     };
   }
@@ -432,9 +440,9 @@ export class OAuthProvider {
    * @returns The new access token, refresh token, original JWT with its payload, and MSAL response.
    * @throws {OAuthError} If the refresh token is invalid.
    */
-  async refreshAccessToken(refreshToken: string): Promise<{
-    newAccessToken: AccessToken;
-    newRefreshToken: RefreshToken | null;
+  async getTokenByRefresh(refreshToken: string): Promise<{
+    newAccessToken: SetToken;
+    newRefreshToken: SetToken | null;
     msalResponse: AuthenticationResult;
     msal: { microsoftToken: string; payload: JwtPayload };
   } | null> {
@@ -445,7 +453,7 @@ export class OAuthProvider {
       const token = decrypt(encryptedToken, this.secretKey);
       const msalResponse = await this.cca.acquireTokenByRefreshToken({
         refreshToken: token,
-        scopes: this.azure.clientScopes,
+        scopes: this.azure.scopes,
         forceCache: true,
       });
       if (!msalResponse)
@@ -459,9 +467,11 @@ export class OAuthProvider {
       const cachedRefreshToken = await this.getRefreshTokenFromCache(msalResponse);
       const refreshToken = cachedRefreshToken ? encrypt(cachedRefreshToken, this.secretKey) : null;
 
+      const cookieOptions = this.getCookieOptions();
+
       return {
-        newAccessToken: { value: accessToken, ...this.cookieOptions.accessToken },
-        newRefreshToken: refreshToken ? { value: refreshToken, ...this.cookieOptions.refreshToken } : null,
+        newAccessToken: { value: accessToken, ...cookieOptions.accessToken },
+        newRefreshToken: refreshToken ? { value: refreshToken, ...cookieOptions.refreshToken } : null,
         msalResponse,
         msal: { microsoftToken: msalResponse.accessToken, payload: accessTokenPayload },
       };
@@ -471,7 +481,7 @@ export class OAuthProvider {
     }
   }
 
-  async getTokenRemotely(options: { accessToken: string; scopeOfRemoteServer: string }) {
+  async getTokenOnBehalfOf(options: { accessToken: string; scopeOfRemoteServer: string }) {
     const newToken = await this.cca.acquireTokenOnBehalfOf({
       oboAssertion: options.accessToken,
       scopes: [options.scopeOfRemoteServer],
@@ -481,52 +491,29 @@ export class OAuthProvider {
   }
 }
 
-interface AccessToken {
-  readonly name: CookieOptions['accessToken']['name'];
+export interface SetToken {
+  readonly name:
+    | `${typeof ACCESS_TOKEN_NAME}-${string}`
+    | `__Host-${typeof ACCESS_TOKEN_NAME}-${string}`
+    | `${typeof REFRESH_TOKEN_NAME}-${string}`
+    | `__Host-${typeof REFRESH_TOKEN_NAME}-${string}`;
   readonly value: string;
-  readonly options: CookieOptions['accessToken']['options'];
-}
-
-interface RefreshToken {
-  readonly name: CookieOptions['refreshToken']['name'];
-  readonly value: string;
-  readonly options: CookieOptions['refreshToken']['options'];
-}
-
-interface DeleteAccessToken {
-  readonly name: CookieOptions['accessToken']['name'];
-  readonly value: '';
-  readonly options: CookieOptions['deleteOptions'];
-}
-
-interface DeleteRefreshToken {
-  readonly name: CookieOptions['refreshToken']['name'];
-  readonly value: '';
-  readonly options: CookieOptions['deleteOptions'];
-}
-
-interface CookieOptions {
-  readonly accessToken: {
-    readonly name: string;
-    readonly options: {
-      readonly httpOnly: true;
-      readonly secure: boolean;
-      readonly path: '/';
-      readonly sameSite: 'strict' | 'none' | undefined;
-      readonly maxAge: 3600 | 3600000; // 1 hour
-    };
+  readonly options: {
+    readonly maxAge: number;
+    readonly httpOnly: true;
+    readonly secure: boolean;
+    readonly path: '/';
+    readonly sameSite: 'strict' | 'none' | undefined;
   };
-  readonly refreshToken: {
-    readonly name: string;
-    readonly options: {
-      readonly httpOnly: true;
-      readonly secure: boolean;
-      readonly path: '/';
-      readonly sameSite: 'strict' | 'none' | undefined;
-      readonly maxAge: 2592000 | 2592000000; // 30 days
-    };
-  };
-  readonly deleteOptions: {
+}
+export interface DeleteToken {
+  readonly name:
+    | `${typeof ACCESS_TOKEN_NAME}-${string}`
+    | `__Host-${typeof ACCESS_TOKEN_NAME}-${string}`
+    | `${typeof REFRESH_TOKEN_NAME}-${string}`
+    | `__Host-${typeof REFRESH_TOKEN_NAME}-${string}`;
+  readonly value: '';
+  readonly options: {
     readonly httpOnly: true;
     readonly secure: boolean;
     readonly path: '/';

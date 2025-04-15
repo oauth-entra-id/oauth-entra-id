@@ -57,7 +57,7 @@ function Home() {
           </Button>
         </CardFooter>
       </Card>
-      <div className="absolute inset-0 -z-10">
+      <div className="absolute inset-0 -z-10 pointer-events-none">
         <Confetti width={width} height={height} numberOfPieces={300} recycle={false} gravity={1} friction={0.95} />
       </div>
     </>

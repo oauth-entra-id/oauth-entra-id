@@ -29,9 +29,9 @@ npm install --save-dev @types/cookie-parser @types/cors
 
 2. Import `authConfig` and configure it in the root of your Express app:
 
-- `azure` - Azure parameters: `clientId`, `tenantId`, `clientScopes`, and `clientSecret`.
+- `azure` - Azure parameters: `clientId`, `tenantId`, `scopes`, and `clientSecret`.
 - `frontendUrl` - The frontend URL of the application for redirection.
-- `serverFullCallbackUrl` - matching the redirect URI in Azure, for example: `http://localhost:3000/auth/callback`.
+- `serverCallbackUrl` - matching the redirect URI in Azure, for example: `http://localhost:3000/auth/callback`.
 - `secretKey` - 32 characters long secret key for encryption.
 - `loginPrompt` (optional, default: sso) - can be `"email" | "select-account" | "sso"`.
 - `debug` (optional, default: false) - to enable debug logs.
@@ -64,11 +64,11 @@ function bootstrap() {
       azure: {
         clientId: env.AZURE_CLIENT_ID,
         tenantId: env.AZURE_TENANT_ID,
-        clientScopes: env.AZURE_CLIENT_SCOPES,
+        scopes: env.AZURE_CLIENT_SCOPES,
         clientSecret: env.AZURE_CLIENT_SECRET,
       },
       frontendUrl: env.FRONTEND_URL,
-      serverFullCallbackUrl: `${env.SERVER_URL}/auth/callback`,
+      serverCallbackUrl: `${env.SERVER_URL}/auth/callback`,
       secretKey: env.SECRET,
       loginPrompt: 'select-account', // Optional - default: "sso", can be "email" | "select-account" | "sso"
       debug: false, // Optional
@@ -155,11 +155,11 @@ async function bootstrap() {
       azure: {
         clientId: env.AZURE_CLIENT_ID,
         tenantId: env.AZURE_TENANT_ID,
-        clientScopes: env.AZURE_CLIENT_SCOPES,
+        scopes: env.AZURE_CLIENT_SCOPES,
         clientSecret: env.AZURE_CLIENT_SECRET,
       },
       frontendUrl: env.FRONTEND_URL,
-      serverFullCallbackUrl: `${env.SERVER_URL}/auth/callback`,
+      serverCallbackUrl: `${env.SERVER_URL}/auth/callback`,
       secretKey: env.SECRET,
       loginPrompt: 'select-account', // Optional - default: "sso", can be "email" | "select-account" | "sso"
       debug: false, // Optional
@@ -259,11 +259,11 @@ const oauthProvider = new OAuthProvider({
   azure: {
     clientId: env.AZURE_CLIENT_ID,
     tenantId: env.AZURE_TENANT_ID,
-    clientScopes: env.AZURE_CLIENT_SCOPES,
+    scopes: env.AZURE_CLIENT_SCOPES,
     clientSecret: env.AZURE_CLIENT_SECRET,
   },
   frontendUrl: env.FRONTEND_URL,
-  serverFullCallbackUrl: `${env.SERVER_URL}/auth/callback`,
+  serverCallbackUrl: `${env.SERVER_URL}/auth/callback`,
   secretKey: env.SECRET,
   cookieTimeFrame: 'sec', // Optional - default: "ms" can be "ms" | "sec"
   loginPrompt: 'select-account', // Optional - default: "sso", can be "email" | "select-account" | "sso"

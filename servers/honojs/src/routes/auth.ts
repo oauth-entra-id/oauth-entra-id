@@ -9,7 +9,7 @@ authRouter.post('/authenticate', async (c) => {
   const isJson = c.req.header('content-type')?.includes('application/json');
   const body = isJson ? await c.req.json() : {};
   const params = isJson ? { loginPrompt: body.loginPrompt, email: body.email, frontendUrl: body.frontendUrl } : {};
-  const { authUrl } = await oauthProvider.generateAuthUrl(params);
+  const { authUrl } = await oauthProvider.getAuthUrl(params);
   return c.json({ url: authUrl });
 });
 
@@ -18,7 +18,7 @@ authRouter.post('/callback', async (c) => {
     throw new HTTPException(400, { message: 'Invalid content type' });
 
   const { code, state } = await c.req.parseBody();
-  const { frontendUrl, accessToken, refreshToken, msalResponse } = await oauthProvider.exchangeCodeForToken({
+  const { frontendUrl, accessToken, refreshToken, msalResponse } = await oauthProvider.getTokenByCode({
     code: code as string,
     state: state as string,
   });

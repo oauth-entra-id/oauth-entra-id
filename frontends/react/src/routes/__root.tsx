@@ -53,7 +53,7 @@ function Root() {
 
   return (
     <>
-      <div className={`relative w-full h-screen bg-background text-foreground overflow-x-hidden ${theme}`}>
+      <div className={`relative z-0 w-full h-screen bg-background text-foreground overflow-x-hidden ${theme}`}>
         <div className="h-full px-4 sm:px-6 lg:px-8">
           <Navbar />
           <div className="flex flex-col items-center justify-center mt-2">

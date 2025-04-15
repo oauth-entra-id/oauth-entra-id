@@ -89,7 +89,7 @@ export default function createApp(): Application {
     authConfig({
       azure: env.AZURE,
       frontendUrl: env.REACT_FRONTEND_URL,
-      serverFullCallbackUrl: `${env.SERVER_URL}/auth/callback`,
+      serverCallbackUrl: `${env.SERVER_URL}/auth/callback`,
       secretKey: env.SECRET_KEY,
     }),
   );

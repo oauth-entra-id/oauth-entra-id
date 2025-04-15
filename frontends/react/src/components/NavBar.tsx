@@ -11,7 +11,7 @@ export function Navbar() {
   useDevTools(devToolsDisabled);
 
   return (
-    <nav className="w-full flex flex-row items-center justify-between px-4 py-2">
+    <nav className="w-full flex flex-row items-center justify-between px-4 py-2 z-20">
       <div
         className="font-mono font-black italic text-xl bg-gradient-to-br from-foreground to-50% to-muted-foreground bg-clip-text text-transparent"
         onDoubleClick={() => toggleDevTools()}>

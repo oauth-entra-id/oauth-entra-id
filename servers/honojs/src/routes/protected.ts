@@ -9,7 +9,7 @@ protectedRouter.get('/user-info', requireAuthentication, (c) => {
 });
 
 protectedRouter.get('/test', requireAuthentication, async (c) => {
-  const newToken = await oauthProvider.getTokenRemotely({
+  const newToken = await oauthProvider.getTokenOnBehalfOf({
     accessToken: c.var.msal.microsoftToken,
     scopeOfRemoteServer: process.env.AZURE_CLIENT_SCOPES as string,
   });

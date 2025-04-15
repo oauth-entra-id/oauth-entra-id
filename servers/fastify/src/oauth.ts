@@ -3,8 +3,8 @@ import { env } from './env';
 
 export const oauthProvider = new OAuthProvider({
   azure: env.AZURE,
-  serverFullCallbackUrl: `${env.SERVER_URL}/auth/callback`,
+  serverCallbackUrl: `${env.SERVER_URL}/auth/callback`,
   frontendUrl: env.REACT_FRONTEND_URL,
   secretKey: env.SECRET_KEY,
-  cookieTimeFrame: 'sec',
+  advanced: { cookieTimeFrame: 'sec' },
 });

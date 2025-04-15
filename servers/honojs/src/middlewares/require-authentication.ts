@@ -1,5 +1,5 @@
-import { createMiddleware } from 'hono/factory';
 import { getCookie, setCookie } from 'hono/cookie';
+import { createMiddleware } from 'hono/factory';
 import { HTTPException } from 'hono/http-exception';
 import { oauthProvider } from '~/oauth';
 
@@ -36,7 +36,7 @@ export const requireAuthentication = createMiddleware<{ Variables: RequireAuthen
     return;
   }
   if (!refreshToken) throw new HTTPException(401, { message: 'Unauthorized' });
-  const newTokens = await oauthProvider.refreshAccessToken(refreshToken);
+  const newTokens = await oauthProvider.getTokenByRefresh(refreshToken);
   if (!newTokens) throw new HTTPException(401, { message: 'Unauthorized' });
   const { newAccessToken, newRefreshToken, msal } = newTokens;
   setCookie(c, newAccessToken.name, newAccessToken.value, newAccessToken.options);

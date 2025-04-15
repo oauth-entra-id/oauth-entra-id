@@ -12,7 +12,7 @@ export const authRouter = async (app: FastifyInstance) => {
           }
         | undefined) || {};
 
-    const { authUrl } = await oauthProvider.generateAuthUrl({
+    const { authUrl } = await oauthProvider.getAuthUrl({
       loginPrompt: body.loginPrompt,
       email: body.email,
       frontendUrl: body.frontendUrl,
@@ -24,7 +24,7 @@ export const authRouter = async (app: FastifyInstance) => {
   app.post('/callback', async (req, reply) => {
     const { code, state } = req.body as { code: string; state: string };
 
-    const { frontendUrl, accessToken, refreshToken } = await oauthProvider.exchangeCodeForToken({
+    const { frontendUrl, accessToken, refreshToken } = await oauthProvider.getTokenByCode({
       code,
       state,
     });

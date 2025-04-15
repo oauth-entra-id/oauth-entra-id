@@ -1,5 +1,5 @@
-import { oauthProvider } from '../oauth';
 import type { FastifyReply, FastifyRequest } from 'fastify';
+import { oauthProvider } from '../oauth';
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -34,7 +34,7 @@ export default async function protectRoute(req: FastifyRequest, reply: FastifyRe
     return;
   }
   if (!refreshToken) return reply.status(401).send({ error: 'Unauthorized', statusCode: 401 });
-  const newTokens = await oauthProvider.refreshAccessToken(refreshToken);
+  const newTokens = await oauthProvider.getTokenByRefresh(refreshToken);
   if (!newTokens) return reply.status(401).send({ error: 'Unauthorized', statusCode: 401 });
   const { newAccessToken, newRefreshToken, msal } = newTokens;
   reply.setCookie(newAccessToken.name, newAccessToken.value, newAccessToken.options);
