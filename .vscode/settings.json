@@ -58,16 +58,5 @@
     "editor.defaultFormatter": "biomejs.biome"
   },
 
-  "cSpell.words": [
-    "elysia",
-    "elysiajs",
-    "entra",
-    "fastify",
-    "frontends",
-    "honojs",
-    "msal",
-    "partialize",
-    "PKCE",
-    "vite"
-  ]
+  "cSpell.words": ["entra", "fastify", "frontends", "honojs", "msal", "partialize", "PKCE", "vite"]
 }

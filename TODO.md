@@ -9,7 +9,6 @@
 
 - Demos:
   - [ ] Add Swagger and Proxies
-  - [ ] ElysiaJS
   - [ ] Vue
   - [ ] Svelte
   - [ ] NextJS

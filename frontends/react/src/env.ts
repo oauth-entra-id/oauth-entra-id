@@ -7,7 +7,6 @@ const zEnv = z.object({
   VITE_NESTJS_URL: zUrl,
   VITE_FASTIFY_URL: zUrl,
   VITE_HONOJS_URL: zUrl,
-  VITE_ELYSIA_URL: zUrl,
 });
 
 const parsedEnv = zEnv.safeParse(import.meta.env);
@@ -21,5 +20,4 @@ export const env = {
   NESTJS_SERVER: parsedEnv.data.VITE_NESTJS_URL,
   FASTIFY_SERVER: parsedEnv.data.VITE_FASTIFY_URL,
   HONOJS_SERVER: parsedEnv.data.VITE_HONOJS_URL,
-  ELYSIA_SERVER: parsedEnv.data.VITE_ELYSIA_URL,
 };

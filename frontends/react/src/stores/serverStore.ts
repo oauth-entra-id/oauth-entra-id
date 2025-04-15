@@ -1,14 +1,13 @@
 import { z } from 'zod';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import { Elysia } from '~/components/icons/Elysia';
 import { Express } from '~/components/icons/Express';
 import { Fastify } from '~/components/icons/Fastify';
 import { HonoJS } from '~/components/icons/HonoJS';
 import { NestJS } from '~/components/icons/NestJS';
 import { env } from '~/env';
 
-const zServer = z.enum(['express', 'nestjs', 'fastify', 'honojs', 'elysia']);
+const zServer = z.enum(['express', 'nestjs', 'fastify', 'honojs']);
 
 type Server = z.infer<typeof zServer>;
 
@@ -17,7 +16,6 @@ export const serversMap = {
   nestjs: { value: 'nestjs', label: 'NestJS', url: env.NESTJS_SERVER, Icon: NestJS },
   fastify: { value: 'fastify', label: 'Fastify', url: env.FASTIFY_SERVER, Icon: Fastify },
   honojs: { value: 'honojs', label: 'HonoJS', url: env.HONOJS_SERVER, Icon: HonoJS },
-  elysia: { value: 'elysia', label: 'Elysia', url: env.ELYSIA_SERVER, Icon: Elysia },
 } as Record<Server, { value: Server; label: string; url: string; Icon: React.FC<React.SVGProps<SVGSVGElement>> }>;
 
 interface ServerStore {
