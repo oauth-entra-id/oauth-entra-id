@@ -1,5 +1,5 @@
 import express from 'express';
-import type { Router, Request, Response } from 'express';
+import type { Request, Response, Router } from 'express';
 
 export const protectedRouter: Router = express.Router();
 

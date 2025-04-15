@@ -161,46 +161,6 @@ importers:
         specifier: ^5.8.3
         version: 5.8.3
 
-  servers/elysia:
-    dependencies:
-      '@chneau/elysia-logger':
-        specifier: ^1.0.10
-        version: 1.0.10(@sinclair/typebox@0.34.33)(typescript@5.8.3)
-      '@elysiajs/cors':
-        specifier: ^1.2.0
-        version: 1.2.0(elysia@1.2.25(@sinclair/typebox@0.34.33)(typescript@5.8.3))
-      '@elysiajs/node':
-        specifier: ^1.2.6
-        version: 1.2.6(elysia@1.2.25(@sinclair/typebox@0.34.33)(typescript@5.8.3))(formidable@3.5.2)(ws@8.18.1)
-      dotenv:
-        specifier: ^16.4.7
-        version: 16.4.7
-      elysia:
-        specifier: ^1.2.25
-        version: 1.2.25(@sinclair/typebox@0.34.33)(typescript@5.8.3)
-      elysia-helmet:
-        specifier: ^2.0.0
-        version: 2.0.0(elysia@1.2.25(@sinclair/typebox@0.34.33)(typescript@5.8.3))
-      oauth-entra-id:
-        specifier: workspace:*
-        version: link:../../packages/oauth-entra-id
-      zod:
-        specifier: ^3.24.2
-        version: 3.24.2
-    devDependencies:
-      '@types/node':
-        specifier: ^22.14.0
-        version: 22.14.0
-      tsup:
-        specifier: ^8.4.0
-        version: 8.4.0(jiti@2.4.2)(postcss@8.5.3)(tsx@4.19.3)(typescript@5.8.3)(yaml@2.7.0)
-      tsx:
-        specifier: ^4.19.3
-        version: 4.19.3
-      typescript:
-        specifier: ^5.8.3
-        version: 5.8.3
-
   servers/express:
     dependencies:
       cookie-parser:
@@ -601,9 +561,6 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@chneau/elysia-logger@1.0.10':
-    resolution: {integrity: sha512-DemJhELQjz+mGGRrfHh9PLImi54sjwaORcS9PeX3fepBIb+DZudbR1exyBdEgQIqSsr2NwU9TiWwJZDCTl5iiQ==}
-
   '@clack/core@0.3.5':
     resolution: {integrity: sha512-5cfhQNH+1VQ2xLQlmzXMqUoiaH0lRBq9/CLW9lTyMbuKLC3+xEK01tHVvyut++mLOn5urSHmkm6I0Lg9MaJSTQ==}
 
@@ -645,22 +602,6 @@ packages:
   '@csstools/css-tokenizer@3.0.3':
     resolution: {integrity: sha512-UJnjoFsmxfKUdNYdWgOB0mWUypuLvAfQPH1+pyvRJs6euowbFkFC6P13w1l8mJyi3vxYMxc9kld5jZEGRQs6bw==}
     engines: {node: '>=18'}
-
-  '@elysiajs/cors@1.2.0':
-    resolution: {integrity: sha512-qsJwDAg6WfdQRMfj6uSMcDPSpXvm/zQFeAX1uuJXhIgazH8itSfcDxcH9pMuXVRX1yQNi2pPwNQLJmAcw5mzvw==}
-    peerDependencies:
-      elysia: '>= 1.2.0'
-
-  '@elysiajs/node@1.2.6':
-    resolution: {integrity: sha512-qauTs0YNLvfSyqW8k8pDCazd3nPQtFOeDH/cSz1wBhAGn1HL1PQlywnK6V0+bOGemkKlxLIjhmvbHxGrNzZMSg==}
-    peerDependencies:
-      bufferutil: '>= 4.0.1'
-      elysia: '>= 1.2.7'
-      formidable: '>= 3.5.2'
-      ws: '>= 8.18.0'
-    peerDependenciesMeta:
-      bufferutil:
-        optional: true
 
   '@esbuild/aix-ppc64@0.24.2':
     resolution: {integrity: sha512-thpVCb/rhxE/BnMLQ7GReQLLN8q9qbHmI55F4489/ByVg2aQaQ6kbcLb6FHkocZzQhxc4gx0sCk0tJkKBFzDhA==}
@@ -2513,9 +2454,6 @@ packages:
   array-timsort@1.0.3:
     resolution: {integrity: sha512-/+3GRL7dDAGEfM6TseQk/U+mi18TU2Ms9I3UlLdUMhz2hbvGNTKdj9xniwXfUqgYhHxRx0+8UnKkvlNwVU+cWQ==}
 
-  asap@2.0.6:
-    resolution: {integrity: sha512-BSHWgDSAiKs50o2Re8ppvp3seVHXSRM44cdSsT9FfNEUUZLOGWVCsiWaRPWM1Znn+mqZ1OfVZ3z3DWEzSp7hRA==}
-
   assertion-error@2.0.1:
     resolution: {integrity: sha512-Izi8RQcffqCeNVgFigKli1ssklIbpHnCYc6AknXGYoB6grJqyeby7jv12JUQgmTAnIDnbck1uxksT4dzN3PWBA==}
     engines: {node: '>=12'}
@@ -2865,9 +2803,6 @@ packages:
   detect-node-es@1.1.0:
     resolution: {integrity: sha512-ypdmJU/TbBby2Dxibuv7ZLW3Bs1QEmM7nHjEANfohJLvE0XVujisn1qPJcZxg+qDucsr+bP6fLD1rPS3AhJ7EQ==}
 
-  dezalgo@1.0.4:
-    resolution: {integrity: sha512-rXSP0bf+5n0Qonsb+SVVfNfIsimO4HEtmnIpPHY8Q1UCzKlQrDMfdobr8nJOOsRgWCyMRqeSBQzmWUMq7zvVig==}
-
   diff@4.0.2:
     resolution: {integrity: sha512-58lmxKSA4BNyLz+HHMUzlOEpg09FV+ev6ZMe3vJihgdxzgcwZ8VoEEPmALCZG9LmqfVoNMMKpttIYTVG6uDY7A==}
     engines: {node: '>=0.3.1'}
@@ -2902,23 +2837,6 @@ packages:
 
   electron-to-chromium@1.5.132:
     resolution: {integrity: sha512-QgX9EBvWGmvSRa74zqfnG7+Eno0Ak0vftBll0Pt2/z5b3bEGYL6OUXLgKPtvx73dn3dvwrlyVkjPKRRlhLYTEg==}
-
-  elysia-helmet@2.0.0:
-    resolution: {integrity: sha512-GsNmF6cZmyY0eqMotLHSvVbDdo6RYotj5e3oxJ5PHrtwpsvPSi+sj2QbyjOa+6zgfB1ekmvpDH1nUOvXbDTsTg==}
-    peerDependencies:
-      elysia: '>= 1.0.0'
-
-  elysia@1.2.25:
-    resolution: {integrity: sha512-WsdQpORJvb4uszzeqYT0lg97knw1iBW1NTzJ1Jm57tiHg+DfAotlWXYbjmvQ039ssV0fYELDHinLLoUazZkEHg==}
-    peerDependencies:
-      '@sinclair/typebox': '>= 0.34.0'
-      openapi-types: '>= 12.0.0'
-      typescript: '>= 5.0.0'
-    peerDependenciesMeta:
-      openapi-types:
-        optional: true
-      typescript:
-        optional: true
 
   emoji-regex@8.0.0:
     resolution: {integrity: sha512-MSjYzcWNOA0ewAHpz0MxpYFvwg6yjy1NG3xteoqz644VCo/RPgnr1/GGt+ic3iJTzQ8Eu3TdM14SawnVUmGE6A==}
@@ -3133,9 +3051,6 @@ packages:
     resolution: {integrity: sha512-hGfm/slu0ZabnNt4oaRZ6uREyfCj6P4fT/n6A1rGV+Z0VdGXjfOhVUpkn6qVQONHGIFwmveGXyDs75+nr6FM8w==}
     engines: {node: '>= 6'}
 
-  formidable@3.5.2:
-    resolution: {integrity: sha512-Jqc1btCy3QzRbJaICGwKcBfGWuLADRerLzDqi2NwSt/UkXLsHJw2TVResiaoBufHVHy9aSgClOHCeJsSsFLTbg==}
-
   forwarded@0.2.0:
     resolution: {integrity: sha512-buRG0fpBtRHSTCOASe6hD258tEubFoRLb4ZNA6NxMVHNw2gOcwHo9wyablzMzOA5z9xA9L1KNjk/Nt6MT9aYow==}
     engines: {node: '>= 0.6'}
@@ -3245,10 +3160,6 @@ packages:
   helmet@8.1.0:
     resolution: {integrity: sha512-jOiHyAZsmnr8LqoPGmCjYAaiuWwjAPLgY8ZX2XrmHawt99/u1y6RgrZMTeoPfpUbV96HOalYgz1qzkRbw54Pmg==}
     engines: {node: '>=18.0.0'}
-
-  hexoid@2.0.0:
-    resolution: {integrity: sha512-qlspKUK7IlSQv2o+5I7yhUd7TxlOG2Vr5LTa3ve2XSNVKAL/n/u/7KLvKmFNimomDIKvZFXWHv0T12mv7rT8Aw==}
-    engines: {node: '>=8'}
 
   hono-rate-limiter@0.4.2:
     resolution: {integrity: sha512-AAtFqgADyrmbDijcRTT/HJfwqfvhalya2Zo+MgfdrMPas3zSMD8SU03cv+ZsYwRU1swv7zgVt0shwN059yzhjw==}
@@ -3624,9 +3535,6 @@ packages:
   memfs@3.5.3:
     resolution: {integrity: sha512-UERzLsxzllchadvbPs5aolHh65ISpKpM+ccLbOJ8/vvpBKmAWf+la7dXFy7Mr0ySHbdHrFv5kGFCUHHe6GFEmw==}
     engines: {node: '>= 4.0.0'}
-
-  memoirist@0.3.0:
-    resolution: {integrity: sha512-wR+4chMgVPq+T6OOsk40u9Wlpw1Pjx66NMNiYxCQQ4EUJ7jDs3D9kTCeKdBOkvAiqXlHLVJlvYL01PvIJ1MPNg==}
 
   merge-descriptors@1.0.3:
     resolution: {integrity: sha512-gaNvAS7TZ897/rVaZ0nMtAyxNyi/pdbjbAwUpFQpN70GqnVfOiXpeUUMKRBmzXaSQ8DdTX4/0ms62r2K+hE6mQ==}
@@ -5116,14 +5024,6 @@ snapshots:
   '@biomejs/cli-win32-x64@1.9.4':
     optional: true
 
-  '@chneau/elysia-logger@1.0.10(@sinclair/typebox@0.34.33)(typescript@5.8.3)':
-    dependencies:
-      elysia: 1.2.25(@sinclair/typebox@0.34.33)(typescript@5.8.3)
-    transitivePeerDependencies:
-      - '@sinclair/typebox'
-      - openapi-types
-      - typescript
-
   '@clack/core@0.3.5':
     dependencies:
       picocolors: 1.1.1
@@ -5161,16 +5061,6 @@ snapshots:
       '@csstools/css-tokenizer': 3.0.3
 
   '@csstools/css-tokenizer@3.0.3': {}
-
-  '@elysiajs/cors@1.2.0(elysia@1.2.25(@sinclair/typebox@0.34.33)(typescript@5.8.3))':
-    dependencies:
-      elysia: 1.2.25(@sinclair/typebox@0.34.33)(typescript@5.8.3)
-
-  '@elysiajs/node@1.2.6(elysia@1.2.25(@sinclair/typebox@0.34.33)(typescript@5.8.3))(formidable@3.5.2)(ws@8.18.1)':
-    dependencies:
-      elysia: 1.2.25(@sinclair/typebox@0.34.33)(typescript@5.8.3)
-      formidable: 3.5.2
-      ws: 8.18.1
 
   '@esbuild/aix-ppc64@0.24.2':
     optional: true
@@ -6789,8 +6679,6 @@ snapshots:
 
   array-timsort@1.0.3: {}
 
-  asap@2.0.6: {}
-
   assertion-error@2.0.1: {}
 
   asynckit@0.4.0: {}
@@ -7143,11 +7031,6 @@ snapshots:
 
   detect-node-es@1.1.0: {}
 
-  dezalgo@1.0.4:
-    dependencies:
-      asap: 2.0.6
-      wrappy: 1.0.2
-
   diff@4.0.2: {}
 
   diff@7.0.0: {}
@@ -7175,18 +7058,6 @@ snapshots:
   ee-first@1.1.1: {}
 
   electron-to-chromium@1.5.132: {}
-
-  elysia-helmet@2.0.0(elysia@1.2.25(@sinclair/typebox@0.34.33)(typescript@5.8.3)):
-    dependencies:
-      elysia: 1.2.25(@sinclair/typebox@0.34.33)(typescript@5.8.3)
-
-  elysia@1.2.25(@sinclair/typebox@0.34.33)(typescript@5.8.3):
-    dependencies:
-      '@sinclair/typebox': 0.34.33
-      cookie: 1.0.2
-      memoirist: 0.3.0
-    optionalDependencies:
-      typescript: 5.8.3
 
   emoji-regex@8.0.0: {}
 
@@ -7540,12 +7411,6 @@ snapshots:
       es-set-tostringtag: 2.1.0
       mime-types: 2.1.35
 
-  formidable@3.5.2:
-    dependencies:
-      dezalgo: 1.0.4
-      hexoid: 2.0.0
-      once: 1.4.0
-
   forwarded@0.2.0: {}
 
   fresh@0.5.2: {}
@@ -7647,8 +7512,6 @@ snapshots:
       function-bind: 1.1.2
 
   helmet@8.1.0: {}
-
-  hexoid@2.0.0: {}
 
   hono-rate-limiter@0.4.2(hono@4.7.5):
     dependencies:
@@ -8001,8 +7864,6 @@ snapshots:
   memfs@3.5.3:
     dependencies:
       fs-monkey: 1.0.6
-
-  memoirist@0.3.0: {}
 
   merge-descriptors@1.0.3: {}
 

@@ -17,7 +17,7 @@ import {
 import { Input } from '~/components/ui/Input';
 import { Label } from '~/components/ui/Label';
 import { Switch } from '~/components/ui/Switch';
-import { MutedText, Title } from '~/components/ui/Text';
+import { MutedText, SmallMutedText, Title } from '~/components/ui/Text';
 import { cn } from '~/lib/utils';
 import { getAuthUrl } from '~/services/user';
 import { serversMap, useServerStore } from '~/stores/serverStore';
@@ -29,12 +29,14 @@ export const Route = createFileRoute('/login')({
 
 async function loginUser(ssoEnabled: boolean, email?: string) {
   const url = await getAuthUrl({ email, loginPrompt: ssoEnabled ? undefined : 'select-account' });
+  console.log('Login URL:', url);
   if (url) window.location.href = url;
 }
 
 function Login() {
   const [ssoEnabled, setSsoEnabled] = useState(true);
   const user = useUserStore((state) => state.user);
+  const appId = useUserStore((state) => state.appId);
   const navigate = useNavigate();
   const form = useForm({
     defaultValues: {
@@ -62,7 +64,11 @@ function Login() {
         Welcome,
         <br /> Guest
       </Title>
-      <Card className="mt-5">
+      <SmallMutedText className="mb-1">
+        <span className="font-bold">App Id: </span>
+        {appId}
+      </SmallMutedText>
+      <Card>
         <CardHeader>
           <CardTitle>Login into account</CardTitle>
           <CardDescription>Enter your email below to login</CardDescription>

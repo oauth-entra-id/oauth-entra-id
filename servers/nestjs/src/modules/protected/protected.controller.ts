@@ -1,5 +1,5 @@
-import type { Request } from 'express';
 import { Controller, Get, Req, UseGuards } from '@nestjs/common';
+import type { Request } from 'express';
 import { ProtectRouteGuard } from '~/guards/protect-route.guard';
 
 @Controller('protected')

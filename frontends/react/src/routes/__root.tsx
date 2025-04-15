@@ -4,7 +4,8 @@ import { useEffect, useId } from 'react';
 import { Loading } from '~/components/Loading';
 import { Navbar } from '~/components/NavBar';
 import { NotFound } from '~/components/NotFound';
-import { getUserData } from '~/services/user';
+import { getAppId, getUserData } from '~/services/user';
+import { useServerStore } from '~/stores/serverStore';
 import { useThemeStore } from '~/stores/themeStore';
 import { useUserStore } from '~/stores/userStore';
 
@@ -15,9 +16,17 @@ export const Route = createRootRoute({
 
 function Root() {
   const theme = useThemeStore((state) => state.theme);
-  const { user, setUser } = useUserStore();
+  const user = useUserStore((state) => state.user);
+  const setUser = useUserStore((state) => state.setUser);
+  const setAppId = useUserStore((state) => state.setAppId);
+  const server = useServerStore((state) => state.server);
   const navigate = useNavigate();
   const location = useLocation();
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: There is a correlation between the server and appId
+  useEffect(() => {
+    (async () => setAppId(await getAppId()))();
+  }, [setAppId, server]);
 
   useEffect(() => {
     (async () => setUser(await getUserData()))();

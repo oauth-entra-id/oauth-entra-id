@@ -40,21 +40,12 @@
   },
   "typesVersions": {
     "*": {
-      "*": [
-        "./dist/index.d.ts"
-      ],
-      "express": [
-        "./dist/express.d.ts"
-      ],
-      "nestjs": [
-        "./dist/nestjs.d.ts"
-      ]
+      "*": ["./dist/index.d.ts"],
+      "express": ["./dist/express.d.ts"],
+      "nestjs": ["./dist/nestjs.d.ts"]
     }
   },
-  "files": [
-    "dist",
-    "README.md"
-  ],
+  "files": ["dist", "README.md"],
   "sideEffects": false,
   "scripts": {
     "build": "tsup",

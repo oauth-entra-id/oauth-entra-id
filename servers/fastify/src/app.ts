@@ -6,7 +6,7 @@ import rateLimiter from '@fastify/rate-limit';
 import Fastify from 'fastify';
 import { env } from './env';
 import { HttpException } from './error/HttpException';
-import baseRoute from './routes';
+import { routesRouter } from './routes';
 
 export default async function createApp() {
   const app = Fastify({
@@ -79,7 +79,7 @@ export default async function createApp() {
   await app.register(formBody);
   await app.register(cookieParser);
 
-  await app.register(baseRoute, { prefix: new URL(env.SERVER_URL).pathname });
+  await app.register(routesRouter, { prefix: new URL(env.SERVER_URL).pathname });
 
   return app;
 }

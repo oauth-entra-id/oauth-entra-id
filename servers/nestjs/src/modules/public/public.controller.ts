@@ -1,4 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
+import { env } from '~/env';
 // biome-ignore lint/style/useImportType: NestJS
 import { PublicService } from './public.service';
 
@@ -14,5 +15,10 @@ export class PublicController {
   @Get('health')
   getHealth(): string {
     return this.publicService.getHealth();
+  }
+
+  @Get('app-id')
+  getAppId(): { appId: string } {
+    return { appId: env.AZURE.clientId };
   }
 }

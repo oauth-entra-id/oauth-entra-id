@@ -7,11 +7,15 @@ interface User {
 }
 
 interface UserStore {
+  appId: undefined | string | null;
   user: undefined | User | null;
+  setAppId: (appId: string | null) => void;
   setUser: (user: User | null) => void;
 }
 
 export const useUserStore = create<UserStore>((set) => ({
+  appId: undefined,
   user: undefined,
-  setUser: (user: User | null) => set({ user }),
+  setAppId: (appId) => set({ appId }),
+  setUser: (user) => set({ user }),
 }));

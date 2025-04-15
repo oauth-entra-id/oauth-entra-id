@@ -4,7 +4,7 @@ import { GitHub } from '~/components/icons/GitHub';
 import { Button } from '~/components/ui/Button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '~/components/ui/Card';
 import { Separator } from '~/components/ui/Separator';
-import { MutedText, Title } from '~/components/ui/Text';
+import { MutedText, SmallMutedText, Title } from '~/components/ui/Text';
 import { useWindowDimensions } from '~/hooks/useWindowDimensions';
 import { logoutAndGetLogoutUrl } from '~/services/user';
 import { useUserStore } from '~/stores/userStore';
@@ -15,7 +15,9 @@ export const Route = createFileRoute('/')({
 
 function Home() {
   const { width, height } = useWindowDimensions();
-  const { user, setUser } = useUserStore();
+  const user = useUserStore((state) => state.user);
+  const setUser = useUserStore((state) => state.setUser);
+  const appId = useUserStore((state) => state.appId);
 
   async function logout() {
     const url = await logoutAndGetLogoutUrl();
@@ -30,11 +32,15 @@ function Home() {
       <div className="absolute inset-0 z-0">
         <Confetti width={width} height={height} numberOfPieces={300} recycle={false} gravity={1} friction={0.95} />
       </div>
-      <div className="flex flex-col items-center justify-center space-y-8">
+      <div className="flex flex-col items-center justify-center space-y-4">
         <Title>
           Welcome,
           <br /> {user.name}
         </Title>
+        <SmallMutedText className="mb-1">
+          <span className="font-bold">App Id: </span>
+          {appId}
+        </SmallMutedText>
         <Card>
           <CardHeader>
             <CardTitle>You are Connected! 🎉</CardTitle>
