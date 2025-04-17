@@ -23,11 +23,22 @@ export const zConfig = z.object({
   advanced: z
     .object({
       loginPrompt: zLoginPrompt.default('sso'),
+      disableHttps: z.boolean().default(false),
+      disableSameSite: z.boolean().default(false),
       cookieTimeFrame: z.enum(['ms', 'sec']).default('ms'),
+      accessTokenExpiry: z.number().positive().default(3600),
       refreshTokenExpiry: z.number().min(3600).default(2592000),
       debug: z.boolean().default(false),
     })
-    .default({ loginPrompt: 'sso', cookieTimeFrame: 'ms', refreshTokenExpiry: 2592000, debug: false }),
+    .default({
+      loginPrompt: 'sso',
+      disableHttps: false,
+      disableSameSite: false,
+      cookieTimeFrame: 'ms',
+      accessTokenExpiry: 3600,
+      refreshTokenExpiry: 2592000,
+      debug: false,
+    }),
 });
 
 export const zEncrypted = zStr.max(4096).regex(/^OA2\.[A-Za-z0-9_-]+?\.[A-Za-z0-9_-]+?\.[A-Za-z0-9_-]+?$/);

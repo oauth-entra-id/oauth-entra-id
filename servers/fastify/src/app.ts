@@ -61,7 +61,6 @@ export default async function createApp() {
     xPermittedCrossDomainPolicies: {
       permittedPolicies: 'none',
     },
-    xXssProtection: true,
   });
 
   await app.register(rateLimiter, {

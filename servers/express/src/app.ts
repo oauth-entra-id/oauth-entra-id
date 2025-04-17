@@ -61,7 +61,6 @@ export default function createApp(): Application {
       xPermittedCrossDomainPolicies: {
         permittedPolicies: 'none',
       },
-      xXssProtection: true,
     }),
   );
 

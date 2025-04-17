@@ -37,7 +37,11 @@ export function createApp() {
         frameSrc: ["'none'"],
         upgradeInsecureRequests: [],
       },
-      xXssProtection: '1; mode=block',
+      strictTransportSecurity: 'max-age=62899200; includeSubDomains; preload',
+      xContentTypeOptions: 'nosniff',
+      referrerPolicy: 'no-referrer',
+      xPermittedCrossDomainPolicies: 'none',
+      xFrameOptions: 'DENY',
     }),
   );
 

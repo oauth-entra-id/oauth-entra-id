@@ -52,7 +52,6 @@ async function bootstrap() {
       xPermittedCrossDomainPolicies: {
         permittedPolicies: 'none',
       },
-      xXssProtection: true,
     }),
   );
 

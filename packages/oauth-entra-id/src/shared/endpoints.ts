@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
-import { OAuthError } from '~/core/OAuthError';
-import type { ServerType } from '~/shared/request-extension';
+import { OAuthError } from '~/error';
+import type { ServerType } from '~/types';
 
 type AuthenticationBody = {
   loginPrompt?: 'email' | 'select-account' | 'sso';
