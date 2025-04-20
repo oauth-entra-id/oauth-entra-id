@@ -4,7 +4,7 @@
   "scripts": {
     "start": "turbo run start",
     "build": "turbo run build",
-    "dev": "turbo run dev --filter=./servers/* --filter=./frontends/*",
+    "dev": "turbo run dev --filter=./demos/*",
     "format": "pnpm biome format --write .",
     "lint": "pnpm biome lint --write .",
     "typecheck": "turbo run typecheck"
