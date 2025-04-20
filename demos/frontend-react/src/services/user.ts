@@ -67,5 +67,5 @@ export async function getAppId() {
 
 export async function getTokensOnBehalfOf() {
   const serverUrl = useServerStore.getState().serverUrl;
-  await tryCatch(axiosFetch.post(`${serverUrl}/protected/on-behalf-of`));
+  await tryCatch(axiosFetch.post(`${serverUrl}/protected/on-behalf-of`, { name: 'main' }));
 }

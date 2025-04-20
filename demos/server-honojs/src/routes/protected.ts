@@ -10,9 +10,10 @@ protectedRouter.get('/user-info', requireAuthentication, (c) => {
 });
 
 protectedRouter.post('/on-behalf-of', requireAuthentication, async (c) => {
+  const { name } = await c.req.json();
   const { accessToken, refreshToken } = await oauthProvider.getTokenOnBehalfOf({
     accessToken: c.var.msal.microsoftToken,
-    scopeOfRemoteServer: process.env.AZURE_CLIENT_SCOPES as string,
+    serviceName: name,
   });
   setCookie(c, accessToken.name, accessToken.value, accessToken.options);
   if (refreshToken) setCookie(c, refreshToken.name, refreshToken.value, refreshToken.options);

@@ -13,6 +13,16 @@ export interface Azure {
   secret: string;
 }
 
+export interface OnBehalfOfOptions {
+  serviceName: string;
+  scopes: string[];
+  secretKey: string;
+  isHttps: boolean;
+  isSameSite: boolean;
+  accessTokenExpiry?: number;
+  refreshTokenExpiry?: number;
+}
+
 export interface OAuthConfig {
   azure: Azure;
   frontendUrl: string | string[];
@@ -26,12 +36,16 @@ export interface OAuthConfig {
     accessTokenExpiry?: number; // in seconds
     refreshTokenExpiry?: number; // in seconds
     debug?: boolean;
+    onBehalfOfOptions?: OnBehalfOfOptions | OnBehalfOfOptions[];
   };
 }
 
 export interface Options {
   isHttps: boolean;
   isSameSite: boolean;
+  cookieTimeFrame: TimeFrame;
+  accessTokenExpiry: number; // in seconds
+  refreshTokenExpiry: number; // in seconds
   debug: boolean;
 }
 

@@ -15,6 +15,16 @@ export const zEmail = zStr.max(320).email();
 
 export const zLoginPrompt = z.enum(['email', 'select-account', 'sso']);
 
+const zOnBehalfOfOptions = z.object({
+  serviceName: zStr.min(1).max(64),
+  scopes: z.array(zStr.min(3)).min(1),
+  secretKey: zStr.min(16).max(64),
+  isHttps: z.boolean(),
+  isSameSite: z.boolean(),
+  accessTokenExpiry: z.number().positive().default(3600),
+  refreshTokenExpiry: z.number().min(3600).default(2592000),
+});
+
 const zAdvanced = z
   .object({
     loginPrompt: zLoginPrompt.default('sso'),
@@ -24,6 +34,9 @@ const zAdvanced = z
     accessTokenExpiry: z.number().positive().default(3600),
     refreshTokenExpiry: z.number().min(3600).default(2592000),
     debug: z.boolean().default(false),
+    onBehalfOfOptions: z
+      .union([zOnBehalfOfOptions.transform((options) => [options]), z.array(zOnBehalfOfOptions).min(1)])
+      .optional(),
   })
   .default({
     loginPrompt: 'sso',
@@ -33,6 +46,7 @@ const zAdvanced = z
     accessTokenExpiry: 3600,
     refreshTokenExpiry: 2592000,
     debug: false,
+    onBehalfOfOptions: undefined,
   });
 
 export const zConfig = z.object({

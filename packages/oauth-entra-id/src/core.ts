@@ -4,7 +4,7 @@ import type { AuthenticationResult, ConfidentialClientApplication, CryptoProvide
 import jwt from 'jsonwebtoken';
 import jwks from 'jwks-rsa';
 import { OAuthError } from './error';
-import type { Azure, Cookies, LoginPrompt, MethodKeys, OAuthConfig, Options } from './types';
+import type { Azure, Cookies, LoginPrompt, MethodKeys, OAuthConfig, OnBehalfOfOptions, Options } from './types';
 import { getCookieOptions } from './utils/cookies';
 import { createSecretKey, decrypt, decryptObject, encrypt, encryptObject } from './utils/crypto';
 import { debugLog } from './utils/misc';
@@ -25,6 +25,7 @@ export class OAuthProvider {
   private readonly frontendHosts: string[];
   private readonly loginPrompt: LoginPrompt;
   private readonly defaultCookieOptions: Cookies['DefaultCookieOptions'];
+  private readonly onBehalfOfOptions: OnBehalfOfOptions[] | undefined;
   readonly options: Options;
   private readonly cca: ConfidentialClientApplication;
   private readonly msalCryptoProvider: CryptoProvider;
@@ -58,6 +59,7 @@ export class OAuthProvider {
         accessTokenExpiry,
         refreshTokenExpiry,
         debug,
+        onBehalfOfOptions,
       },
     } = config;
 
@@ -98,7 +100,8 @@ export class OAuthProvider {
     this.frontendHosts = frontendHosts;
     this.loginPrompt = loginPrompt;
     this.defaultCookieOptions = defaultCookieOptions;
-    this.options = { isHttps, isSameSite, debug };
+    this.onBehalfOfOptions = onBehalfOfOptions;
+    this.options = { isHttps, isSameSite, cookieTimeFrame, accessTokenExpiry, refreshTokenExpiry, debug };
     this.cca = cca;
     this.msalCryptoProvider = new msal.CryptoProvider();
     this.jwksClient = jwksClient;
@@ -412,11 +415,13 @@ export class OAuthProvider {
     }
   }
 
-  async getTokenOnBehalfOf(options: { accessToken: string; scopeOfRemoteServer: string }): Promise<{
+  async getTokenOnBehalfOf(options: { accessToken: string; serviceName: string }): Promise<{
     accessToken: Cookies['AccessToken'];
     refreshToken: Cookies['RefreshToken'] | null;
     msalResponse: AuthenticationResult;
   }> {
+    const behalfOfOptions = this.onBehalfOfOptions?.find((option) => option.serviceName === options.serviceName);
+    if (!behalfOfOptions) throw new OAuthError(400, { message: 'Invalid params', description: 'Service not Found' });
     try {
       const { data: token, error: tokenError } = zJwt.safeParse(
         zEncrypted.safeParse(options.accessToken).success
@@ -427,27 +432,30 @@ export class OAuthProvider {
 
       const msalResponse = await this.cca.acquireTokenOnBehalfOf({
         oboAssertion: token,
-        scopes: [options.scopeOfRemoteServer],
+        scopes: behalfOfOptions.scopes,
         skipCache: false,
       });
 
       if (!msalResponse) throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid Access Token' });
 
-      const accessToken = encrypt(msalResponse.accessToken, this.secretKey);
-      const cachedRefreshToken = await this.getRefreshTokenFromCache(msalResponse);
-      const refreshToken = cachedRefreshToken ? encrypt(cachedRefreshToken, this.secretKey) : null;
-
       const decodedAccessToken = jwt.decode(msalResponse.accessToken, { json: true });
       if (!decodedAccessToken) {
         throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid Access Token' });
       }
+
+      const secretKey = createSecretKey(behalfOfOptions.secretKey);
+
+      const accessToken = encrypt(msalResponse.accessToken, secretKey);
+      const cachedRefreshToken = await this.getRefreshTokenFromCache(msalResponse);
+      const refreshToken = cachedRefreshToken ? encrypt(cachedRefreshToken, secretKey) : null;
+
       const cookieOptions = getCookieOptions({
         clientId: decodedAccessToken.aud as string,
-        isHttps: false,
-        isSameSite: false,
-        cookieTimeFrame: 'sec',
-        accessTokenExpiry: 3600,
-        refreshTokenExpiry: 2592000,
+        isHttps: behalfOfOptions.isHttps,
+        isSameSite: behalfOfOptions.isSameSite,
+        cookieTimeFrame: this.options.cookieTimeFrame,
+        accessTokenExpiry: behalfOfOptions.accessTokenExpiry ?? this.options.accessTokenExpiry,
+        refreshTokenExpiry: behalfOfOptions.refreshTokenExpiry ?? this.options.refreshTokenExpiry,
       });
 
       return {
