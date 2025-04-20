@@ -1,4 +1,9 @@
-import { z } from 'zod';
+import { type ZodError, z } from 'zod';
+import { base64urlWithDotRegex, encryptedRegex, jwtRegex } from './regexes';
+
+export function prettifyError(error: ZodError) {
+  return error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join(', ');
+}
 
 export const zStr = z.string().trim();
 
@@ -6,9 +11,29 @@ export const zUuid = zStr.uuid();
 
 export const zUrl = zStr.url().max(2048);
 
-export const zEmail = zStr.max(320).email({ message: 'Invalid email format' });
+export const zEmail = zStr.max(320).email();
 
 export const zLoginPrompt = z.enum(['email', 'select-account', 'sso']);
+
+const zAdvanced = z
+  .object({
+    loginPrompt: zLoginPrompt.default('sso'),
+    disableHttps: z.boolean().default(false),
+    disableSameSite: z.boolean().default(false),
+    cookieTimeFrame: z.enum(['ms', 'sec']).default('ms'),
+    accessTokenExpiry: z.number().positive().default(3600),
+    refreshTokenExpiry: z.number().min(3600).default(2592000),
+    debug: z.boolean().default(false),
+  })
+  .default({
+    loginPrompt: 'sso',
+    disableHttps: false,
+    disableSameSite: false,
+    cookieTimeFrame: 'ms',
+    accessTokenExpiry: 3600,
+    refreshTokenExpiry: 2592000,
+    debug: false,
+  });
 
 export const zConfig = z.object({
   azure: z.object({
@@ -20,30 +45,12 @@ export const zConfig = z.object({
   frontendUrl: z.union([zUrl.transform((url) => [url]), z.array(zUrl).min(1)]),
   serverCallbackUrl: zUrl,
   secretKey: zStr.min(16).max(64),
-  advanced: z
-    .object({
-      loginPrompt: zLoginPrompt.default('sso'),
-      disableHttps: z.boolean().default(false),
-      disableSameSite: z.boolean().default(false),
-      cookieTimeFrame: z.enum(['ms', 'sec']).default('ms'),
-      accessTokenExpiry: z.number().positive().default(3600),
-      refreshTokenExpiry: z.number().min(3600).default(2592000),
-      debug: z.boolean().default(false),
-    })
-    .default({
-      loginPrompt: 'sso',
-      disableHttps: false,
-      disableSameSite: false,
-      cookieTimeFrame: 'ms',
-      accessTokenExpiry: 3600,
-      refreshTokenExpiry: 2592000,
-      debug: false,
-    }),
+  advanced: zAdvanced,
 });
 
-export const zEncrypted = zStr.max(4096).regex(/^OA2\.[A-Za-z0-9_-]+?\.[A-Za-z0-9_-]+?\.[A-Za-z0-9_-]+?$/);
+export const zEncrypted = zStr.max(4096).regex(encryptedRegex);
 
-export const zJwt = zStr.max(4096).regex(/^[A-Za-z0-9_-]+?\.[A-Za-z0-9_-]+?\.[A-Za-z0-9_-]+?$/);
+export const zJwt = zStr.max(4096).regex(jwtRegex);
 
 export const zGetAuthUrl = z.object({
   loginPrompt: zLoginPrompt.optional(),
@@ -52,7 +59,7 @@ export const zGetAuthUrl = z.object({
 });
 
 export const zGetTokenByCode = z.object({
-  code: zStr.max(2048).regex(/^[A-Za-z0-9._-]+$/),
+  code: zStr.max(2048).regex(base64urlWithDotRegex),
   state: zEncrypted,
 });
 

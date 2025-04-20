@@ -1,11 +1,11 @@
 import './types';
 import type { NextFunction, Request, Response } from 'express';
-import { OAuthProvider } from './OAuthProvider';
+import { OAuthProvider } from './core';
 import { OAuthError } from './error';
 import { sharedHandleAuthentication, sharedHandleCallback, sharedHandleLogout } from './shared/endpoints';
 import { sharedRequireAuthentication } from './shared/middleware';
 import type { OAuthConfig } from './types';
-import { debugLog } from './utils/utils';
+import { debugLog } from './utils/misc';
 
 let globalExpressOAuthProvider: OAuthProvider | null = null;
 
@@ -32,7 +32,7 @@ export function authConfig(config: OAuthConfig & { allowOtherSystems?: boolean }
     }
 
     debugLog({
-      condition: !!globalExpressOAuthProvider.debug,
+      condition: !!globalExpressOAuthProvider.options.debug,
       funcName: 'authConfig',
       message: `allowOtherSystems: ${!!allowOtherSystems}`,
     });
@@ -44,6 +44,8 @@ export function authConfig(config: OAuthConfig & { allowOtherSystems?: boolean }
     next();
   };
 }
+
+const ERROR_MESSAGE = 'Make sure you used Express export and you used authConfig';
 
 /**
  * Express route handler to generate an authentication URL for OAuth.
@@ -57,7 +59,8 @@ export function authConfig(config: OAuthConfig & { allowOtherSystems?: boolean }
  */
 export async function handleAuthentication(req: Request, res: Response, next: NextFunction) {
   try {
-    await sharedHandleAuthentication('express')(req, res);
+    if (!req.oauthProvider || req.serverType !== 'express') throw new OAuthError(500, ERROR_MESSAGE);
+    await sharedHandleAuthentication(req, res);
   } catch (err) {
     next(err);
   }
@@ -75,7 +78,8 @@ export async function handleAuthentication(req: Request, res: Response, next: Ne
  */
 export async function handleCallback(req: Request, res: Response, next: NextFunction) {
   try {
-    await sharedHandleCallback('express')(req, res);
+    if (!req.oauthProvider || req.serverType !== 'express') throw new OAuthError(500, ERROR_MESSAGE);
+    await sharedHandleCallback(req, res);
   } catch (err) {
     next(err);
   }
@@ -91,7 +95,8 @@ export async function handleCallback(req: Request, res: Response, next: NextFunc
  */
 export function handleLogout(req: Request, res: Response, next: NextFunction) {
   try {
-    sharedHandleLogout('express')(req, res);
+    if (!req.oauthProvider || req.serverType !== 'express') throw new OAuthError(500, ERROR_MESSAGE);
+    sharedHandleLogout(req, res);
   } catch (err) {
     next(err);
   }
@@ -119,7 +124,8 @@ export function handleLogout(req: Request, res: Response, next: NextFunction) {
 
 export async function requireAuthentication(req: Request, res: Response, next: NextFunction) {
   try {
-    const isAuth = await sharedRequireAuthentication('express')(req, res);
+    if (!req.oauthProvider || req.serverType !== 'express') throw new OAuthError(500, ERROR_MESSAGE);
+    const isAuth = await sharedRequireAuthentication(req, res);
     if (isAuth) {
       next();
       return;

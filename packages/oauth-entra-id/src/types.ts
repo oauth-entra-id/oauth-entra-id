@@ -1,13 +1,59 @@
 import type { JwtPayload } from 'jsonwebtoken';
-import type { OAuthProvider } from './OAuthProvider';
+import type { OAuthProvider } from './core';
 import type { ACCESS_TOKEN_NAME, REFRESH_TOKEN_NAME } from './utils/cookies';
 
 export type ServerType = 'express' | 'nestjs';
+export type LoginPrompt = 'email' | 'select-account' | 'sso';
+export type TimeFrame = 'ms' | 'sec';
+
+export interface Azure {
+  clientId: string;
+  tenantId: string;
+  scopes: string[];
+  secret: string;
+}
+
+export interface OAuthConfig {
+  azure: Azure;
+  frontendUrl: string | string[];
+  serverCallbackUrl: string;
+  secretKey: string;
+  advanced?: {
+    loginPrompt?: LoginPrompt;
+    disableHttps?: boolean;
+    disableSameSite?: boolean;
+    cookieTimeFrame?: TimeFrame;
+    accessTokenExpiry?: number; // in seconds
+    refreshTokenExpiry?: number; // in seconds
+    debug?: boolean;
+  };
+}
+
+export interface Options {
+  isHttps: boolean;
+  isSameSite: boolean;
+  debug: boolean;
+}
+
+export interface Endpoints {
+  Authenticate: {
+    loginPrompt?: 'email' | 'select-account' | 'sso';
+    email?: string;
+    frontendUrl: string;
+  };
+  Callback: {
+    code: string;
+    state: string;
+  };
+  Logout: {
+    frontendUrl?: string;
+  };
+}
 
 declare global {
   namespace Express {
     export interface Request {
-      oauthProvider?: OAuthProvider;
+      oauthProvider: OAuthProvider;
       serverType: ServerType;
       areOtherSystemsAllowed: boolean;
       /**
@@ -30,25 +76,6 @@ declare global {
   }
 }
 
-export type LoginPrompt = 'email' | 'select-account' | 'sso';
-export type TimeFrame = 'ms' | 'sec';
-
-export interface OAuthConfig {
-  azure: { clientId: string; tenantId: string; scopes: string[]; secret: string };
-  frontendUrl: string | string[];
-  serverCallbackUrl: string;
-  secretKey: string;
-  advanced?: {
-    loginPrompt?: LoginPrompt;
-    disableHttps?: boolean;
-    disableSameSite?: boolean;
-    cookieTimeFrame?: TimeFrame;
-    accessTokenExpiry?: number; // in seconds
-    refreshTokenExpiry?: number; // in seconds
-    debug?: boolean;
-  };
-}
-
 type AccessTokenName = `${typeof ACCESS_TOKEN_NAME}-${string}` | `__Host-${typeof ACCESS_TOKEN_NAME}-${string}`;
 type RefreshTokenName = `${typeof REFRESH_TOKEN_NAME}-${string}` | `__Host-${typeof REFRESH_TOKEN_NAME}-${string}`;
 
@@ -60,40 +87,41 @@ interface CookieOptions {
   readonly sameSite: 'strict' | 'none' | undefined;
 }
 
-export interface DefaultCookieOptions {
-  readonly accessToken: {
+export interface Cookies {
+  DefaultCookieOptions: {
+    readonly accessToken: {
+      readonly name: AccessTokenName;
+      readonly options: CookieOptions;
+    };
+    readonly refreshToken: {
+      readonly name: RefreshTokenName;
+      readonly options: CookieOptions;
+    };
+    readonly deleteOptions: CookieOptions;
+  };
+  AccessToken: {
     readonly name: AccessTokenName;
+    readonly value: string;
     readonly options: CookieOptions;
   };
-  readonly refreshToken: {
+  RefreshToken: {
     readonly name: RefreshTokenName;
+    readonly value: string;
     readonly options: CookieOptions;
   };
-  readonly deleteOptions: CookieOptions;
+  DeleteAccessToken: {
+    readonly name: AccessTokenName;
+    readonly value: string;
+    readonly options: CookieOptions;
+  };
+  DeleteRefreshToken: {
+    readonly name: RefreshTokenName;
+    readonly value: string;
+    readonly options: CookieOptions;
+  };
 }
 
-interface SetToken {
-  readonly value: string;
-  readonly options: CookieOptions;
-}
-
-export interface SetAccessToken extends SetToken {
-  readonly name: AccessTokenName;
-}
-
-export interface SetRefreshToken extends SetToken {
-  readonly name: RefreshTokenName;
-}
-
-interface DeleteToken {
-  readonly value: '';
-  readonly options: CookieOptions;
-}
-
-export interface DeleteAccessToken extends DeleteToken {
-  readonly name: AccessTokenName;
-}
-
-export interface DeleteRefreshToken extends DeleteToken {
-  readonly name: RefreshTokenName;
-}
+export type MethodKeys<T> = {
+  // biome-ignore lint/suspicious/noExplicitAny: <explanation>
+  [K in keyof T]: T[K] extends (...args: any[]) => any ? K : never;
+}[keyof T];

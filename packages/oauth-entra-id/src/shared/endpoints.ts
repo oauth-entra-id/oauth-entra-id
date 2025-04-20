@@ -1,72 +1,35 @@
 import type { Request, Response } from 'express';
 import { OAuthError } from '~/error';
-import type { ServerType } from '~/types';
+import type { Endpoints } from '~/types';
 
-type AuthenticationBody = {
-  loginPrompt?: 'email' | 'select-account' | 'sso';
-  email?: string;
-  frontendUrl: string;
+export const sharedHandleAuthentication = async (req: Request, res: Response) => {
+  const body = req.body as Endpoints['Authenticate'] | undefined;
+  const params = body ? { loginPrompt: body.loginPrompt, email: body.email, frontendUrl: body.frontendUrl } : {};
+
+  const { url } = await req.oauthProvider.getAuthUrl(params);
+
+  res.status(200).json({ url });
 };
 
-export const sharedHandleAuthentication = (server: ServerType) => {
-  return async (req: Request, res: Response) => {
-    if (!req.oauthProvider || req.serverType !== server) {
-      throw new OAuthError(500, 'Make sure authConfig is set correctly and you use the correct server type');
-    }
+export const sharedHandleCallback = async (req: Request, res: Response) => {
+  const body = req.body as Endpoints['Callback'] | undefined;
+  if (!body) throw new OAuthError(400, { message: 'Invalid params', description: 'Body must contain code and state' });
+  const params = { code: body.code, state: body.state };
 
-    const body = req.body as AuthenticationBody | undefined;
+  const { url, accessToken, refreshToken } = await req.oauthProvider.getTokenByCode(params);
 
-    const { authUrl } = await req.oauthProvider.getAuthUrl(
-      body ? { loginPrompt: body.loginPrompt, email: body.email, frontendUrl: body.frontendUrl } : {},
-    );
-
-    res.status(200).json({ url: authUrl });
-  };
+  res.cookie(accessToken.name, accessToken.value, accessToken.options);
+  if (refreshToken) res.cookie(refreshToken.name, refreshToken.value, refreshToken.options);
+  res.redirect(url);
 };
 
-type CallbackBody = { code: string; state: string };
+export const sharedHandleLogout = (req: Request, res: Response) => {
+  const body = req.body as Endpoints['Logout'] | undefined;
+  const params = body ? { frontendUrl: body.frontendUrl } : {};
 
-export const sharedHandleCallback = (server: ServerType) => {
-  return async (req: Request, res: Response) => {
-    if (!req.oauthProvider || req.serverType !== server) {
-      throw new OAuthError(500, 'Make sure authConfig is set correctly and you use the correct server type');
-    }
+  const { url, accessToken, refreshToken } = req.oauthProvider.getLogoutUrl(params);
 
-    const body = req.body as CallbackBody | undefined;
-    if (!body) {
-      throw new OAuthError(400, {
-        message: 'Invalid params',
-        description: 'Body must contain code and state',
-      });
-    }
-
-    const { frontendUrl, accessToken, refreshToken } = await req.oauthProvider.getTokenByCode({
-      code: body.code,
-      state: body.state,
-    });
-
-    res.cookie(accessToken.name, accessToken.value, accessToken.options);
-    if (refreshToken) res.cookie(refreshToken.name, refreshToken.value, refreshToken.options);
-    res.redirect(frontendUrl);
-  };
-};
-
-type LogoutBody = { frontendUrl: string };
-
-export const sharedHandleLogout = (server: ServerType) => {
-  return (req: Request, res: Response) => {
-    if (!req.oauthProvider || req.serverType !== server) {
-      throw new OAuthError(500, 'Make sure authConfig is set correctly and you use the correct server type');
-    }
-
-    const body = req.body as LogoutBody | undefined;
-
-    const { logoutUrl, accessToken, refreshToken } = req.oauthProvider.getLogoutUrl(
-      body ? { frontendUrl: body.frontendUrl } : {},
-    );
-
-    res.cookie(accessToken.name, accessToken.value, accessToken.options);
-    res.cookie(refreshToken.name, refreshToken.value, refreshToken.options);
-    res.status(200).json({ url: logoutUrl });
-  };
+  res.cookie(accessToken.name, accessToken.value, accessToken.options);
+  res.cookie(refreshToken.name, refreshToken.value, refreshToken.options);
+  res.status(200).json({ url });
 };

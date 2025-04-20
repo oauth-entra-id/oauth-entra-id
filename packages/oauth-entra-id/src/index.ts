@@ -1,2 +1,2 @@
-export * from './OAuthProvider';
+export * from './core';
 export { OAuthError } from './error';

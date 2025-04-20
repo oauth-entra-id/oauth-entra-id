@@ -1,11 +1,11 @@
 import './types';
 import type { NextFunction, Request, Response } from 'express';
-import { OAuthProvider } from './OAuthProvider';
+import { OAuthProvider } from './core';
 import { OAuthError } from './error';
 import { sharedHandleAuthentication, sharedHandleCallback, sharedHandleLogout } from './shared/endpoints';
 import { sharedRequireAuthentication } from './shared/middleware';
 import type { OAuthConfig } from './types';
-import { debugLog } from './utils/utils';
+import { debugLog } from './utils/misc';
 
 let globalNestjsOAuthProvider: OAuthProvider | null = null;
 
@@ -32,7 +32,7 @@ export function authConfig(config: OAuthConfig & { allowOtherSystems?: boolean }
     }
 
     debugLog({
-      condition: !!globalNestjsOAuthProvider.debug,
+      condition: !!globalNestjsOAuthProvider.options.debug,
       funcName: 'authConfig',
       message: `allowOtherSystems: ${!!allowOtherSystems}`,
     });
@@ -44,6 +44,8 @@ export function authConfig(config: OAuthConfig & { allowOtherSystems?: boolean }
     next();
   };
 }
+
+const ERROR_MESSAGE = 'Make sure you used Express export and you used authConfig';
 
 /**
  * NestJS route handler to generate an authentication URL for OAuth.
@@ -57,7 +59,8 @@ export function authConfig(config: OAuthConfig & { allowOtherSystems?: boolean }
  */
 export async function handleAuthentication(req: Request, res: Response) {
   try {
-    await sharedHandleAuthentication('nestjs')(req, res);
+    if (!req.oauthProvider || req.serverType !== 'nestjs') throw new OAuthError(500, ERROR_MESSAGE);
+    await sharedHandleAuthentication(req, res);
   } catch (err) {
     if (err instanceof OAuthError) throw err;
     if (err instanceof Error) throw new OAuthError(500, err.message);
@@ -76,7 +79,8 @@ export async function handleAuthentication(req: Request, res: Response) {
  */
 export async function handleCallback(req: Request, res: Response) {
   try {
-    await sharedHandleCallback('nestjs')(req, res);
+    if (!req.oauthProvider || req.serverType !== 'nestjs') throw new OAuthError(500, ERROR_MESSAGE);
+    await sharedHandleCallback(req, res);
   } catch (err) {
     if (err instanceof OAuthError) throw err;
     if (err instanceof Error) throw new OAuthError(500, err.message);
@@ -94,7 +98,8 @@ export async function handleCallback(req: Request, res: Response) {
  */
 export function handleLogout(req: Request, res: Response) {
   try {
-    sharedHandleLogout('nestjs')(req, res);
+    if (!req.oauthProvider || req.serverType !== 'nestjs') throw new OAuthError(500, ERROR_MESSAGE);
+    sharedHandleLogout(req, res);
   } catch (err) {
     if (err instanceof OAuthError) throw err;
     if (err instanceof Error) throw new OAuthError(500, err.message);
@@ -123,7 +128,8 @@ export function handleLogout(req: Request, res: Response) {
  */
 export async function isAuthenticated(req: Request, res: Response) {
   try {
-    return await sharedRequireAuthentication('nestjs')(req, res);
+    if (!req.oauthProvider || req.serverType !== 'nestjs') throw new OAuthError(500, ERROR_MESSAGE);
+    return await sharedRequireAuthentication(req, res);
   } catch (err) {
     if (err instanceof OAuthError) throw err;
     if (err instanceof Error) throw new OAuthError(500, err.message);

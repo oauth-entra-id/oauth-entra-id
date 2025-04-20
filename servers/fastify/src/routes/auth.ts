@@ -12,37 +12,37 @@ export const authRouter = async (app: FastifyInstance) => {
           }
         | undefined) || {};
 
-    const { authUrl } = await oauthProvider.getAuthUrl({
+    const { url } = await oauthProvider.getAuthUrl({
       loginPrompt: body.loginPrompt,
       email: body.email,
       frontendUrl: body.frontendUrl,
     });
 
-    reply.status(200).send({ url: authUrl });
+    reply.status(200).send({ url });
   });
 
   app.post('/callback', async (req, reply) => {
     const { code, state } = req.body as { code: string; state: string };
 
-    const { frontendUrl, accessToken, refreshToken } = await oauthProvider.getTokenByCode({
+    const { url, accessToken, refreshToken } = await oauthProvider.getTokenByCode({
       code,
       state,
     });
 
     reply.setCookie(accessToken.name, accessToken.value, accessToken.options);
     if (refreshToken) reply.setCookie(refreshToken.name, refreshToken.value, refreshToken.options);
-    reply.redirect(frontendUrl);
+    reply.redirect(url);
   });
 
   app.post('/logout', (req, reply) => {
     const body = (req.body as { frontendUrl?: string } | undefined) || {};
 
-    const { logoutUrl, accessToken, refreshToken } = oauthProvider.getLogoutUrl({
+    const { url, accessToken, refreshToken } = oauthProvider.getLogoutUrl({
       frontendUrl: body.frontendUrl,
     });
 
     reply.setCookie(accessToken.name, accessToken.value, accessToken.options);
     reply.setCookie(refreshToken.name, refreshToken.value, refreshToken.options);
-    reply.status(200).send({ url: logoutUrl });
+    reply.status(200).send({ url });
   });
 };

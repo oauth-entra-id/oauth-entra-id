@@ -1,22 +1,14 @@
 import type { KeyObject } from 'node:crypto';
 import * as msal from '@azure/msal-node';
 import type { AuthenticationResult, ConfidentialClientApplication, CryptoProvider } from '@azure/msal-node';
-import jwt, { type JwtPayload } from 'jsonwebtoken';
-import jwks, { type JwksClient } from 'jwks-rsa';
+import jwt from 'jsonwebtoken';
+import jwks from 'jwks-rsa';
 import { OAuthError } from './error';
-import type {
-  DefaultCookieOptions,
-  DeleteAccessToken,
-  DeleteRefreshToken,
-  LoginPrompt,
-  OAuthConfig,
-  SetAccessToken,
-  SetRefreshToken,
-} from './types';
+import type { Azure, Cookies, LoginPrompt, MethodKeys, OAuthConfig, Options } from './types';
 import { getCookieOptions } from './utils/cookies';
 import { createSecretKey, decrypt, decryptObject, encrypt, encryptObject } from './utils/crypto';
-import { debugLog } from './utils/utils';
-import { zConfig, zEncrypted, zGetAuthUrl, zGetTokenByCode, zJwt, zState, zUrl } from './utils/zod';
+import { debugLog } from './utils/misc';
+import { prettifyError, zConfig, zEncrypted, zGetAuthUrl, zGetTokenByCode, zJwt, zState, zUrl } from './utils/zod';
 
 /**
  * ### The Core of the Package
@@ -26,17 +18,17 @@ import { zConfig, zEncrypted, zGetAuthUrl, zGetTokenByCode, zJwt, zState, zUrl }
  * @class
  */
 export class OAuthProvider {
-  private readonly azure: OAuthConfig['azure'];
+  private readonly azure: Azure;
   private readonly frontendUrl: string[];
   private readonly serverCallbackUrl: string;
   private readonly secretKey: KeyObject;
   private readonly frontendHosts: string[];
   private readonly loginPrompt: LoginPrompt;
-  private readonly defaultCookieOptions: DefaultCookieOptions;
-  readonly debug: boolean;
+  private readonly defaultCookieOptions: Cookies['DefaultCookieOptions'];
+  readonly options: Options;
   private readonly cca: ConfidentialClientApplication;
   private readonly msalCryptoProvider: CryptoProvider;
-  private readonly jwksClient: JwksClient;
+  private readonly jwksClient: jwks.JwksClient;
 
   /**
    * Creates an instance of OAuthProvider.
@@ -49,63 +41,77 @@ export class OAuthProvider {
     if (configError) {
       throw new OAuthError(500, {
         message: 'Invalid OAuthProvider configuration',
-        description: configError.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join(', '),
+        description: prettifyError(configError),
       });
     }
 
-    const frontendHosts = Array.from(new Set(config.frontendUrl.map((url) => new URL(url).host)));
-    const serverHost = new URL(config.serverCallbackUrl).host;
-    const isHttps =
-      !config.advanced.disableHttps && [serverHost, ...frontendHosts].every((host) => host.startsWith('https'));
-    const isSameSite =
-      !config.advanced.disableSameSite && frontendHosts.length === 1 ? frontendHosts[0] === serverHost : false;
+    const {
+      azure,
+      frontendUrl,
+      serverCallbackUrl,
+      secretKey,
+      advanced: {
+        loginPrompt,
+        disableHttps,
+        disableSameSite,
+        cookieTimeFrame,
+        accessTokenExpiry,
+        refreshTokenExpiry,
+        debug,
+      },
+    } = config;
+
+    const frontendHosts = Array.from(new Set(frontendUrl.map((frontendUrl) => new URL(frontendUrl).host)));
+    const serverHost = new URL(serverCallbackUrl).host;
+    const isHttps = !disableHttps && [serverHost, ...frontendHosts].every((host) => host.startsWith('https'));
+    const isSameSite = !disableSameSite && frontendHosts.length === 1 ? frontendHosts[0] === serverHost : false;
 
     const defaultCookieOptions = getCookieOptions({
-      clientId: config.azure.clientId,
+      clientId: azure.clientId,
       isHttps,
       isSameSite,
-      cookieTimeFrame: config.advanced.cookieTimeFrame,
-      accessTokenExpiry: config.advanced.accessTokenExpiry,
-      refreshTokenExpiry: config.advanced.refreshTokenExpiry,
+      cookieTimeFrame,
+      accessTokenExpiry,
+      refreshTokenExpiry,
     });
 
     const cca = new msal.ConfidentialClientApplication({
       auth: {
-        clientId: config.azure.clientId,
-        authority: `https://login.microsoftonline.com/${config.azure.tenantId}`,
-        clientSecret: config.azure.secret,
+        clientId: azure.clientId,
+        authority: `https://login.microsoftonline.com/${azure.tenantId}`,
+        clientSecret: azure.secret,
       },
     });
 
     const jwksClient = jwks({
-      jwksUri: `https://login.microsoftonline.com/${config.azure.tenantId}/discovery/v2.0/keys`,
+      jwksUri: `https://login.microsoftonline.com/${azure.tenantId}/discovery/v2.0/keys`,
       cache: true,
       cacheMaxEntries: 5,
       cacheMaxAge: 60 * 60 * 1000,
       rateLimit: true,
     });
 
-    this.azure = config.azure;
-    this.frontendUrl = config.frontendUrl;
-    this.serverCallbackUrl = config.serverCallbackUrl;
-    this.secretKey = createSecretKey(config.secretKey);
+    this.azure = azure;
+    this.frontendUrl = frontendUrl;
+    this.serverCallbackUrl = serverCallbackUrl;
+    this.secretKey = createSecretKey(secretKey);
     this.frontendHosts = frontendHosts;
-    this.loginPrompt = config.advanced.loginPrompt;
+    this.loginPrompt = loginPrompt;
     this.defaultCookieOptions = defaultCookieOptions;
-    this.debug = config.advanced.debug;
+    this.options = { isHttps, isSameSite, debug };
     this.cca = cca;
     this.msalCryptoProvider = new msal.CryptoProvider();
     this.jwksClient = jwksClient;
 
     debugLog({
-      condition: !!config.advanced.debug,
+      condition: debug,
       funcName: 'OAuthProvider.constructor',
       message: `OAuthProvider is created with config: ${JSON.stringify(config)}`,
     });
   }
 
-  private debugLog({ message, methodName }: { message: string; methodName: string }) {
-    debugLog({ condition: this.debug, funcName: `OAuthProvider.${methodName}`, message });
+  private debugLog(methodName: MethodKeys<OAuthProvider> | 'verifyJwt', message: string) {
+    debugLog({ condition: this.options.debug, funcName: `OAuthProvider.${methodName}`, message });
   }
 
   /**
@@ -127,50 +133,33 @@ export class OAuthProvider {
    */
   async getAuthUrl(
     options: { loginPrompt?: LoginPrompt; email?: string; frontendUrl?: string } = {},
-  ): Promise<{ authUrl: string }> {
-    this.debugLog({
-      message: `Options: ${JSON.stringify(options)}`,
-      methodName: 'generateAuthUrl',
-    });
-
-    const { data: validOptions, error: optionsError } = zGetAuthUrl.safeParse(options);
+  ): Promise<{ url: string }> {
+    const { data: parsedOptions, error: optionsError } = zGetAuthUrl.safeParse(options);
     if (optionsError) {
       throw new OAuthError(400, {
         message: 'Invalid params',
-        description: optionsError.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join(', '),
+        description: prettifyError(optionsError),
       });
     }
-    if (validOptions.loginPrompt === 'email' && !validOptions.email)
+    if (parsedOptions.loginPrompt === 'email' && !parsedOptions.email)
       throw new OAuthError(400, 'Invalid params: Email is required');
-    if (validOptions.frontendUrl && !this.frontendHosts.includes(new URL(validOptions.frontendUrl).host))
+    if (parsedOptions.frontendUrl && !this.frontendHosts.includes(new URL(parsedOptions.frontendUrl).host))
       throw new OAuthError(403, 'Invalid params: Unlisted host frontend URL');
 
     try {
       const { verifier, challenge } = await this.msalCryptoProvider.generatePkceCodes();
-      const nonce = this.msalCryptoProvider.createNewGuid();
-      const prompt = validOptions.loginPrompt ?? this.loginPrompt;
-      const params = {
-        nonce: nonce,
-        loginHint: validOptions.email,
-        prompt:
-          validOptions.email || prompt === 'email'
-            ? 'login'
-            : prompt === 'select-account'
-              ? 'select_account'
-              : undefined,
-      };
-      const state = encryptObject(
-        {
-          frontendUrl: validOptions.frontendUrl ?? (this.frontendUrl[0] as string),
-          codeVerifier: verifier,
-          ...params,
-        },
-        this.secretKey,
-      );
-      this.debugLog({
-        message: `Params: ${JSON.stringify({ ...params, state })}`,
-        methodName: 'generateAuthUrl',
-      });
+      const frontendUrl = parsedOptions.frontendUrl ?? (this.frontendUrl[0] as string);
+      const configuredPrompt = parsedOptions.loginPrompt ?? this.loginPrompt;
+      const prompt =
+        parsedOptions.email || configuredPrompt === 'email'
+          ? 'login'
+          : configuredPrompt === 'select-account'
+            ? 'select_account'
+            : undefined;
+
+      const params = { nonce: this.msalCryptoProvider.createNewGuid(), loginHint: parsedOptions.email, prompt };
+      const state = encryptObject({ frontendUrl, codeVerifier: verifier, ...params }, this.secretKey);
+      this.debugLog('getAuthUrl', `Params: ${JSON.stringify({ ...params, state, frontendUrl })}`);
 
       const microsoftUrl = await this.cca.getAuthCodeUrl({
         ...params,
@@ -182,10 +171,11 @@ export class OAuthProvider {
         codeChallenge: challenge,
       });
 
-      if (new URL(microsoftUrl).hostname !== 'login.microsoftonline.com')
+      if (new URL(microsoftUrl).hostname !== 'login.microsoftonline.com') {
         throw new OAuthError(500, 'Illegitimate Microsoft Auth URL');
+      }
 
-      return { authUrl: microsoftUrl };
+      return { url: microsoftUrl };
     } catch (error) {
       if (error instanceof OAuthError) throw error;
       throw new OAuthError(500, {
@@ -211,46 +201,33 @@ export class OAuthProvider {
   /**
    * Exchanges an authorization code for an access token and refresh token.
    * @param options - The options (code and state) for exchanging the code.
-   * @returns The access token, refresh token, frontend URL, and MSAL response.
+   * @returns The access token, refresh token, frontend URL to redirect back to, and MSAL response.
    * @throws {OAuthError} If options are invalid.
    */
   async getTokenByCode(options: { code: string; state: string }): Promise<{
-    accessToken: SetAccessToken;
-    refreshToken: SetRefreshToken | null;
-    frontendUrl: string;
+    accessToken: Cookies['AccessToken'];
+    refreshToken: Cookies['RefreshToken'] | null;
+    url: string;
     msalResponse: AuthenticationResult;
   }> {
-    this.debugLog({
-      message: `Options: ${JSON.stringify({ code: !!options.code, state: !!options.state })}`,
-      methodName: 'exchangeCodeForToken',
-    });
-
-    const { data: validOptions, error: optionsError } = zGetTokenByCode.safeParse(options);
+    const { data: parsedOptions, error: optionsError } = zGetTokenByCode.safeParse(options);
     if (optionsError) {
-      throw new OAuthError(400, {
-        message: 'Invalid params',
-        description: optionsError.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join(', '),
-      });
+      throw new OAuthError(400, { message: 'Invalid params', description: prettifyError(optionsError) });
+    }
+
+    const { data: state, error: stateError } = zState.safeParse(decryptObject(parsedOptions.state, this.secretKey));
+    if (stateError) {
+      throw new OAuthError(400, { message: 'Invalid params: Invalid state', description: prettifyError(stateError) });
+    }
+    this.debugLog('getTokenByCode', `State is decrypted: ${JSON.stringify(state)}`);
+
+    if (!this.frontendHosts.includes(new URL(state.frontendUrl).host)) {
+      throw new OAuthError(403, 'Invalid params: Unlisted host frontend URL');
     }
 
     try {
-      const { data: state, error: stateError } = zState.safeParse(decryptObject(validOptions.state, this.secretKey));
-      if (stateError)
-        throw new OAuthError(400, {
-          message: 'Invalid params: Invalid state',
-          description: stateError.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join(', '),
-        });
-
-      this.debugLog({
-        message: `State is decrypted: ${JSON.stringify(state)}`,
-        methodName: 'exchangeCodeForToken',
-      });
-
-      if (!this.frontendHosts.includes(new URL(state.frontendUrl).host))
-        throw new OAuthError(403, 'Invalid params: Unlisted host frontend URL');
-
       const msalResponse = await this.cca.acquireTokenByCode({
-        code: validOptions.code,
+        code: parsedOptions.code,
         scopes: this.azure.scopes,
         redirectUri: this.serverCallbackUrl,
         ...state,
@@ -263,15 +240,11 @@ export class OAuthProvider {
       return {
         accessToken: { value: accessToken, ...this.defaultCookieOptions.accessToken },
         refreshToken: refreshToken ? { value: refreshToken, ...this.defaultCookieOptions.refreshToken } : null,
-        frontendUrl: state.frontendUrl,
+        url: state.frontendUrl,
         msalResponse,
       };
     } catch (error) {
-      if (error instanceof OAuthError) throw error;
-      throw new OAuthError(500, {
-        message: 'Error exchanging code for token',
-        description: error as string,
-      });
+      throw new OAuthError(500, { message: 'Error exchanging code for token', description: error as string });
     }
   }
 
@@ -282,17 +255,14 @@ export class OAuthProvider {
    * @throws {OAuthError} If options are invalid.
    */
   getLogoutUrl(options: { frontendUrl?: string } = {}): {
-    logoutUrl: string;
-    accessToken: DeleteAccessToken;
-    refreshToken: DeleteRefreshToken;
+    url: string;
+    accessToken: Cookies['DeleteAccessToken'];
+    refreshToken: Cookies['DeleteRefreshToken'];
   } {
-    this.debugLog({ message: `Options: ${JSON.stringify(options)}`, methodName: 'getLogoutUrl' });
-    const { data: frontendUrl, error: frontendUrlError } = zUrl.optional().safeParse(options.frontendUrl);
-    if (frontendUrlError)
-      throw new OAuthError(400, {
-        message: 'Invalid params: Invalid frontend URL',
-        description: frontendUrlError.issues.join(', '),
-      });
+    const { data: frontendUrl, error: urlError } = zUrl.optional().safeParse(options.frontendUrl);
+    if (urlError) {
+      throw new OAuthError(400, { message: 'Invalid params: Invalid URL', description: prettifyError(urlError) });
+    }
     if (frontendUrl && !this.frontendHosts.includes(new URL(frontendUrl).host)) {
       throw new OAuthError(403, 'Invalid params: Unlisted host frontend URL');
     }
@@ -301,7 +271,7 @@ export class OAuthProvider {
     logoutUrl.searchParams.set('post_logout_redirect_uri', frontendUrl ?? (this.frontendUrl[0] as string));
 
     return {
-      logoutUrl: logoutUrl.toString(),
+      url: logoutUrl.toString(),
       accessToken: {
         name: this.defaultCookieOptions.accessToken.name,
         value: '',
@@ -344,11 +314,12 @@ export class OAuthProvider {
    * @returns The JWT payload.
    * @throws {OAuthError} If the token is invalid.
    */
-  private async verifyJwt(jwtToken: string): Promise<JwtPayload> {
+  private async verifyJwt(jwtToken: string): Promise<jwt.JwtPayload> {
     try {
       const decodedJwt = jwt.decode(jwtToken, { complete: true });
-      if (!decodedJwt || !decodedJwt.header.kid)
+      if (!decodedJwt || !decodedJwt.header.kid) {
         throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid JWT Key ID' });
+      }
       const publicKey = await this.getSigningKey(decodedJwt.header.kid);
 
       const fullJwt = jwt.verify(jwtToken, publicKey, {
@@ -357,19 +328,14 @@ export class OAuthProvider {
         issuer: `https://login.microsoftonline.com/${this.azure.tenantId}/v2.0`,
         complete: true,
       });
-      if (typeof fullJwt.payload === 'string')
+
+      if (typeof fullJwt.payload === 'string') {
         throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid JWT Payload' });
-      this.debugLog({
-        message: `JWT Payload: ${JSON.stringify(fullJwt.payload)}`,
-        methodName: 'verifyJwt',
-      });
+      }
+      this.debugLog('verifyJwt', `JWT Payload: ${JSON.stringify(fullJwt.payload)}`);
 
       return fullJwt.payload;
     } catch (err) {
-      this.debugLog({
-        message: 'Error verifying JWT',
-        methodName: 'verifyJwt',
-      });
       if (err instanceof OAuthError) throw err;
       throw new OAuthError(401, {
         message: 'Unauthorized',
@@ -386,7 +352,7 @@ export class OAuthProvider {
    */
   async verifyAccessToken(
     accessToken: string | undefined,
-  ): Promise<{ microsoftToken: string; payload: JwtPayload } | null> {
+  ): Promise<{ microsoftToken: string; payload: jwt.JwtPayload } | null> {
     if (!accessToken) return null;
     try {
       const { data: jwtToken, success: jwtTokenSuccess } = zJwt.safeParse(
@@ -396,7 +362,7 @@ export class OAuthProvider {
       const payload = await this.verifyJwt(jwtToken);
       return { microsoftToken: jwtToken, payload };
     } catch (err) {
-      this.debugLog({ message: `Error verifying token: ${err}`, methodName: 'verifyToken' });
+      this.debugLog('verifyAccessToken', `Error verifying token: ${err}`);
       return null;
     }
   }
@@ -408,10 +374,10 @@ export class OAuthProvider {
    * @throws {OAuthError} If the refresh token is invalid.
    */
   async getTokenByRefresh(refreshToken: string): Promise<{
-    newAccessToken: SetAccessToken;
-    newRefreshToken: SetRefreshToken | null;
+    newAccessToken: Cookies['AccessToken'];
+    newRefreshToken: Cookies['RefreshToken'] | null;
     msalResponse: AuthenticationResult;
-    msal: { microsoftToken: string; payload: JwtPayload };
+    msal: { microsoftToken: string; payload: jwt.JwtPayload };
   } | null> {
     const { data: encryptedToken, success: encryptedTokenSuccess } = zEncrypted.safeParse(refreshToken);
     if (!encryptedTokenSuccess)
@@ -441,14 +407,14 @@ export class OAuthProvider {
         msal: { microsoftToken: msalResponse.accessToken, payload: accessTokenPayload },
       };
     } catch (error) {
-      this.debugLog({ message: `Error refreshing token: ${error}`, methodName: 'refreshToken' });
+      this.debugLog('getTokenByRefresh', `Error refreshing token: ${error}`);
       return null;
     }
   }
 
   async getTokenOnBehalfOf(options: { accessToken: string; scopeOfRemoteServer: string }): Promise<{
-    accessToken: SetAccessToken;
-    refreshToken: SetRefreshToken | null;
+    accessToken: Cookies['AccessToken'];
+    refreshToken: Cookies['RefreshToken'] | null;
     msalResponse: AuthenticationResult;
   }> {
     try {
