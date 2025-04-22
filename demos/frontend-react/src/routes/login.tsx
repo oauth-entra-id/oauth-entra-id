@@ -1,6 +1,7 @@
 import { useForm } from '@tanstack/react-form';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
+import { AppRegInfo } from '~/components/AppRegInfo';
 import { ServersDropdown } from '~/components/ServersDropdown';
 import { Microsoft } from '~/components/icons/Microsoft';
 import { Button } from '~/components/ui/Button';
@@ -8,11 +9,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/com
 import { Input } from '~/components/ui/Input';
 import { Label } from '~/components/ui/Label';
 import { Switch } from '~/components/ui/Switch';
-import { MutedText, SmallMutedText, Title } from '~/components/ui/Text';
+import { MutedText, Title } from '~/components/ui/Text';
 import { cn } from '~/lib/utils';
 import { zEmailForm } from '~/lib/zod';
 import { getAuthUrl } from '~/services/user';
-import { useServerStore } from '~/stores/serverStore';
 import { useUserStore } from '~/stores/userStore';
 
 export const Route = createFileRoute('/login')({
@@ -21,7 +21,6 @@ export const Route = createFileRoute('/login')({
 
 function Login() {
   const [ssoEnabled, setSsoEnabled] = useState(true);
-  const appId = useServerStore((state) => state.appId);
   const navigate = useNavigate();
   const user = useUserStore((state) => state.user);
 
@@ -47,12 +46,7 @@ function Login() {
           Welcome,
           <br /> Guest
         </Title>
-        {appId && (
-          <SmallMutedText className="mb-1">
-            <span className="font-bold">App Id: </span>
-            {appId}
-          </SmallMutedText>
-        )}
+        <AppRegInfo />
         <Card>
           <CardHeader>
             <CardTitle>Login into account</CardTitle>

@@ -17,8 +17,13 @@ export class PublicController {
     return this.publicService.getHealth();
   }
 
-  @Get('app-id')
-  getAppId(): { appId: string } {
-    return { appId: env.AZURE.clientId };
+  @Get('app-info')
+  getAppId() {
+    return {
+      current: 'red',
+      blue: env.AZURE_BLUE.clientId,
+      red: env.AZURE_RED.clientId,
+      yellow: env.AZURE_YELLOW.clientId,
+    };
   }
 }

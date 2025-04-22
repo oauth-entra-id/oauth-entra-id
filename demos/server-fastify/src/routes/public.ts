@@ -10,7 +10,12 @@ export const publicRouter = async (app: FastifyInstance) => {
     reply.status(200).send('OK');
   });
 
-  app.get('/app-id', () => {
-    return { appId: env.AZURE.clientId };
+  app.get('/app-info', () => {
+    return {
+      current: 'red',
+      blue: env.AZURE_BLUE.clientId,
+      red: env.AZURE_RED.clientId,
+      yellow: env.AZURE_YELLOW.clientId,
+    };
   });
 };

@@ -53,15 +53,18 @@ export async function logoutAndGetLogoutUrl() {
   return parsed.data.url;
 }
 
-const zGetAppId = z.object({
-  appId: zStr.uuid(),
+const zGetAppInfo = z.object({
+  current: z.enum(['blue', 'red', 'yellow']),
+  blue: zStr.uuid(),
+  red: zStr.uuid(),
+  yellow: zStr.uuid(),
 });
-export async function getAppId() {
+export async function getAppInfo() {
   const serverUrl = useServerStore.getState().serverUrl;
-  const res = await tryCatch(axiosFetch.get(`${serverUrl}/app-id`));
-  const parsed = zGetAppId.safeParse(res?.data);
+  const res = await tryCatch(axiosFetch.get(`${serverUrl}/app-info`));
+  const parsed = zGetAppInfo.safeParse(res?.data);
   if (parsed.error) return null;
-  return parsed.data.appId;
+  return parsed.data;
 }
 
 export async function getTokensOnBehalfOf() {

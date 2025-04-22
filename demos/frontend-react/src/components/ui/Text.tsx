@@ -18,7 +18,7 @@ export function MutedText({ children, className, ...props }: React.ComponentProp
 
 export function SmallMutedText({ children, className, ...props }: React.ComponentProps<'p'>) {
   return (
-    <p className={cn('text-xs text-muted-foreground opacity-75', className)} {...props}>
+    <p className={cn('text-xs text-foreground opacity-75', className)} {...props}>
       {children}
     </p>
   );

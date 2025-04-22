@@ -62,10 +62,10 @@ async function bootstrap() {
   app.use(cookieParser());
   app.use(
     authConfig({
-      azure: env.AZURE,
+      azure: env.AZURE_RED,
       frontendUrl: env.REACT_FRONTEND_URL,
       serverCallbackUrl: `${env.SERVER_URL}/auth/callback`,
-      secretKey: env.SECRET_KEY,
+      secretKey: env.SECRET_KEY_RED,
     }),
   );
 

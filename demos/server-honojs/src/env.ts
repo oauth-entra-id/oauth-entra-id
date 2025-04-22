@@ -11,16 +11,22 @@ const zEnv = z.object({
   HONOJS_URL: zStr.url().default('http://localhost:3004'),
   HONOJS_PORT: z.union([z.number().nonnegative(), zStr.regex(/^\d+$/).transform(Number)]).default(3004),
   REACT_FRONTEND_URL: zStr.url().default('http://localhost:5000'),
-  SECRET_KEY: zStr,
   PROXIES: z.union([z.number().nonnegative(), zStr.regex(/^\d+$/).transform(Number)]).default(0),
-  AZURE_CLIENT_ID: zStr.uuid(),
-  AZURE_TENANT_ID: zStr.uuid(),
-  AZURE_CLIENT_SCOPES: zStr,
-  AZURE_CLIENT_SECRET: zStr,
+  SECRET_KEY1: zStr,
+  AZURE1_CLIENT_ID: zStr.uuid(),
+  AZURE1_TENANT_ID: zStr.uuid(),
+  AZURE1_CLIENT_SCOPES: zStr,
+  AZURE1_CLIENT_SECRET: zStr,
+  SECRET_KEY2: zStr,
   AZURE2_CLIENT_ID: zStr.uuid(),
   AZURE2_TENANT_ID: zStr.uuid(),
   AZURE2_CLIENT_SCOPES: zStr,
   AZURE2_CLIENT_SECRET: zStr,
+  SECRET_KEY3: zStr,
+  AZURE3_CLIENT_ID: zStr.uuid(),
+  AZURE3_TENANT_ID: zStr.uuid(),
+  AZURE3_CLIENT_SCOPES: zStr,
+  AZURE3_CLIENT_SECRET: zStr,
 });
 
 const parsedEnv = zEnv.safeParse(process.env);
@@ -31,22 +37,30 @@ if (parsedEnv.error) {
 }
 
 export const env = {
-  AZURE: {
+  SECRET_KEY_BLUE: parsedEnv.data.SECRET_KEY1,
+  AZURE_BLUE: {
+    clientId: parsedEnv.data.AZURE1_CLIENT_ID,
+    tenantId: parsedEnv.data.AZURE1_TENANT_ID,
+    scopes: [parsedEnv.data.AZURE1_CLIENT_SCOPES],
+    secret: parsedEnv.data.AZURE1_CLIENT_SECRET,
+  },
+  SECRET_KEY_RED: parsedEnv.data.SECRET_KEY2,
+  AZURE_RED: {
     clientId: parsedEnv.data.AZURE2_CLIENT_ID,
     tenantId: parsedEnv.data.AZURE2_TENANT_ID,
     scopes: [parsedEnv.data.AZURE2_CLIENT_SCOPES],
     secret: parsedEnv.data.AZURE2_CLIENT_SECRET,
   },
-  AZURE2: {
-    clientId: parsedEnv.data.AZURE_CLIENT_ID,
-    tenantId: parsedEnv.data.AZURE_TENANT_ID,
-    scopes: [parsedEnv.data.AZURE_CLIENT_SCOPES],
-    secret: parsedEnv.data.AZURE_CLIENT_SECRET,
+  SECRET_KEY_YELLOW: parsedEnv.data.SECRET_KEY3,
+  AZURE_YELLOW: {
+    clientId: parsedEnv.data.AZURE3_CLIENT_ID,
+    tenantId: parsedEnv.data.AZURE3_TENANT_ID,
+    scopes: [parsedEnv.data.AZURE3_CLIENT_SCOPES],
+    secret: parsedEnv.data.AZURE3_CLIENT_SECRET,
   },
   NODE_ENV: parsedEnv.data.NODE_ENV,
   SERVER_URL: parsedEnv.data.HONOJS_URL,
   SERVER_PORT: parsedEnv.data.HONOJS_PORT,
   REACT_FRONTEND_URL: parsedEnv.data.REACT_FRONTEND_URL,
-  SECRET_KEY: parsedEnv.data.SECRET_KEY,
   PROXIES: parsedEnv.data.PROXIES,
 };

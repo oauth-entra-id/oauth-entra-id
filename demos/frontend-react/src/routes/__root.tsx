@@ -5,7 +5,7 @@ import { DotsBackground } from '~/components/DotsBackground';
 import { Loading } from '~/components/Loading';
 import { Navbar } from '~/components/NavBar';
 import { NotFound } from '~/components/NotFound';
-import { getAppId, getUserData } from '~/services/user';
+import { getAppInfo, getUserData } from '~/services/user';
 import { useServerStore } from '~/stores/serverStore';
 import { useThemeStore } from '~/stores/themeStore';
 import { useUserStore } from '~/stores/userStore';
@@ -20,16 +20,16 @@ function Root() {
   const theme = useThemeStore((state) => state.theme);
   const { user, setUser } = useUserStore();
   const server = useServerStore((state) => state.server);
-  const setAppId = useServerStore((state) => state.setAppId);
+  const setAppRegs = useServerStore((state) => state.setAppRegs);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: There is a correlation
   useEffect(() => {
     (async () => {
-      const [appId, user] = await Promise.all([getAppId(), getUserData()]);
-      setAppId(appId);
+      const [appId, user] = await Promise.all([getAppInfo(), getUserData()]);
+      setAppRegs(appId);
       setUser(user);
     })();
-  }, [setAppId, setUser, server]);
+  }, [setAppRegs, setUser, server]);
 
   if (user === undefined) return <Loading />;
 

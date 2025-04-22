@@ -12,6 +12,11 @@ publicRouter.get('/health', (req: Request, res: Response) => {
   res.status(200).send('OK');
 });
 
-publicRouter.get('/app-id', (req: Request, res: Response) => {
-  res.status(200).send({ appId: env.AZURE.clientId });
+publicRouter.get('/app-info', (req: Request, res: Response) => {
+  res.status(200).send({
+    current: 'yellow',
+    blue: env.AZURE_BLUE.clientId,
+    red: env.AZURE_RED.clientId,
+    yellow: env.AZURE_YELLOW.clientId,
+  });
 });

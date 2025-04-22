@@ -1,14 +1,14 @@
 import { Separator } from '@radix-ui/react-dropdown-menu';
 import { createFileRoute } from '@tanstack/react-router';
 import Confetti from 'react-confetti';
+import { AppRegInfo } from '~/components/AppRegInfo';
 import { ServersDropdown } from '~/components/ServersDropdown';
 import { GitHub } from '~/components/icons/GitHub';
 import { Button } from '~/components/ui/Button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '~/components/ui/Card';
-import { MutedText, SmallMutedText, Title } from '~/components/ui/Text';
+import { MutedText, Title } from '~/components/ui/Text';
 import { useWindowDimensions } from '~/hooks/useWindowDimensions';
 import { getTokensOnBehalfOf, logoutAndGetLogoutUrl } from '~/services/user';
-import { useServerStore } from '~/stores/serverStore';
 import { useUserStore } from '~/stores/userStore';
 
 export const Route = createFileRoute('/(protected)/')({
@@ -18,7 +18,6 @@ export const Route = createFileRoute('/(protected)/')({
 function Home() {
   const { width, height } = useWindowDimensions();
   const { user, setUser } = useUserStore();
-  const appId = useServerStore((state) => state.appId);
 
   async function logout() {
     const url = await logoutAndGetLogoutUrl();
@@ -38,12 +37,7 @@ function Home() {
             Welcome,
             <br /> {user.name}
           </Title>
-          {appId && (
-            <SmallMutedText className="mb-1">
-              <span className="font-bold">App Id: </span>
-              {appId}
-            </SmallMutedText>
-          )}
+          <AppRegInfo />
           <Card>
             <CardHeader>
               <CardTitle>You are Connected! 🎉</CardTitle>

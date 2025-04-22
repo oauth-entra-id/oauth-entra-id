@@ -11,9 +11,7 @@ function ProtectedLayout() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!user) {
-      navigate({ to: '/login' });
-    }
+    if (!user) navigate({ to: '/login' });
   });
 
   return <Outlet />;

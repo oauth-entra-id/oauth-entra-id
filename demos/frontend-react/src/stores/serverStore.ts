@@ -18,13 +18,18 @@ export const serversMap = {
   honojs: { value: 'honojs', label: 'HonoJS', url: env.HONOJS_SERVER, Icon: HonoJS },
 } as Record<Server, { value: Server; label: string; url: string; Icon: React.FC<React.SVGProps<SVGSVGElement>> }>;
 
+type Color = 'blue' | 'red' | 'yellow';
+
 interface ServerStore {
   server: Server;
   label: string;
   serverUrl: string;
-  appId: undefined | string | null;
+  appRegs:
+    | undefined
+    | { currentAppId: string; currentColor: Color; other: { blue: string; red: string; yellow: string } }
+    | null;
   setServer: (server: Server) => void;
-  setAppId: (appId: string | null) => void;
+  setAppRegs: (appId: { current: Color; blue: string; red: string; yellow: string } | null) => void;
 }
 
 export const useServerStore = create<ServerStore>()(
@@ -33,14 +38,24 @@ export const useServerStore = create<ServerStore>()(
       server: 'honojs',
       label: serversMap.honojs.label,
       serverUrl: serversMap.honojs.url,
-      appId: undefined,
+      appRegs: undefined,
       setServer: (server) =>
         set({
           server,
           label: serversMap[server].label,
           serverUrl: serversMap[server].url,
         }),
-      setAppId: (appId) => set({ appId }),
+      setAppRegs: (appInfo) => {
+        if (!appInfo) return set({ appRegs: null });
+        const { current, blue, red, yellow } = appInfo;
+        return set({
+          appRegs: {
+            currentAppId: appInfo[current],
+            currentColor: current,
+            other: { blue, red, yellow },
+          },
+        });
+      },
     }),
     {
       name: 'server',
@@ -58,7 +73,7 @@ export const useServerStore = create<ServerStore>()(
           server,
           serverUrl: serversMap[server].url,
           label: serversMap[server].label,
-          appId: currentState.appId,
+          appRegs: currentState.appRegs,
         };
       },
     },

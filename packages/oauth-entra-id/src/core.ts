@@ -348,7 +348,7 @@ export class OAuthProvider {
       if (err instanceof OAuthError) throw err;
       throw new OAuthError(401, {
         message: 'Unauthorized',
-        description: `In Entra ID Portal, 'Manifest' area, the 'requestedAccessTokenVersion' must be set to '2'`,
+        description: `In Entra ID Portal, 'Manifest' area, the 'accessTokenAcceptedVersion' must be set to '2'`,
       });
     }
   }
