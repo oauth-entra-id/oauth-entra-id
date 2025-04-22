@@ -1,15 +1,19 @@
 import { useForm } from '@tanstack/react-form';
-import { createFileRoute } from '@tanstack/react-router';
-import { useState } from 'react';
-import { z } from 'zod';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { useEffect, useState } from 'react';
+import { ServersDropdown } from '~/components/ServersDropdown';
 import { Microsoft } from '~/components/icons/Microsoft';
 import { Button } from '~/components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/Card';
 import { Input } from '~/components/ui/Input';
 import { Label } from '~/components/ui/Label';
 import { Switch } from '~/components/ui/Switch';
+import { MutedText, SmallMutedText, Title } from '~/components/ui/Text';
 import { cn } from '~/lib/utils';
+import { zEmailForm } from '~/lib/zod';
 import { getAuthUrl } from '~/services/user';
+import { useServerStore } from '~/stores/serverStore';
+import { useUserStore } from '~/stores/userStore';
 
 export const Route = createFileRoute('/login')({
   component: Login,
@@ -17,6 +21,13 @@ export const Route = createFileRoute('/login')({
 
 function Login() {
   const [ssoEnabled, setSsoEnabled] = useState(true);
+  const appId = useServerStore((state) => state.appId);
+  const navigate = useNavigate();
+  const user = useUserStore((state) => state.user);
+
+  useEffect(() => {
+    if (user) navigate({ to: '/' });
+  }, [user, navigate]);
 
   const loginUser = async (email?: string) => {
     const url = await getAuthUrl({ email, loginPrompt: !ssoEnabled ? 'select-account' : undefined });
@@ -24,64 +35,76 @@ function Login() {
   };
 
   const form = useForm({
-    defaultValues: {
-      email: '',
-    },
-    validators: {
-      onChange: z.object({ email: z.string().trim().email().min(1).max(128) }),
-    },
-    onSubmit: async ({ value }) => {
-      loginUser(value.email);
-    },
+    defaultValues: { email: '' },
+    validators: { onChange: zEmailForm },
+    onSubmit: async ({ value }) => await loginUser(value.email),
   });
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Login into account</CardTitle>
-        <CardDescription>Enter your email below to login</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-2">
-        <form.Field name="email">
-          {(field) => (
-            <>
-              <Label className="sr-only" htmlFor={field.name}>
-                Email
-              </Label>
-              <Input
-                type="email"
-                name={field.name}
-                id={field.name}
-                value={field.state.value}
-                onChange={(e) => field.handleChange(e.target.value)}
-                onBlur={field.handleBlur}
-                placeholder="name@work.com"
-                autoCorrect="off"
-                autoCapitalize="none"
-                autoComplete="email"
-              />
-            </>
-          )}
-        </form.Field>
-        <form.Subscribe>
-          {({ canSubmit, isDirty, isSubmitting }) => (
-            <Button className="w-full" disabled={!(canSubmit && isDirty)} onClick={() => form.handleSubmit()}>
-              {isSubmitting ? 'Submitting...' : 'Sign In with Email'}
+    <div className="flex flex-col items-center justify-center mt-2">
+      <div className="flex flex-col items-center justify-center space-y-3 z-10">
+        <Title>
+          Welcome,
+          <br /> Guest
+        </Title>
+        {appId && (
+          <SmallMutedText className="mb-1">
+            <span className="font-bold">App Id: </span>
+            {appId}
+          </SmallMutedText>
+        )}
+        <Card>
+          <CardHeader>
+            <CardTitle>Login into account</CardTitle>
+            <CardDescription>Enter your email below to login</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <form.Field name="email">
+              {(field) => (
+                <>
+                  <Label className="sr-only" htmlFor={field.name}>
+                    Email
+                  </Label>
+                  <Input
+                    type="email"
+                    name={field.name}
+                    id={field.name}
+                    value={field.state.value}
+                    onChange={(e) => field.handleChange(e.target.value)}
+                    onBlur={field.handleBlur}
+                    placeholder="name@work.com"
+                    autoCorrect="off"
+                    autoCapitalize="none"
+                    autoComplete="email"
+                  />
+                </>
+              )}
+            </form.Field>
+            <form.Subscribe>
+              {({ canSubmit, isDirty, isSubmitting }) => (
+                <Button className="w-full" disabled={!(canSubmit && isDirty)} onClick={() => form.handleSubmit()}>
+                  {isSubmitting ? 'Submitting...' : 'Sign In with Email'}
+                </Button>
+              )}
+            </form.Subscribe>
+            <OrContinueWith />
+            <Button variant="outline" className="w-full" onClick={async () => await loginUser()}>
+              <Microsoft /> Microsoft
             </Button>
-          )}
-        </form.Subscribe>
-        <OrContinueWith />
-        <Button variant="outline" className="w-full" onClick={async () => await loginUser()}>
-          <Microsoft /> Microsoft
-        </Button>
-        <div className="flex items-center justify-center mt-2">
-          <Switch id="sso" checked={ssoEnabled} onCheckedChange={setSsoEnabled} />
-          <Label htmlFor="sso" className={cn('text-sm mx-2', ssoEnabled ? 'text-foreground' : 'text-muted-foreground')}>
-            Single Sign-On
-          </Label>
-        </div>
-      </CardContent>
-    </Card>
+            <div className="flex items-center justify-center mt-2">
+              <Switch id="sso" checked={ssoEnabled} onCheckedChange={setSsoEnabled} />
+              <Label
+                htmlFor="sso"
+                className={cn('text-sm mx-2', ssoEnabled ? 'text-foreground' : 'text-muted-foreground')}>
+                Single Sign-On
+              </Label>
+            </div>
+          </CardContent>
+        </Card>
+        <ServersDropdown />
+        <MutedText>React demo that shows how to integrate OAuth2.0 Flow.</MutedText>
+      </div>
+    </div>
   );
 }
 

@@ -12,7 +12,8 @@
 
 import { Route as rootRoute } from './routes/__root'
 import { Route as LoginImport } from './routes/login'
-import { Route as IndexImport } from './routes/index'
+import { Route as protectedRouteImport } from './routes/(protected)/route'
+import { Route as protectedIndexImport } from './routes/(protected)/index'
 
 // Create/Update Routes
 
@@ -22,21 +23,26 @@ const LoginRoute = LoginImport.update({
   getParentRoute: () => rootRoute,
 } as any)
 
-const IndexRoute = IndexImport.update({
+const protectedRouteRoute = protectedRouteImport.update({
+  id: '/(protected)',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const protectedIndexRoute = protectedIndexImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => protectedRouteRoute,
 } as any)
 
 // Populate the FileRoutesByPath interface
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
+    '/(protected)': {
+      id: '/(protected)'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexImport
+      preLoaderRoute: typeof protectedRouteImport
       parentRoute: typeof rootRoute
     }
     '/login': {
@@ -46,43 +52,63 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginImport
       parentRoute: typeof rootRoute
     }
+    '/(protected)/': {
+      id: '/(protected)/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof protectedIndexImport
+      parentRoute: typeof protectedRouteImport
+    }
   }
 }
 
 // Create and export the route tree
 
+interface protectedRouteRouteChildren {
+  protectedIndexRoute: typeof protectedIndexRoute
+}
+
+const protectedRouteRouteChildren: protectedRouteRouteChildren = {
+  protectedIndexRoute: protectedIndexRoute,
+}
+
+const protectedRouteRouteWithChildren = protectedRouteRoute._addFileChildren(
+  protectedRouteRouteChildren,
+)
+
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
+  '/': typeof protectedIndexRoute
   '/login': typeof LoginRoute
 }
 
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/': typeof protectedIndexRoute
 }
 
 export interface FileRoutesById {
   __root__: typeof rootRoute
-  '/': typeof IndexRoute
+  '/(protected)': typeof protectedRouteRouteWithChildren
   '/login': typeof LoginRoute
+  '/(protected)/': typeof protectedIndexRoute
 }
 
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths: '/' | '/login'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login'
-  id: '__root__' | '/' | '/login'
+  to: '/login' | '/'
+  id: '__root__' | '/(protected)' | '/login' | '/(protected)/'
   fileRoutesById: FileRoutesById
 }
 
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
+  protectedRouteRoute: typeof protectedRouteRouteWithChildren
   LoginRoute: typeof LoginRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
+  protectedRouteRoute: protectedRouteRouteWithChildren,
   LoginRoute: LoginRoute,
 }
 
@@ -96,15 +122,22 @@ export const routeTree = rootRoute
     "__root__": {
       "filePath": "__root.tsx",
       "children": [
-        "/",
+        "/(protected)",
         "/login"
       ]
     },
-    "/": {
-      "filePath": "index.tsx"
+    "/(protected)": {
+      "filePath": "(protected)/route.tsx",
+      "children": [
+        "/(protected)/"
+      ]
     },
     "/login": {
       "filePath": "login.tsx"
+    },
+    "/(protected)/": {
+      "filePath": "(protected)/index.tsx",
+      "parent": "/(protected)"
     }
   }
 }

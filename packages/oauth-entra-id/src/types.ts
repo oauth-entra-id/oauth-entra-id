@@ -8,7 +8,7 @@ export type TimeFrame = 'ms' | 'sec';
 
 export interface Azure {
   clientId: string;
-  tenantId: string;
+  tenantId: 'common' | string;
   scopes: string[];
   secret: string;
 }
@@ -41,12 +41,12 @@ export interface OAuthConfig {
 }
 
 export interface Options {
-  isHttps: boolean;
-  isSameSite: boolean;
-  cookieTimeFrame: TimeFrame;
-  accessTokenExpiry: number; // in seconds
-  refreshTokenExpiry: number; // in seconds
-  debug: boolean;
+  readonly isHttps: boolean;
+  readonly isSameSite: boolean;
+  readonly cookieTimeFrame: TimeFrame;
+  readonly accessTokenExpiry: number; // in seconds
+  readonly refreshTokenExpiry: number; // in seconds
+  readonly debug: boolean;
 }
 
 export interface Endpoints {

@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { z } from 'zod';
+import { zStr } from '~/lib/zod';
 import { useServerStore } from '~/stores/serverStore';
 
 const axiosFetch = axios.create({
@@ -14,8 +15,6 @@ async function tryCatch<T>(promise: Promise<T>): Promise<T | null> {
     return null;
   }
 }
-
-const zStr = z.string().trim().min(1);
 
 const zGetUserData = z.object({
   user: z.object({

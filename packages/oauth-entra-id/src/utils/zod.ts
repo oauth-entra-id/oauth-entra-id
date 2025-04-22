@@ -15,10 +15,14 @@ export const zEmail = zStr.max(320).email();
 
 export const zLoginPrompt = z.enum(['email', 'select-account', 'sso']);
 
+const zSecretKey = zStr.min(16).max(64);
+const zScopes = z.array(zStr.min(3)).min(1);
+export const zServiceName = zStr.min(1).max(64);
+
 const zOnBehalfOfOptions = z.object({
-  serviceName: zStr.min(1).max(64),
-  scopes: z.array(zStr.min(3)).min(1),
-  secretKey: zStr.min(16).max(64),
+  serviceName: zServiceName,
+  scopes: zScopes,
+  secretKey: zSecretKey,
   isHttps: z.boolean(),
   isSameSite: z.boolean(),
   accessTokenExpiry: z.number().positive().default(3600),
@@ -53,12 +57,12 @@ export const zConfig = z.object({
   azure: z.object({
     clientId: zUuid,
     tenantId: zUuid,
-    scopes: z.array(zStr.min(3)).min(1),
+    scopes: zScopes,
     secret: zStr.min(32),
   }),
   frontendUrl: z.union([zUrl.transform((url) => [url]), z.array(zUrl).min(1)]),
   serverCallbackUrl: zUrl,
-  secretKey: zStr.min(16).max(64),
+  secretKey: zSecretKey,
   advanced: zAdvanced,
 });
 

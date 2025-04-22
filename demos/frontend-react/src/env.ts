@@ -1,6 +1,5 @@
 import { z } from 'zod';
-
-const zUrl = z.string().trim().url().min(1);
+import { zUrl } from './lib/zod';
 
 const zEnv = z.object({
   VITE_EXPRESS_URL: zUrl,

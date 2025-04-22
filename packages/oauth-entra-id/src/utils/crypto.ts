@@ -34,7 +34,7 @@ export function decrypt(encryptedData: string, secretKey: crypto.KeyObject) {
     const decrypted = Buffer.concat([decipher.update(Buffer.from(encryptedBase64, FORMAT)), decipher.final()]);
     return decrypted.toString('utf8');
   } catch {
-    throw new Error('Failed to decrypt');
+    return null;
   }
 }
 
@@ -47,8 +47,10 @@ export function encryptObject(data: Record<string, unknown>, secretKey: crypto.K
 }
 
 export function decryptObject(data: string, secretKey: crypto.KeyObject): Record<string, unknown> | null {
+  const decryptedData = decrypt(data, secretKey);
+  if (!decryptedData) return null;
   try {
-    return JSON.parse(decrypt(data, secretKey));
+    return JSON.parse(decryptedData);
   } catch {
     return null;
   }
