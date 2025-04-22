@@ -1,4 +1,5 @@
 import { Separator } from '@radix-ui/react-dropdown-menu';
+import { ToggleGroup } from '@radix-ui/react-toggle-group';
 import { createFileRoute } from '@tanstack/react-router';
 import Confetti from 'react-confetti';
 import { AppRegInfo } from '~/components/AppRegInfo';
@@ -7,8 +8,10 @@ import { GitHub } from '~/components/icons/GitHub';
 import { Button } from '~/components/ui/Button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '~/components/ui/Card';
 import { MutedText, Title } from '~/components/ui/Text';
+import { ToggleGroupItem } from '~/components/ui/ToggleGroup';
 import { useWindowDimensions } from '~/hooks/useWindowDimensions';
 import { getTokensOnBehalfOf, logoutAndGetLogoutUrl } from '~/services/user';
+import { useServerStore } from '~/stores/serverStore';
 import { useUserStore } from '~/stores/userStore';
 
 export const Route = createFileRoute('/(protected)/')({
@@ -18,6 +21,7 @@ export const Route = createFileRoute('/(protected)/')({
 function Home() {
   const { width, height } = useWindowDimensions();
   const { user, setUser } = useUserStore();
+  const appRegs = useServerStore((state) => state.appRegs);
 
   async function logout() {
     const url = await logoutAndGetLogoutUrl();
@@ -54,13 +58,38 @@ function Home() {
               <div>
                 <span className="font-bold">Name:</span> {user.name}
               </div>
-              <div className="flex justify-center w-full space-x-2 px-1">
-                <Button variant="outline" className="flex-1" onClick={async () => await getTokensOnBehalfOf()}>
-                  New Tokens
-                </Button>
-                <Button variant="destructive" className="flex-1" onClick={async () => await logout()}>
-                  Logout
-                </Button>
+              <div className="flex flex-col items-center justify-center px-1">
+                <ToggleGroup type="multiple">
+                  <ToggleGroupItem
+                    disabled={appRegs?.currentColor === 'blue'}
+                    value="red"
+                    aria-label="red"
+                    className="font-bold">
+                    🔵 Blue
+                  </ToggleGroupItem>
+                  <ToggleGroupItem
+                    disabled={appRegs?.currentColor === 'red'}
+                    value="red"
+                    aria-label="red"
+                    className="font-bold">
+                    🔴 Red
+                  </ToggleGroupItem>
+                  <ToggleGroupItem
+                    disabled={appRegs?.currentColor === 'yellow'}
+                    value="yellow"
+                    aria-label="yellow"
+                    className="font-bold">
+                    🟡 Yellow
+                  </ToggleGroupItem>
+                </ToggleGroup>
+                <div className="flex w-full space-x-2 mt-2">
+                  <Button variant="outline" className="flex-1" onClick={async () => await getTokensOnBehalfOf()}>
+                    New Tokens
+                  </Button>
+                  <Button variant="destructive" className="flex-1" onClick={async () => await logout()}>
+                    Logout
+                  </Button>
+                </div>
               </div>
             </CardContent>
             <CardFooter>
