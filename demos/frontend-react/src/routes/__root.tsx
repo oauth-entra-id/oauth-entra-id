@@ -12,6 +12,7 @@ import { useUserStore } from '~/stores/userStore';
 
 export const Route = createRootRoute({
   notFoundComponent: NotFound,
+  pendingComponent: Loading,
   component: Root,
 });
 
