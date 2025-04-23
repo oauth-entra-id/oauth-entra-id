@@ -1,7 +1,7 @@
 import { HTTPException } from 'hono/http-exception';
 import type { StatusCode } from 'hono/utils/http-status';
-import { ZodError } from 'zod';
 import { OAuthError } from 'oauth-entra-id';
+import { ZodError } from 'zod';
 
 export function errorFilter(err: unknown): { statusCode: StatusCode; message: string } {
   let statusCode: StatusCode = 500;
@@ -16,6 +16,7 @@ export function errorFilter(err: unknown): { statusCode: StatusCode; message: st
     case err instanceof OAuthError: {
       message = err.message;
       statusCode = err.statusCode as StatusCode;
+      console.log(err.description);
       break;
     }
     case err instanceof HTTPException: {

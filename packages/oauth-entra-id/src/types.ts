@@ -13,9 +13,9 @@ export interface Azure {
   secret: string;
 }
 
-export interface OnBehalfOfOptions {
+export interface OnBehalfOfService {
   serviceName: string;
-  scopes: string[];
+  scope: string;
   secretKey: string;
   isHttps: boolean;
   isSameSite: boolean;
@@ -36,7 +36,7 @@ export interface OAuthConfig {
     accessTokenExpiry?: number; // in seconds
     refreshTokenExpiry?: number; // in seconds
     debug?: boolean;
-    onBehalfOfOptions?: OnBehalfOfOptions | OnBehalfOfOptions[];
+    onBehalfOfServices?: OnBehalfOfService[];
   };
 }
 

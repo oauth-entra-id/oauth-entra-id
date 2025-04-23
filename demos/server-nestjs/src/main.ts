@@ -62,10 +62,15 @@ async function bootstrap() {
   app.use(cookieParser());
   app.use(
     authConfig({
-      azure: env.AZURE_RED,
+      azure: {
+        clientId: env.RED_AZURE_CLIENT_ID,
+        tenantId: env.RED_AZURE_TENANT_ID,
+        scopes: [env.RED_AZURE_CLIENT_SCOPE],
+        secret: env.RED_AZURE_CLIENT_SECRET,
+      },
       frontendUrl: env.REACT_FRONTEND_URL,
       serverCallbackUrl: `${env.SERVER_URL}/auth/callback`,
-      secretKey: env.SECRET_KEY_RED,
+      secretKey: env.RED_SECRET_KEY,
     }),
   );
 

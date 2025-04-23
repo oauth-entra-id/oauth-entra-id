@@ -22,6 +22,7 @@ let globalExpressOAuthProvider: OAuthProvider | null = null;
  *
  * @param config - OAuth configuration with an optional flag to allow other systems.
  */
+
 export function authConfig(config: OAuthConfig & { allowOtherSystems?: boolean }) {
   const { allowOtherSystems, ...configuration } = config;
 

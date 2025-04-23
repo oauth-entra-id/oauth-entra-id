@@ -1,7 +1,7 @@
 import { useForm } from '@tanstack/react-form';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
-import { AppRegInfo } from '~/components/AppRegInfo';
+import { AppInfo } from '~/components/AppInfo';
 import { ServersDropdown } from '~/components/ServersDropdown';
 import { Microsoft } from '~/components/icons/Microsoft';
 import { Button } from '~/components/ui/Button';
@@ -46,7 +46,7 @@ function Login() {
           Welcome,
           <br /> Guest
         </Title>
-        <AppRegInfo />
+        <AppInfo />
         <Card>
           <CardHeader>
             <CardTitle>Login into account</CardTitle>

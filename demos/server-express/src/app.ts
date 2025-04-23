@@ -86,10 +86,15 @@ export default function createApp(): Application {
 
   app.use(
     authConfig({
-      azure: env.AZURE_YELLOW,
+      azure: {
+        clientId: env.YELLOW_AZURE_CLIENT_ID,
+        tenantId: env.YELLOW_AZURE_TENANT_ID,
+        scopes: [env.YELLOW_AZURE_CLIENT_SCOPE],
+        secret: env.YELLOW_AZURE_CLIENT_SECRET,
+      },
       frontendUrl: env.REACT_FRONTEND_URL,
       serverCallbackUrl: `${env.SERVER_URL}/auth/callback`,
-      secretKey: env.SECRET_KEY_YELLOW,
+      secretKey: env.YELLOW_SECRET_KEY,
     }),
   );
 

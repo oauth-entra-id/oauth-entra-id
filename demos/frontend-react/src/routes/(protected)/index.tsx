@@ -1,8 +1,9 @@
 import { Separator } from '@radix-ui/react-dropdown-menu';
 import { ToggleGroup } from '@radix-ui/react-toggle-group';
 import { createFileRoute } from '@tanstack/react-router';
+import { useState } from 'react';
 import Confetti from 'react-confetti';
-import { AppRegInfo } from '~/components/AppRegInfo';
+import { AppInfo } from '~/components/AppInfo';
 import { ServersDropdown } from '~/components/ServersDropdown';
 import { GitHub } from '~/components/icons/GitHub';
 import { Button } from '~/components/ui/Button';
@@ -11,7 +12,7 @@ import { MutedText, Title } from '~/components/ui/Text';
 import { ToggleGroupItem } from '~/components/ui/ToggleGroup';
 import { useWindowDimensions } from '~/hooks/useWindowDimensions';
 import { getTokensOnBehalfOf, logoutAndGetLogoutUrl } from '~/services/user';
-import { useServerStore } from '~/stores/serverStore';
+import { type Color, useServerStore } from '~/stores/serverStore';
 import { useUserStore } from '~/stores/userStore';
 
 export const Route = createFileRoute('/(protected)/')({
@@ -19,9 +20,9 @@ export const Route = createFileRoute('/(protected)/')({
 });
 
 function Home() {
+  const [selectedServiceNames, setSelectedServiceNames] = useState<Color[]>([]);
   const { width, height } = useWindowDimensions();
   const { user, setUser } = useUserStore();
-  const appRegs = useServerStore((state) => state.appRegs);
 
   async function logout() {
     const url = await logoutAndGetLogoutUrl();
@@ -41,7 +42,7 @@ function Home() {
             Welcome,
             <br /> {user.name}
           </Title>
-          <AppRegInfo />
+          <AppInfo />
           <Card>
             <CardHeader>
               <CardTitle>You are Connected! 🎉</CardTitle>
@@ -59,31 +60,15 @@ function Home() {
                 <span className="font-bold">Name:</span> {user.name}
               </div>
               <div className="flex flex-col items-center justify-center px-1">
-                <ToggleGroup type="multiple">
-                  <ToggleGroupItem
-                    disabled={appRegs?.currentColor === 'blue'}
-                    value="red"
-                    aria-label="red"
-                    className="font-bold">
-                    🔵 Blue
-                  </ToggleGroupItem>
-                  <ToggleGroupItem
-                    disabled={appRegs?.currentColor === 'red'}
-                    value="red"
-                    aria-label="red"
-                    className="font-bold">
-                    🔴 Red
-                  </ToggleGroupItem>
-                  <ToggleGroupItem
-                    disabled={appRegs?.currentColor === 'yellow'}
-                    value="yellow"
-                    aria-label="yellow"
-                    className="font-bold">
-                    🟡 Yellow
-                  </ToggleGroupItem>
-                </ToggleGroup>
+                <SelectServiceNames
+                  selectedServiceNames={selectedServiceNames}
+                  setSelectedServiceNames={setSelectedServiceNames}
+                />
                 <div className="flex w-full space-x-2 mt-2">
-                  <Button variant="outline" className="flex-1" onClick={async () => await getTokensOnBehalfOf()}>
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={async () => await getTokensOnBehalfOf({ serviceNames: selectedServiceNames })}>
                     New Tokens
                   </Button>
                   <Button variant="destructive" className="flex-1" onClick={async () => await logout()}>
@@ -106,8 +91,45 @@ function Home() {
       </div>
 
       <div className="absolute inset-0 -z-10 pointer-events-none">
-        <Confetti width={width} height={height} numberOfPieces={300} recycle={false} gravity={1} friction={0.95} />
+        <Confetti width={width} height={height} numberOfPieces={200} recycle={false} gravity={1} friction={0.95} />
       </div>
     </>
+  );
+}
+
+function SelectServiceNames({
+  selectedServiceNames,
+  setSelectedServiceNames,
+}: { selectedServiceNames: Color[]; setSelectedServiceNames: (value: Color[]) => void }) {
+  const appRegs = useServerStore((state) => state.appRegs);
+
+  return (
+    <ToggleGroup
+      type="multiple"
+      className="space-x-1.5"
+      value={selectedServiceNames}
+      onValueChange={(value: Color[]) => setSelectedServiceNames(value)}>
+      <ToggleGroupItem
+        disabled={appRegs?.currentServiceName === 'blue'}
+        value="blue"
+        aria-label="blue"
+        className="font-bold">
+        🔵 Blue
+      </ToggleGroupItem>
+      <ToggleGroupItem
+        disabled={appRegs?.currentServiceName === 'red'}
+        value="red"
+        aria-label="red"
+        className="font-bold">
+        🔴 Red
+      </ToggleGroupItem>
+      <ToggleGroupItem
+        disabled={appRegs?.currentServiceName === 'yellow'}
+        value="yellow"
+        aria-label="yellow"
+        className="font-bold">
+        🟡 Yellow
+      </ToggleGroupItem>
+    </ToggleGroup>
   );
 }

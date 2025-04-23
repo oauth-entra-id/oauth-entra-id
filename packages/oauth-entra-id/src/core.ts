@@ -3,8 +3,9 @@ import * as msal from '@azure/msal-node';
 import type { AuthenticationResult, ConfidentialClientApplication, CryptoProvider } from '@azure/msal-node';
 import jwt from 'jsonwebtoken';
 import jwks from 'jwks-rsa';
+import type { string } from 'zod';
 import { OAuthError } from './error';
-import type { Azure, Cookies, LoginPrompt, MethodKeys, OAuthConfig, OnBehalfOfOptions, Options } from './types';
+import type { Azure, Cookies, LoginPrompt, MethodKeys, OAuthConfig, OnBehalfOfService, Options } from './types';
 import { getCookieOptions } from './utils/cookies';
 import { createSecretKey, decrypt, decryptObject, encrypt, encryptObject } from './utils/crypto';
 import { debugLog } from './utils/misc';
@@ -15,10 +16,12 @@ import {
   zGetAuthUrl,
   zGetTokenByCode,
   zJwt,
-  zServiceName,
+  zServiceNames,
   zState,
   zUrl,
 } from './utils/zod';
+
+// TODO: add type safety for Frontend URLs and Service Names
 
 /**
  * ### The Core of the Package
@@ -29,13 +32,13 @@ import {
  */
 export class OAuthProvider {
   private readonly azure: Azure;
-  private readonly frontendUrl: string[];
+  private readonly frontendUrl: [string, ...string[]];
   private readonly serverCallbackUrl: string;
   private readonly secretKey: KeyObject;
   private readonly frontendsWhitelist: string[];
   private readonly loginPrompt: LoginPrompt;
   private readonly defaultCookieOptions: Cookies['DefaultCookieOptions'];
-  private readonly onBehalfOfOptions: OnBehalfOfOptions[] | undefined;
+  private readonly onBehalfOfServices: OnBehalfOfService[] | undefined;
   readonly options: Options;
   private readonly cca: ConfidentialClientApplication;
   private readonly msalCryptoProvider: CryptoProvider;
@@ -66,7 +69,7 @@ export class OAuthProvider {
         accessTokenExpiry,
         refreshTokenExpiry,
         debug,
-        onBehalfOfOptions,
+        onBehalfOfServices,
       },
     } = config;
 
@@ -101,13 +104,13 @@ export class OAuthProvider {
     });
 
     this.azure = azure;
-    this.frontendUrl = frontendUrl;
+    this.frontendUrl = frontendUrl as [string, ...string[]];
     this.serverCallbackUrl = serverCallbackUrl;
     this.secretKey = createSecretKey(secretKey);
     this.frontendsWhitelist = frontendHosts;
     this.loginPrompt = loginPrompt;
     this.defaultCookieOptions = defaultCookieOptions;
-    this.onBehalfOfOptions = onBehalfOfOptions;
+    this.onBehalfOfServices = onBehalfOfServices;
     this.options = { isHttps, isSameSite, cookieTimeFrame, accessTokenExpiry, refreshTokenExpiry, debug };
     this.cca = cca;
     this.msalCryptoProvider = new msal.CryptoProvider();
@@ -157,7 +160,7 @@ export class OAuthProvider {
 
     try {
       const { verifier, challenge } = await this.msalCryptoProvider.generatePkceCodes();
-      const frontendUrl = parsedOptions.frontendUrl ?? (this.frontendUrl[0] as string);
+      const frontendUrl = parsedOptions.frontendUrl ?? this.frontendUrl[0];
       const configuredPrompt = parsedOptions.loginPrompt ?? this.loginPrompt;
       const prompt =
         parsedOptions.email || configuredPrompt === 'email'
@@ -277,7 +280,7 @@ export class OAuthProvider {
     }
 
     const logoutUrl = new URL(`https://login.microsoftonline.com/${this.azure.tenantId}/oauth2/v2.0/logout`);
-    logoutUrl.searchParams.set('post_logout_redirect_uri', frontendUrl ?? (this.frontendUrl[0] as string));
+    logoutUrl.searchParams.set('post_logout_redirect_uri', frontendUrl ?? this.frontendUrl[0]);
 
     return {
       url: logoutUrl.toString(),
@@ -427,22 +430,26 @@ export class OAuthProvider {
     }
   }
 
-  async getTokenOnBehalfOf(options: {
-    accessToken: string;
-    //TODO: add type safety for serviceName
-    serviceName: string;
-  }): Promise<{
-    accessToken: Cookies['AccessToken'];
-    refreshToken: Cookies['RefreshToken'] | null;
-    msalResponse: AuthenticationResult;
-  }> {
-    const { data: serviceName, error: serviceNameError } = zServiceName.safeParse(options.serviceName);
+  async getTokenOnBehalfOf(options: { accessToken: string; serviceNames: string[] }): Promise<
+    {
+      accessToken: Cookies['AccessToken'];
+      refreshToken: Cookies['RefreshToken'] | null;
+      msalResponse: AuthenticationResult;
+    }[]
+  > {
+    if (!this.onBehalfOfServices) {
+      throw new OAuthError(400, { message: 'Invalid params', description: 'On Behalf Of Services not configured' });
+    }
+    const { data: serviceNames, error: serviceNameError } = zServiceNames.safeParse(options.serviceNames);
     if (serviceNameError) {
       throw new OAuthError(400, { message: 'Invalid params', description: prettifyError(serviceNameError) });
     }
 
-    const behalfOfOptions = this.onBehalfOfOptions?.find((option) => option.serviceName === serviceName);
-    if (!behalfOfOptions) {
+    const services = serviceNames
+      .map((serviceName) => this.onBehalfOfServices?.find((configService) => configService.serviceName === serviceName))
+      .filter((service) => !!service);
+
+    if (!services || services.length === 0) {
       throw new OAuthError(400, { message: 'Invalid params', description: 'Service not Found' });
     }
 
@@ -451,46 +458,58 @@ export class OAuthProvider {
         ? decrypt(options.accessToken, this.secretKey)
         : options.accessToken,
     );
+
     if (tokenError) {
       throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid JWT Token' });
     }
 
     try {
-      const msalResponse = await this.cca.acquireTokenOnBehalfOf({
-        oboAssertion: token,
-        scopes: behalfOfOptions.scopes,
-        skipCache: false,
-      });
+      const responses = (
+        await Promise.all(
+          services.map(async (service) => {
+            try {
+              const msalResponse = await this.cca.acquireTokenOnBehalfOf({
+                oboAssertion: token,
+                scopes: [service.scope],
+                skipCache: false,
+              });
+              if (!msalResponse) return null;
 
-      if (!msalResponse) {
-        throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid Access Token' });
-      }
+              const decodedAccessToken = jwt.decode(msalResponse.accessToken, { json: true });
+              if (!decodedAccessToken) return null;
+              const aud = decodedAccessToken.aud;
+              if (typeof aud !== 'string') return null;
 
-      const decodedAccessToken = jwt.decode(msalResponse.accessToken, { json: true });
-      if (!decodedAccessToken) {
-        throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid Access Token' });
-      }
+              const secretKey = createSecretKey(service.secretKey);
 
-      const secretKey = createSecretKey(behalfOfOptions.secretKey);
+              const accessToken = encrypt(msalResponse.accessToken, secretKey);
+              const cachedRefreshToken = await this.getRefreshTokenFromCache(msalResponse);
+              const refreshToken = cachedRefreshToken ? encrypt(cachedRefreshToken, secretKey) : null;
 
-      const accessToken = encrypt(msalResponse.accessToken, secretKey);
-      const cachedRefreshToken = await this.getRefreshTokenFromCache(msalResponse);
-      const refreshToken = cachedRefreshToken ? encrypt(cachedRefreshToken, secretKey) : null;
+              console.log(`clientId: ${aud} accessToken: ${!!accessToken} refreshToken: ${!!refreshToken}`);
 
-      const cookieOptions = getCookieOptions({
-        clientId: decodedAccessToken.aud as string,
-        isHttps: behalfOfOptions.isHttps,
-        isSameSite: behalfOfOptions.isSameSite,
-        cookieTimeFrame: this.options.cookieTimeFrame,
-        accessTokenExpiry: behalfOfOptions.accessTokenExpiry ?? this.options.accessTokenExpiry,
-        refreshTokenExpiry: behalfOfOptions.refreshTokenExpiry ?? this.options.refreshTokenExpiry,
-      });
+              const cookieOptions = getCookieOptions({
+                clientId: aud,
+                isHttps: service.isHttps,
+                isSameSite: service.isSameSite,
+                cookieTimeFrame: this.options.cookieTimeFrame,
+                accessTokenExpiry: service.accessTokenExpiry ?? this.options.accessTokenExpiry,
+                refreshTokenExpiry: service.refreshTokenExpiry ?? this.options.refreshTokenExpiry,
+              });
 
-      return {
-        accessToken: { value: accessToken, ...cookieOptions.accessToken },
-        refreshToken: refreshToken ? { value: refreshToken, ...cookieOptions.refreshToken } : null,
-        msalResponse,
-      };
+              return {
+                accessToken: { value: accessToken, ...cookieOptions.accessToken },
+                refreshToken: refreshToken ? { value: refreshToken, ...cookieOptions.refreshToken } : null,
+                msalResponse,
+              };
+            } catch {
+              return null;
+            }
+          }),
+        )
+      ).filter((response) => !!response);
+
+      return responses;
     } catch (err) {
       if (err instanceof OAuthError) throw err;
       throw new OAuthError(500, { message: 'Error exchanging code for token', description: err as string });

@@ -2,25 +2,29 @@ import { OAuthProvider } from 'oauth-entra-id';
 import { env } from './env';
 
 export const oauthProvider = new OAuthProvider({
-  azure: env.AZURE_BLUE,
+  azure: {
+    clientId: env.BLUE_AZURE_CLIENT_ID,
+    tenantId: env.BLUE_AZURE_TENANT_ID,
+    scopes: [env.BLUE_AZURE_CLIENT_SCOPE],
+    secret: env.BLUE_AZURE_CLIENT_SECRET,
+  },
   frontendUrl: env.REACT_FRONTEND_URL,
   serverCallbackUrl: `${env.SERVER_URL}/auth/callback`,
-  secretKey: env.SECRET_KEY_BLUE,
+  secretKey: env.BLUE_SECRET_KEY,
   advanced: {
     cookieTimeFrame: 'sec',
-    debug: true,
-    onBehalfOfOptions: [
+    onBehalfOfServices: [
       {
         serviceName: 'red',
-        scopes: env.AZURE_RED.scopes,
-        secretKey: env.SECRET_KEY_RED,
+        scope: env.RED_AZURE_CLIENT_SCOPE,
+        secretKey: env.RED_SECRET_KEY,
         isHttps: env.NODE_ENV !== 'development',
         isSameSite: env.NODE_ENV !== 'development',
       },
       {
         serviceName: 'yellow',
-        scopes: env.AZURE_YELLOW.scopes,
-        secretKey: env.SECRET_KEY_YELLOW,
+        scope: env.YELLOW_AZURE_CLIENT_SCOPE,
+        secretKey: env.YELLOW_SECRET_KEY,
         isHttps: env.NODE_ENV !== 'development',
         isSameSite: env.NODE_ENV !== 'development',
       },

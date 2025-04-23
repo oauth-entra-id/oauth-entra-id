@@ -10,12 +10,15 @@ protectedRouter.get('/user-info', requireAuthentication, (c) => {
 });
 
 protectedRouter.post('/on-behalf-of', requireAuthentication, async (c) => {
-  const { name } = await c.req.json();
-  const { accessToken, refreshToken } = await oauthProvider.getTokenOnBehalfOf({
+  const { serviceNames } = await c.req.json();
+  const responses = await oauthProvider.getTokenOnBehalfOf({
     accessToken: c.var.msal.microsoftToken,
-    serviceName: name,
+    serviceNames,
   });
-  setCookie(c, accessToken.name, accessToken.value, accessToken.options);
-  if (refreshToken) setCookie(c, refreshToken.name, refreshToken.value, refreshToken.options);
+  for (const response of responses) {
+    const { accessToken, refreshToken } = response;
+    setCookie(c, accessToken.name, accessToken.value, accessToken.options);
+    if (refreshToken) setCookie(c, refreshToken.name, refreshToken.value, refreshToken.options);
+  }
   return c.json({ message: 'Tokens set' });
 });

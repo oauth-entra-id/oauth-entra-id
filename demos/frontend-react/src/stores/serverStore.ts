@@ -18,7 +18,7 @@ export const serversMap = {
   honojs: { value: 'honojs', label: 'HonoJS', url: env.HONOJS_SERVER, Icon: HonoJS },
 } as Record<Server, { value: Server; label: string; url: string; Icon: React.FC<React.SVGProps<SVGSVGElement>> }>;
 
-type Color = 'blue' | 'red' | 'yellow';
+export type Color = 'blue' | 'red' | 'yellow';
 
 interface ServerStore {
   server: Server;
@@ -26,7 +26,7 @@ interface ServerStore {
   serverUrl: string;
   appRegs:
     | undefined
-    | { currentAppId: string; currentColor: Color; other: { blue: string; red: string; yellow: string } }
+    | { currentServiceId: string; currentServiceName: Color; other: { blue: string; red: string; yellow: string } }
     | null;
   setServer: (server: Server) => void;
   setAppRegs: (appId: { current: Color; blue: string; red: string; yellow: string } | null) => void;
@@ -50,8 +50,8 @@ export const useServerStore = create<ServerStore>()(
         const { current, blue, red, yellow } = appInfo;
         return set({
           appRegs: {
-            currentAppId: appInfo[current],
-            currentColor: current,
+            currentServiceId: appInfo[current],
+            currentServiceName: current,
             other: { blue, red, yellow },
           },
         });

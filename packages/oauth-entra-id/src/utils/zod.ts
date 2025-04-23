@@ -16,12 +16,14 @@ export const zEmail = zStr.max(320).email();
 export const zLoginPrompt = z.enum(['email', 'select-account', 'sso']);
 
 const zSecretKey = zStr.min(16).max(64);
-const zScopes = z.array(zStr.min(3)).min(1);
-export const zServiceName = zStr.min(1).max(64);
+const zScope = zStr.min(3).max(128);
+const zScopes = z.array(zScope).min(1);
+const zServiceName = zStr.min(1).max(64);
+export const zServiceNames = z.array(zServiceName).min(1);
 
-const zOnBehalfOfOptions = z.object({
+const zOnBehalfOfService = z.object({
   serviceName: zServiceName,
-  scopes: zScopes,
+  scope: zScope,
   secretKey: zSecretKey,
   isHttps: z.boolean(),
   isSameSite: z.boolean(),
@@ -38,9 +40,7 @@ const zAdvanced = z
     accessTokenExpiry: z.number().positive().default(3600),
     refreshTokenExpiry: z.number().min(3600).default(2592000),
     debug: z.boolean().default(false),
-    onBehalfOfOptions: z
-      .union([zOnBehalfOfOptions.transform((options) => [options]), z.array(zOnBehalfOfOptions).min(1)])
-      .optional(),
+    onBehalfOfServices: z.array(zOnBehalfOfService).min(1).optional(),
   })
   .default({
     loginPrompt: 'sso',
@@ -50,7 +50,7 @@ const zAdvanced = z
     accessTokenExpiry: 3600,
     refreshTokenExpiry: 2592000,
     debug: false,
-    onBehalfOfOptions: undefined,
+    onBehalfOfServices: undefined,
   });
 
 export const zConfig = z.object({

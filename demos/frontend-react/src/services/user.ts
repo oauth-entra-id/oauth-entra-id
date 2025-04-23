@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { z } from 'zod';
 import { zStr } from '~/lib/zod';
-import { useServerStore } from '~/stores/serverStore';
+import { type Color, useServerStore } from '~/stores/serverStore';
 
 const axiosFetch = axios.create({
   // baseURL: env.VITE_SERVER_URL, //in real usage, you will set the base URL here
@@ -59,6 +59,7 @@ const zGetAppInfo = z.object({
   red: zStr.uuid(),
   yellow: zStr.uuid(),
 });
+
 export async function getAppInfo() {
   const serverUrl = useServerStore.getState().serverUrl;
   const res = await tryCatch(axiosFetch.get(`${serverUrl}/app-info`));
@@ -67,7 +68,7 @@ export async function getAppInfo() {
   return parsed.data;
 }
 
-export async function getTokensOnBehalfOf() {
+export async function getTokensOnBehalfOf({ serviceNames }: { serviceNames: Color[] }) {
   const serverUrl = useServerStore.getState().serverUrl;
-  await tryCatch(axiosFetch.post(`${serverUrl}/protected/on-behalf-of`, { name: 'main' }));
+  await tryCatch(axiosFetch.post(`${serverUrl}/protected/on-behalf-of`, { serviceNames }));
 }
