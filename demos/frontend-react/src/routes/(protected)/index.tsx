@@ -24,12 +24,17 @@ function Home() {
   const { width, height } = useWindowDimensions();
   const { user, setUser } = useUserStore();
 
-  async function logout() {
+  async function handleLogout() {
     const url = await logoutAndGetLogoutUrl();
     if (url) {
       setUser(null);
       window.open(url, '_blank');
     }
+  }
+
+  async function handleOnBehalfOf() {
+    await getTokensOnBehalfOf({ serviceNames: selectedServiceNames });
+    setSelectedServiceNames([]);
   }
 
   if (!user) return null;
@@ -65,13 +70,10 @@ function Home() {
                   setSelectedServiceNames={setSelectedServiceNames}
                 />
                 <div className="flex w-full space-x-2 mt-2">
-                  <Button
-                    variant="outline"
-                    className="flex-1"
-                    onClick={async () => await getTokensOnBehalfOf({ serviceNames: selectedServiceNames })}>
+                  <Button variant="outline" className="flex-1" onClick={async () => await handleOnBehalfOf()}>
                     New Tokens
                   </Button>
-                  <Button variant="destructive" className="flex-1" onClick={async () => await logout()}>
+                  <Button variant="destructive" className="flex-1" onClick={async () => await handleLogout()}>
                     Logout
                   </Button>
                 </div>
@@ -104,32 +106,35 @@ function SelectServiceNames({
   const appRegs = useServerStore((state) => state.appRegs);
 
   return (
-    <ToggleGroup
-      type="multiple"
-      className="space-x-1.5"
-      value={selectedServiceNames}
-      onValueChange={(value: Color[]) => setSelectedServiceNames(value)}>
-      <ToggleGroupItem
-        disabled={appRegs?.currentServiceName === 'blue'}
-        value="blue"
-        aria-label="blue"
-        className="font-bold">
-        🔵 Blue
-      </ToggleGroupItem>
-      <ToggleGroupItem
-        disabled={appRegs?.currentServiceName === 'red'}
-        value="red"
-        aria-label="red"
-        className="font-bold">
-        🔴 Red
-      </ToggleGroupItem>
-      <ToggleGroupItem
-        disabled={appRegs?.currentServiceName === 'yellow'}
-        value="yellow"
-        aria-label="yellow"
-        className="font-bold">
-        🟡 Yellow
-      </ToggleGroupItem>
-    </ToggleGroup>
+    <div className="flex w-full items-center justify-center space-x-1">
+      <div className="text-muted-foreground text-sm font-semibold">Other Services:</div>
+      <ToggleGroup
+        type="multiple"
+        className="space-x-1.5"
+        value={selectedServiceNames}
+        onValueChange={(value: Color[]) => setSelectedServiceNames(value)}>
+        <ToggleGroupItem
+          disabled={appRegs?.currentServiceName === 'blue'}
+          value="blue"
+          aria-label="blue"
+          className="font-bold">
+          🔵 Blue
+        </ToggleGroupItem>
+        <ToggleGroupItem
+          disabled={appRegs?.currentServiceName === 'red'}
+          value="red"
+          aria-label="red"
+          className="font-bold">
+          🔴 Red
+        </ToggleGroupItem>
+        <ToggleGroupItem
+          disabled={appRegs?.currentServiceName === 'yellow'}
+          value="yellow"
+          aria-label="yellow"
+          className="font-bold">
+          🟡 Yellow
+        </ToggleGroupItem>
+      </ToggleGroup>
+    </div>
   );
 }

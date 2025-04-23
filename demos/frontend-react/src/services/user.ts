@@ -68,7 +68,14 @@ export async function getAppInfo() {
   return parsed.data;
 }
 
+const zGetTokensOnBehalfOf = z.object({
+  tokensSet: z.number(),
+});
+
 export async function getTokensOnBehalfOf({ serviceNames }: { serviceNames: Color[] }) {
   const serverUrl = useServerStore.getState().serverUrl;
-  await tryCatch(axiosFetch.post(`${serverUrl}/protected/on-behalf-of`, { serviceNames }));
+  const res = await tryCatch(axiosFetch.post(`${serverUrl}/protected/on-behalf-of`, { serviceNames }));
+  const parsed = zGetTokensOnBehalfOf.safeParse(res?.data);
+  if (parsed.error) return null;
+  return parsed.data.tokensSet;
 }

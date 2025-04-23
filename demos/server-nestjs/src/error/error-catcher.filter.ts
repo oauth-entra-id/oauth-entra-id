@@ -1,6 +1,7 @@
-import { type ExceptionFilter, Catch, type ArgumentsHost, HttpException } from '@nestjs/common';
+import { type ArgumentsHost, Catch, type ExceptionFilter, HttpException } from '@nestjs/common';
 import type { HttpAdapterHost } from '@nestjs/core';
 import { OAuthError } from 'oauth-entra-id';
+import { env } from '~/env';
 
 @Catch()
 export class ErrorCatcher implements ExceptionFilter {
@@ -13,6 +14,7 @@ export class ErrorCatcher implements ExceptionFilter {
 
     let statusCode = 500;
     let message = 'Something went wrong...';
+    let description: string | undefined;
 
     if (exception instanceof HttpException) {
       statusCode = exception.getStatus();
@@ -20,15 +22,11 @@ export class ErrorCatcher implements ExceptionFilter {
     } else if (exception instanceof OAuthError) {
       statusCode = exception.statusCode;
       message = exception.message;
+      description = env.NODE_ENV === 'development' ? exception.description : undefined;
     } else if (exception instanceof Error) {
       message = exception.message;
     }
 
-    const responseBody = {
-      error: message,
-      statusCode,
-    };
-
-    httpAdapter.reply(ctx.getResponse(), responseBody, statusCode);
+    httpAdapter.reply(ctx.getResponse(), { error: message, statusCode, description }, statusCode);
   }
 }

@@ -66,7 +66,7 @@ function Login() {
                     value={field.state.value}
                     onChange={(e) => field.handleChange(e.target.value)}
                     onBlur={field.handleBlur}
-                    placeholder="name@work.com"
+                    placeholder="nickname@email.com"
                     autoCorrect="off"
                     autoCapitalize="none"
                     autoComplete="email"

@@ -11,14 +11,14 @@ protectedRouter.get('/user-info', requireAuthentication, (c) => {
 
 protectedRouter.post('/on-behalf-of', requireAuthentication, async (c) => {
   const { serviceNames } = await c.req.json();
-  const responses = await oauthProvider.getTokenOnBehalfOf({
+  const results = await oauthProvider.getTokenOnBehalfOf({
     accessToken: c.var.msal.microsoftToken,
     serviceNames,
   });
-  for (const response of responses) {
-    const { accessToken, refreshToken } = response;
+  for (const result of results) {
+    const { accessToken, refreshToken } = result;
     setCookie(c, accessToken.name, accessToken.value, accessToken.options);
     if (refreshToken) setCookie(c, refreshToken.name, refreshToken.value, refreshToken.options);
   }
-  return c.json({ message: 'Tokens set' });
+  return c.json({ tokensSet: results.length });
 });

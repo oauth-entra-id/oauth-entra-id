@@ -23,8 +23,6 @@ authRouter.post('/callback', async (c) => {
     state: state as string,
   });
 
-  console.log(msalResponse.accessToken);
-
   setCookie(c, accessToken.name, accessToken.value, accessToken.options);
   if (refreshToken) setCookie(c, refreshToken.name, refreshToken.value, refreshToken.options);
   return c.redirect(url);

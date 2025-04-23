@@ -2,10 +2,17 @@ import './types';
 import type { NextFunction, Request, Response } from 'express';
 import { OAuthProvider } from './core';
 import { OAuthError } from './error';
-import { sharedHandleAuthentication, sharedHandleCallback, sharedHandleLogout } from './shared/endpoints';
+import {
+  sharedHandleAuthentication,
+  sharedHandleCallback,
+  sharedHandleLogout,
+  sharedHandleOnBehalfOf,
+} from './shared/endpoints';
 import { sharedRequireAuthentication } from './shared/middleware';
 import type { OAuthConfig } from './types';
 import { debugLog } from './utils/misc';
+
+const ERROR_MESSAGE = 'Make sure you used Express export and you used authConfig';
 
 let globalNestjsOAuthProvider: OAuthProvider | null = null;
 
@@ -44,8 +51,6 @@ export function authConfig(config: OAuthConfig & { allowOtherSystems?: boolean }
     next();
   };
 }
-
-const ERROR_MESSAGE = 'Make sure you used Express export and you used authConfig';
 
 /**
  * NestJS route handler to generate an authentication URL for OAuth.
@@ -100,6 +105,25 @@ export function handleLogout(req: Request, res: Response) {
   try {
     if (!req.oauthProvider || req.serverType !== 'nestjs') throw new OAuthError(500, ERROR_MESSAGE);
     sharedHandleLogout(req, res);
+  } catch (err) {
+    if (err instanceof OAuthError) throw err;
+    if (err instanceof Error) throw new OAuthError(500, err.message);
+    throw new OAuthError(500, { message: 'Something went wrong', description: err as string });
+  }
+}
+
+/**
+ * NestJS route handler to handle On-Behalf-Of token exchange.
+ *
+ * ### Expected Request Body:
+ * - `serviceNames`: `string[]`
+ *
+ * @throws {OAuthError} If On-Behalf-Of setup fails, an error is thrown.
+ */
+export function handleOnBehalfOf(req: Request, res: Response) {
+  try {
+    if (!req.oauthProvider || req.serverType !== 'nestjs') throw new OAuthError(500, ERROR_MESSAGE);
+    sharedHandleOnBehalfOf(req, res);
   } catch (err) {
     if (err instanceof OAuthError) throw err;
     if (err instanceof Error) throw new OAuthError(500, err.message);

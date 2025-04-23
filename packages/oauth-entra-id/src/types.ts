@@ -40,7 +40,7 @@ export interface OAuthConfig {
   };
 }
 
-export interface Options {
+export interface OAuthOptions {
   readonly isHttps: boolean;
   readonly isSameSite: boolean;
   readonly cookieTimeFrame: TimeFrame;
@@ -61,6 +61,9 @@ export interface Endpoints {
   };
   Logout: {
     frontendUrl?: string;
+  };
+  OnBehalfOf: {
+    serviceNames: string[];
   };
 }
 

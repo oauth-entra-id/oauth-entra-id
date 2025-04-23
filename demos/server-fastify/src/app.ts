@@ -15,13 +15,13 @@ export default async function createApp() {
   });
 
   app.setErrorHandler((error, req, reply) => {
-    const { message, statusCode } = new HttpException(error);
+    const { message, statusCode, description } = new HttpException(error);
     if (env.NODE_ENV === 'development' && ![401, 403, 404].includes(statusCode)) console.error(error);
     if (env.NODE_ENV === 'production' && [401, 403].includes(statusCode)) {
       reply.status(404).send({ error: 'Not Found', statusCode: 404 });
       return;
     }
-    reply.status(statusCode).send({ error: message, statusCode });
+    reply.status(statusCode).send({ error: message, statusCode, description });
   });
 
   await app.register(cors, {

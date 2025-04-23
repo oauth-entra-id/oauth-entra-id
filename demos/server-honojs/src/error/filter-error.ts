@@ -2,12 +2,13 @@ import { HTTPException } from 'hono/http-exception';
 import type { StatusCode } from 'hono/utils/http-status';
 import { OAuthError } from 'oauth-entra-id';
 import { ZodError } from 'zod';
+import { env } from '~/env';
 
-export function errorFilter(err: unknown): { statusCode: StatusCode; message: string } {
+export function errorFilter(err: unknown): { statusCode: StatusCode; message: string; description?: string } {
   let statusCode: StatusCode = 500;
   let message = 'Something went wrong...';
+  let description: string | undefined;
 
-  // eslint-disable-next-line @typescript-eslint/switch-exhaustiveness-check
   switch (true) {
     case typeof err === 'string': {
       message = err;
@@ -16,7 +17,7 @@ export function errorFilter(err: unknown): { statusCode: StatusCode; message: st
     case err instanceof OAuthError: {
       message = err.message;
       statusCode = err.statusCode as StatusCode;
-      console.log(err.description);
+      description = env.NODE_ENV === 'development' ? err.description : undefined;
       break;
     }
     case err instanceof HTTPException: {
@@ -43,5 +44,5 @@ export function errorFilter(err: unknown): { statusCode: StatusCode; message: st
     }
   }
 
-  return { statusCode, message };
+  return { statusCode, message, description };
 }

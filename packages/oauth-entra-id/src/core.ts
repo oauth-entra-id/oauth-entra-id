@@ -3,9 +3,8 @@ import * as msal from '@azure/msal-node';
 import type { AuthenticationResult, ConfidentialClientApplication, CryptoProvider } from '@azure/msal-node';
 import jwt from 'jsonwebtoken';
 import jwks from 'jwks-rsa';
-import type { string } from 'zod';
 import { OAuthError } from './error';
-import type { Azure, Cookies, LoginPrompt, MethodKeys, OAuthConfig, OnBehalfOfService, Options } from './types';
+import type { Azure, Cookies, LoginPrompt, MethodKeys, OAuthConfig, OAuthOptions, OnBehalfOfService } from './types';
 import { getCookieOptions } from './utils/cookies';
 import { createSecretKey, decrypt, decryptObject, encrypt, encryptObject } from './utils/crypto';
 import { debugLog } from './utils/misc';
@@ -22,6 +21,10 @@ import {
 } from './utils/zod';
 
 // TODO: add type safety for Frontend URLs and Service Names
+// TODO: add Array.from(new Set()) to remove duplicates from frontendUrl
+// TODO: add better token recognition (JWT or encrypted)
+// TODO: add better try catch to the map of getTokenOnBehalfOf
+// TODO: add platforms and checks within the method itself
 
 /**
  * ### The Core of the Package
@@ -39,7 +42,7 @@ export class OAuthProvider {
   private readonly loginPrompt: LoginPrompt;
   private readonly defaultCookieOptions: Cookies['DefaultCookieOptions'];
   private readonly onBehalfOfServices: OnBehalfOfService[] | undefined;
-  readonly options: Options;
+  readonly options: OAuthOptions;
   private readonly cca: ConfidentialClientApplication;
   private readonly msalCryptoProvider: CryptoProvider;
   private readonly jwksClient: jwks.JwksClient;
@@ -140,14 +143,14 @@ export class OAuthProvider {
 
   /**
    * Generates an authorization URL for OAuth authentication.
-   * @param options - The options for generating the authorization URL.
+   * @param params - The options for generating the authorization URL.
    * @returns The authorization URL.
    * @throws {OAuthError} If options are invalid.
    */
   async getAuthUrl(
-    options: { loginPrompt?: LoginPrompt; email?: string; frontendUrl?: string } = {},
+    params: { loginPrompt?: LoginPrompt; email?: string; frontendUrl?: string } = {},
   ): Promise<{ url: string }> {
-    const { data: parsedOptions, error: optionsError } = zGetAuthUrl.safeParse(options);
+    const { data: parsedOptions, error: optionsError } = zGetAuthUrl.safeParse(params);
     if (optionsError) {
       throw new OAuthError(400, { message: 'Invalid params', description: prettifyError(optionsError) });
     }
@@ -202,7 +205,7 @@ export class OAuthProvider {
    * @param msalResponse - The MSAL authentication result.
    * @returns The refresh token or null if not found.
    */
-  private async getRefreshTokenFromCache(msalResponse: msal.AuthenticationResult) {
+  private async extractRefreshTokenFromCache(msalResponse: msal.AuthenticationResult) {
     const tokenCache = this.cca.getTokenCache();
     const refreshTokenMap = JSON.parse(tokenCache.serialize()).RefreshToken;
     const userRefreshTokenKey = Object.keys(refreshTokenMap).find((key) => key.startsWith(msalResponse.uniqueId));
@@ -212,17 +215,17 @@ export class OAuthProvider {
 
   /**
    * Exchanges an authorization code for an access token and refresh token.
-   * @param options - The options (code and state) for exchanging the code.
+   * @param params - The options (code and state) for exchanging the code.
    * @returns The access token, refresh token, frontend URL to redirect back to, and MSAL response.
    * @throws {OAuthError} If options are invalid.
    */
-  async getTokenByCode(options: { code: string; state: string }): Promise<{
+  async getTokenByCode(params: { code: string; state: string }): Promise<{
     accessToken: Cookies['AccessToken'];
     refreshToken: Cookies['RefreshToken'] | null;
     url: string;
     msalResponse: AuthenticationResult;
   }> {
-    const { data: parsedOptions, error: optionsError } = zGetTokenByCode.safeParse(options);
+    const { data: parsedOptions, error: optionsError } = zGetTokenByCode.safeParse(params);
     if (optionsError) {
       throw new OAuthError(400, { message: 'Invalid params', description: prettifyError(optionsError) });
     }
@@ -246,8 +249,8 @@ export class OAuthProvider {
       });
 
       const accessToken = encrypt(msalResponse.accessToken, this.secretKey);
-      const cachedRefreshToken = await this.getRefreshTokenFromCache(msalResponse);
-      const refreshToken = cachedRefreshToken ? encrypt(cachedRefreshToken, this.secretKey) : null;
+      const rawRefreshToken = await this.extractRefreshTokenFromCache(msalResponse);
+      const refreshToken = rawRefreshToken ? encrypt(rawRefreshToken, this.secretKey) : null;
 
       return {
         accessToken: { value: accessToken, ...this.defaultCookieOptions.accessToken },
@@ -262,16 +265,16 @@ export class OAuthProvider {
 
   /**
    * Generates a logout URL for OAuth authentication.
-   * @param options - The options for generating the logout URL.
+   * @param params - The options for generating the logout URL.
    * @returns The logout URL and cookie deletion options.
    * @throws {OAuthError} If options are invalid.
    */
-  getLogoutUrl(options: { frontendUrl?: string } = {}): {
+  getLogoutUrl(params: { frontendUrl?: string } = {}): {
     url: string;
     accessToken: Cookies['DeleteAccessToken'];
     refreshToken: Cookies['DeleteRefreshToken'];
   } {
-    const { data: frontendUrl, error: urlError } = zUrl.optional().safeParse(options.frontendUrl);
+    const { data: frontendUrl, error: urlError } = zUrl.optional().safeParse(params.frontendUrl);
     if (urlError) {
       throw new OAuthError(400, { message: 'Invalid params: Invalid URL', description: prettifyError(urlError) });
     }
@@ -415,8 +418,8 @@ export class OAuthProvider {
 
       const accessToken = encrypt(msalResponse.accessToken, this.secretKey);
       const accessTokenPayload = await this.verifyJwt(msalResponse.accessToken);
-      const cachedRefreshToken = await this.getRefreshTokenFromCache(msalResponse);
-      const refreshToken = cachedRefreshToken ? encrypt(cachedRefreshToken, this.secretKey) : null;
+      const rawRefreshToken = await this.extractRefreshTokenFromCache(msalResponse);
+      const refreshToken = rawRefreshToken ? encrypt(rawRefreshToken, this.secretKey) : null;
 
       return {
         newAccessToken: { value: accessToken, ...this.defaultCookieOptions.accessToken },
@@ -430,7 +433,7 @@ export class OAuthProvider {
     }
   }
 
-  async getTokenOnBehalfOf(options: { accessToken: string; serviceNames: string[] }): Promise<
+  async getTokenOnBehalfOf(params: { accessToken: string; serviceNames: string[] }): Promise<
     {
       accessToken: Cookies['AccessToken'];
       refreshToken: Cookies['RefreshToken'] | null;
@@ -440,7 +443,7 @@ export class OAuthProvider {
     if (!this.onBehalfOfServices) {
       throw new OAuthError(400, { message: 'Invalid params', description: 'On Behalf Of Services not configured' });
     }
-    const { data: serviceNames, error: serviceNameError } = zServiceNames.safeParse(options.serviceNames);
+    const { data: serviceNames, error: serviceNameError } = zServiceNames.safeParse(params.serviceNames);
     if (serviceNameError) {
       throw new OAuthError(400, { message: 'Invalid params', description: prettifyError(serviceNameError) });
     }
@@ -454,9 +457,9 @@ export class OAuthProvider {
     }
 
     const { data: token, error: tokenError } = zJwt.safeParse(
-      zEncrypted.safeParse(options.accessToken).success
-        ? decrypt(options.accessToken, this.secretKey)
-        : options.accessToken,
+      zEncrypted.safeParse(params.accessToken).success
+        ? decrypt(params.accessToken, this.secretKey)
+        : params.accessToken,
     );
 
     if (tokenError) {
@@ -464,7 +467,7 @@ export class OAuthProvider {
     }
 
     try {
-      const responses = (
+      const results = (
         await Promise.all(
           services.map(async (service) => {
             try {
@@ -483,10 +486,8 @@ export class OAuthProvider {
               const secretKey = createSecretKey(service.secretKey);
 
               const accessToken = encrypt(msalResponse.accessToken, secretKey);
-              const cachedRefreshToken = await this.getRefreshTokenFromCache(msalResponse);
-              const refreshToken = cachedRefreshToken ? encrypt(cachedRefreshToken, secretKey) : null;
-
-              console.log(`clientId: ${aud} accessToken: ${!!accessToken} refreshToken: ${!!refreshToken}`);
+              const rawRefreshToken = await this.extractRefreshTokenFromCache(msalResponse);
+              const refreshToken = rawRefreshToken ? encrypt(rawRefreshToken, secretKey) : null;
 
               const cookieOptions = getCookieOptions({
                 clientId: aud,
@@ -509,7 +510,11 @@ export class OAuthProvider {
         )
       ).filter((response) => !!response);
 
-      return responses;
+      if (!results || results.length === 0) {
+        throw new OAuthError(500, { message: 'Internal server error', description: 'Failed to get token' });
+      }
+
+      return results;
     } catch (err) {
       if (err instanceof OAuthError) throw err;
       throw new OAuthError(500, { message: 'Error exchanging code for token', description: err as string });

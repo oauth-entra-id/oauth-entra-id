@@ -51,8 +51,8 @@ export function createApp() {
   app.route(new URL(env.SERVER_URL).pathname, routesRouter);
 
   app.onError((err, c) => {
-    const { statusCode, message } = errorFilter(err);
-    return c.json({ error: message }, statusCode as ContentfulStatusCode);
+    const { statusCode, message, description } = errorFilter(err);
+    return c.json({ error: message, description }, statusCode as ContentfulStatusCode);
   });
 
   app.notFound((c) => c.json({ error: 'Not found' }, 404));

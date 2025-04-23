@@ -71,6 +71,24 @@ async function bootstrap() {
       frontendUrl: env.REACT_FRONTEND_URL,
       serverCallbackUrl: `${env.SERVER_URL}/auth/callback`,
       secretKey: env.RED_SECRET_KEY,
+      advanced: {
+        onBehalfOfServices: [
+          {
+            serviceName: 'blue',
+            scope: env.BLUE_AZURE_CLIENT_SCOPE,
+            secretKey: env.BLUE_SECRET_KEY,
+            isHttps: env.NODE_ENV !== 'development',
+            isSameSite: env.NODE_ENV !== 'development',
+          },
+          {
+            serviceName: 'yellow',
+            scope: env.YELLOW_AZURE_CLIENT_SCOPE,
+            secretKey: env.YELLOW_SECRET_KEY,
+            isHttps: env.NODE_ENV !== 'development',
+            isSameSite: env.NODE_ENV !== 'development',
+          },
+        ],
+      },
     }),
   );
 
