@@ -1,10 +1,12 @@
 import { Outlet, createRootRoute } from '@tanstack/react-router';
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools';
 import { useEffect } from 'react';
+import { toast } from 'sonner';
 import { DotsBackground } from '~/components/DotsBackground';
 import { Navbar } from '~/components/NavBar';
 import { Loading } from '~/components/pages/Loading';
 import { NotFound } from '~/components/pages/NotFound';
+import { Sonner } from '~/components/ui/sonner';
 import { getAppInfo, getUserData } from '~/services/user';
 import { useServerStore } from '~/stores/serverStore';
 import { useThemeStore } from '~/stores/themeStore';
@@ -28,6 +30,7 @@ function Root() {
       const [appId, user] = await Promise.all([getAppInfo(), getUserData()]);
       setAppRegs(appId);
       setUser(user);
+      toast.info(user ? 'User data fetched!' : 'User not logged in');
     })();
   }, [setAppRegs, setUser, server]);
 
@@ -41,6 +44,7 @@ function Root() {
           <Outlet />
           <DotsBackground />
         </div>
+        <Sonner />
       </div>
       <TanStackRouterDevtools />
     </>

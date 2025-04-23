@@ -3,6 +3,7 @@ import { ToggleGroup } from '@radix-ui/react-toggle-group';
 import { createFileRoute } from '@tanstack/react-router';
 import { useState } from 'react';
 import Confetti from 'react-confetti';
+import { toast } from 'sonner';
 import { AppInfo } from '~/components/AppInfo';
 import { ServersDropdown } from '~/components/ServersDropdown';
 import { GitHub } from '~/components/icons/GitHub';
@@ -26,15 +27,16 @@ function Home() {
 
   async function handleLogout() {
     const url = await logoutAndGetLogoutUrl();
-    if (url) {
-      setUser(null);
-      window.open(url, '_blank');
-    }
+    if (!url) return;
+    setUser(null);
+    window.open(url, '_blank');
   }
 
   async function handleOnBehalfOf() {
-    await getTokensOnBehalfOf({ serviceNames: selectedServiceNames });
+    const tokensSet = await getTokensOnBehalfOf({ serviceNames: selectedServiceNames });
+    if (!tokensSet) return;
     setSelectedServiceNames([]);
+    toast.success(tokensSet === 1 ? 'New token created!' : `${tokensSet} new tokens created!`, { duration: 1000 });
   }
 
   if (!user) return null;

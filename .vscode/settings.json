@@ -58,5 +58,17 @@
     "editor.defaultFormatter": "biomejs.biome"
   },
 
-  "cSpell.words": ["entra", "fastify", "frontends", "honojs", "msal", "partialize", "PKCE", "Regs", "vite"]
+  "cSpell.words": [
+    "entra",
+    "fastify",
+    "frontends",
+    "honojs",
+    "microsoftonline",
+    "msal",
+    "partialize",
+    "PKCE",
+    "Regs",
+    "Sonner",
+    "vite"
+  ]
 }

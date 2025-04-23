@@ -36,6 +36,8 @@ export const sharedHandleLogout = (req: Request, res: Response) => {
   res.status(200).json({ url });
 };
 
+//TODO: add service names directly
+
 export const sharedHandleOnBehalfOf = async (req: Request, res: Response) => {
   const body = req.body as Endpoints['OnBehalfOf'] | undefined;
   if (!body) throw new OAuthError(400, { message: 'Invalid params', description: 'Body must contain serviceNames' });
@@ -48,10 +50,6 @@ export const sharedHandleOnBehalfOf = async (req: Request, res: Response) => {
     serviceNames: body.serviceNames,
     accessToken: req.msal.microsoftToken,
   });
-
-  if (!results || results.length === 0) {
-    throw new OAuthError(500, { message: 'Internal server error', description: 'Failed to get token' });
-  }
 
   for (const result of results) {
     const { accessToken, refreshToken } = result;

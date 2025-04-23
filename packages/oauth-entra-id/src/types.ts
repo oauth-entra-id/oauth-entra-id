@@ -44,6 +44,7 @@ export interface OAuthOptions {
   readonly isHttps: boolean;
   readonly isSameSite: boolean;
   readonly cookieTimeFrame: TimeFrame;
+  readonly serviceNames?: string[];
   readonly accessTokenExpiry: number; // in seconds
   readonly refreshTokenExpiry: number; // in seconds
   readonly debug: boolean;
@@ -83,12 +84,12 @@ declare global {
       /**
        * Stores user authentication details.
        *
-       * - If `isAnotherSystem` is `false`, the user is authenticated locally.
-       * - If `isAnotherSystem` is `true`, authentication comes from an external system.
+       * - If `isFromAnotherApp` is `false`, the user is authenticated locally.
+       * - If `isFromAnotherApp` is `true`, authentication comes from an external system.
        */
       userInfo?:
-        | { isAnotherSystem: false; uniqueId: string; roles: string[]; name: string; email: string }
-        | { isAnotherSystem: true; uniqueId: string; roles: string[]; appId: string };
+        | { isFromAnotherApp: false; uniqueId: string; roles: string[]; name: string; email: string }
+        | { isFromAnotherApp: true; uniqueId: string; roles: string[]; appId: string };
     }
   }
 }

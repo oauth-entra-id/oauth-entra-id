@@ -58,7 +58,7 @@ export function authConfig(config: OAuthConfig & { allowOtherSystems?: boolean }
  * ### Expected Request Body:
  * - `loginPrompt` (optional): `'email'` | `'select-account'` | `'sso'`
  * - `email` (optional): `string`
- * - `frontendUrl`: `string` (required)
+ * - `frontendUrl` (optional): `string`
  *
  * @throws {OAuthError} If authentication setup fails, an error is thrown.
  */
@@ -97,7 +97,7 @@ export async function handleCallback(req: Request, res: Response) {
  * NestJS route handler to log out a user by clearing cookies and generating a logout URL.
  *
  * ### Expected Request Body:
- * - `frontendUrl`: `string`
+ * - `frontendUrl` (optional): `string`
  *
  * @throws {OAuthError} If logout setup fails, an error is thrown.
  */
@@ -116,7 +116,7 @@ export function handleLogout(req: Request, res: Response) {
  * NestJS route handler to handle On-Behalf-Of token exchange.
  *
  * ### Expected Request Body:
- * - `serviceNames`: `string[]`
+ * - `serviceNames`: `string[]` (required)
  *
  * @throws {OAuthError} If On-Behalf-Of setup fails, an error is thrown.
  */

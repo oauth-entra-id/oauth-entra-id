@@ -59,7 +59,7 @@ export function authConfig(config: OAuthConfig & { allowOtherSystems?: boolean }
  * ### Expected Request Body:
  * - `loginPrompt` (optional): `'email'` | `'select-account'` | `'sso'`
  * - `email` (optional): `string`
- * - `frontendUrl`: `string` (required)
+ * - `frontendUrl` (optional): `string`
  *
  * @throws {OAuthError} If authentication setup fails, an error is passed to `next`.
  */
