@@ -1,16 +1,24 @@
+import { zValidator } from '@hono/zod-validator';
 import { Hono } from 'hono';
 import { setCookie } from 'hono/cookie';
-import { requireAuthentication } from '~/middlewares/require-authentication';
+import { z } from 'zod';
+import { type RequireAuthentication, requireAuthentication } from '~/middlewares/require-authentication';
 import { oauthProvider } from '~/oauth';
 
-export const protectedRouter = new Hono();
+export const protectedRouter = new Hono<RequireAuthentication>();
 
-protectedRouter.get('/user-info', requireAuthentication, (c) => {
+protectedRouter.use(requireAuthentication);
+
+protectedRouter.get('/user-info', (c) => {
   return c.json({ user: c.var.userInfo });
 });
 
-protectedRouter.post('/on-behalf-of', requireAuthentication, async (c) => {
-  const { serviceNames } = await c.req.json();
+const zOnBehalfOf = z.object({
+  serviceNames: z.array(z.string()),
+});
+
+protectedRouter.post('/on-behalf-of', zValidator('json', zOnBehalfOf), async (c) => {
+  const { serviceNames } = c.req.valid('json');
   const results = await oauthProvider.getTokenOnBehalfOf({
     accessToken: c.var.msal.microsoftToken,
     serviceNames,

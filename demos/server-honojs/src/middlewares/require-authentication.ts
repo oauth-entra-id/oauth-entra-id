@@ -3,7 +3,7 @@ import { createMiddleware } from 'hono/factory';
 import { HTTPException } from 'hono/http-exception';
 import { oauthProvider } from '~/oauth';
 
-type RequireAuthentication = {
+type UserInfo = {
   msal: {
     microsoftToken: string;
     payload: Record<string, unknown>;
@@ -16,7 +16,11 @@ type RequireAuthentication = {
   };
 };
 
-export const requireAuthentication = createMiddleware<{ Variables: RequireAuthentication }>(async (c, next) => {
+export type RequireAuthentication = {
+  Variables: UserInfo;
+};
+
+export const requireAuthentication = createMiddleware<RequireAuthentication>(async (c, next) => {
   const { accessTokenName, refreshTokenName } = oauthProvider.getCookieNames();
   const accessToken = getCookie(c, accessTokenName);
   const refreshToken = getCookie(c, refreshTokenName);

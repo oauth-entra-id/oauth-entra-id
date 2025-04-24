@@ -1,38 +1,52 @@
+import { zValidator } from '@hono/zod-validator';
 import { Hono } from 'hono';
 import { deleteCookie, setCookie } from 'hono/cookie';
-import { HTTPException } from 'hono/http-exception';
+import { z } from 'zod';
 import { oauthProvider } from '~/oauth';
 
 export const authRouter = new Hono();
 
-authRouter.post('/authenticate', async (c) => {
-  const isJson = c.req.header('content-type')?.includes('application/json');
-  const body = isJson ? await c.req.json() : {};
-  const params = isJson ? { loginPrompt: body.loginPrompt, email: body.email, frontendUrl: body.frontendUrl } : {};
-  const { url } = await oauthProvider.getAuthUrl(params);
+const zAuthenticate = z
+  .object({
+    loginPrompt: z.enum(['email', 'select-account', 'sso']).optional(),
+    email: z.string().email().optional(),
+    frontendUrl: z.string().url().optional(),
+  })
+  .optional();
+
+authRouter.post('/authenticate', zValidator('json', zAuthenticate), async (c) => {
+  const body = c.req.valid('json');
+  const { url } = await oauthProvider.getAuthUrl({
+    loginPrompt: body?.loginPrompt,
+    email: body?.email,
+    frontendUrl: body?.frontendUrl,
+  });
   return c.json({ url });
 });
 
-authRouter.post('/callback', async (c) => {
-  if (!c.req.header('content-type')?.includes('application/x-www-form-urlencoded'))
-    throw new HTTPException(400, { message: 'Invalid content type' });
+const zCallback = z.object({
+  code: z.string(),
+  state: z.string(),
+});
 
-  const { code, state } = await c.req.parseBody();
-  const { url, accessToken, refreshToken, msalResponse } = await oauthProvider.getTokenByCode({
-    code: code as string,
-    state: state as string,
-  });
+authRouter.post('/callback', zValidator('form', zCallback), async (c) => {
+  const { code, state } = c.req.valid('form');
+  const { url, accessToken, refreshToken } = await oauthProvider.getTokenByCode({ code, state });
 
   setCookie(c, accessToken.name, accessToken.value, accessToken.options);
   if (refreshToken) setCookie(c, refreshToken.name, refreshToken.value, refreshToken.options);
   return c.redirect(url);
 });
 
-authRouter.post('/logout', async (c) => {
-  const isJson = c.req.header('content-type')?.includes('application/json');
-  const body = isJson ? await c.req.json() : {};
-  const params = isJson ? { frontendUrl: body.frontendUrl } : {};
-  const { url, accessToken, refreshToken } = oauthProvider.getLogoutUrl(params);
+const zLogout = z
+  .object({
+    frontendUrl: z.string().url().optional(),
+  })
+  .optional();
+
+authRouter.post('/logout', zValidator('json', zLogout), async (c) => {
+  const body = c.req.valid('json');
+  const { url, accessToken, refreshToken } = oauthProvider.getLogoutUrl({ frontendUrl: body?.frontendUrl });
 
   deleteCookie(c, accessToken.name, accessToken.options);
   deleteCookie(c, refreshToken.name, refreshToken.options);

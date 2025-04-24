@@ -72,7 +72,11 @@ function Home() {
                   setSelectedServiceNames={setSelectedServiceNames}
                 />
                 <div className="flex w-full space-x-2 mt-2">
-                  <Button variant="outline" className="flex-1" onClick={async () => await handleOnBehalfOf()}>
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    disabled={selectedServiceNames.length === 0}
+                    onClick={async () => await handleOnBehalfOf()}>
                     New Tokens
                   </Button>
                   <Button variant="destructive" className="flex-1" onClick={async () => await handleLogout()}>
