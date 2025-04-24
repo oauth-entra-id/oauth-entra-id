@@ -3,23 +3,6 @@ import type { JwtPayload } from 'jsonwebtoken';
 import { OAuthError } from '~/error';
 import { debugLog } from '~/utils/misc';
 
-function getUserInfo({ payload, isFromAnotherApp }: { payload: JwtPayload; isFromAnotherApp: boolean }) {
-  return isFromAnotherApp
-    ? ({
-        isFromAnotherApp: true,
-        uniqueId: payload.oid,
-        roles: payload.roles,
-        appId: payload.azp,
-      } as const)
-    : ({
-        isFromAnotherApp: false,
-        uniqueId: payload.oid,
-        roles: payload.roles,
-        name: payload.name,
-        email: payload.preferred_username,
-      } as const);
-}
-
 export const sharedRequireAuthentication = async (req: Request, res: Response) => {
   const localDebug = (message: string) => {
     debugLog({
@@ -29,7 +12,7 @@ export const sharedRequireAuthentication = async (req: Request, res: Response) =
     });
   };
 
-  if (req.areOtherSystemsAllowed && req.headers.authorization?.startsWith('Bearer ')) {
+  if (req.allowOtherSystems && req.headers.authorization?.startsWith('Bearer ')) {
     const authorizationJwt = req.headers.authorization.split(' ')[1];
     localDebug(`authorizationJwt: ${!!authorizationJwt}`);
     if (!authorizationJwt) throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid access token' });
@@ -83,3 +66,20 @@ export const sharedRequireAuthentication = async (req: Request, res: Response) =
   req.userInfo = getUserInfo({ payload: msal.payload, isFromAnotherApp: false });
   return true;
 };
+
+function getUserInfo({ payload, isFromAnotherApp }: { payload: JwtPayload; isFromAnotherApp: boolean }) {
+  return isFromAnotherApp
+    ? ({
+        isFromAnotherApp: true,
+        uniqueId: payload.oid,
+        roles: payload.roles,
+        appId: payload.azp,
+      } as const)
+    : ({
+        isFromAnotherApp: false,
+        uniqueId: payload.oid,
+        roles: payload.roles,
+        name: payload.name,
+        email: payload.preferred_username,
+      } as const);
+}

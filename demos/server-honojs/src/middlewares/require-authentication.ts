@@ -22,18 +22,20 @@ export const requireAuthentication = createMiddleware<{ Variables: RequireAuthen
   const refreshToken = getCookie(c, refreshTokenName);
 
   if (!accessToken && !refreshToken) throw new HTTPException(401, { message: 'Unauthorized' });
-  const microsoftInfo = await oauthProvider.verifyAccessToken(accessToken);
-  if (microsoftInfo) {
-    c.set('msal', microsoftInfo);
-    c.set('userInfo', {
-      uniqueId: microsoftInfo.payload.oid,
-      roles: microsoftInfo.payload.roles,
-      name: microsoftInfo.payload.name,
-      email: microsoftInfo.payload.preferred_username,
-    });
+  if (accessToken) {
+    const microsoftInfo = await oauthProvider.verifyAccessToken(accessToken);
+    if (microsoftInfo) {
+      c.set('msal', microsoftInfo);
+      c.set('userInfo', {
+        uniqueId: microsoftInfo.payload.oid,
+        roles: microsoftInfo.payload.roles,
+        name: microsoftInfo.payload.name,
+        email: microsoftInfo.payload.preferred_username,
+      });
 
-    await next();
-    return;
+      await next();
+      return;
+    }
   }
   if (!refreshToken) throw new HTTPException(401, { message: 'Unauthorized' });
   const newTokens = await oauthProvider.getTokenByRefresh(refreshToken);

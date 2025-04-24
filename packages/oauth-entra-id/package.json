@@ -40,12 +40,21 @@
   },
   "typesVersions": {
     "*": {
-      "*": ["./dist/index.d.ts"],
-      "express": ["./dist/express.d.ts"],
-      "nestjs": ["./dist/nestjs.d.ts"]
+      "*": [
+        "./dist/index.d.ts"
+      ],
+      "express": [
+        "./dist/express.d.ts"
+      ],
+      "nestjs": [
+        "./dist/nestjs.d.ts"
+      ]
     }
   },
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "sideEffects": false,
   "scripts": {
     "build": "tsup",
@@ -54,10 +63,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@azure/msal-node": "^3.4.1",
+    "@azure/msal-node": "^3.5.1",
     "jsonwebtoken": "^9.0.2",
     "jwks-rsa": "^3.2.0",
-    "zod": "^3.24.2"
+    "zod": "^3.24.3"
   },
   "peerDependencies": {
     "cookie-parser": ">=1.4.7",
@@ -75,7 +84,7 @@
     "@types/cookie-parser": "^1.4.8",
     "@types/express": "^5.0.1",
     "@types/jsonwebtoken": "^9.0.9",
-    "@types/node": "^22.14.0",
+    "@types/node": "^22.14.1",
     "tsup": "^8.4.0",
     "typescript": "^5.8.3"
   }

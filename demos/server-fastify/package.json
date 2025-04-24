@@ -17,13 +17,13 @@
     "@fastify/helmet": "^13.0.1",
     "@fastify/rate-limit": "^10.2.2",
     "@sinclair/typebox": "^0.34.33",
-    "dotenv": "^16.4.7",
-    "fastify": "^5.2.2",
+    "dotenv": "^16.5.0",
+    "fastify": "^5.3.2",
     "oauth-entra-id": "workspace:*",
-    "zod": "^3.24.2"
+    "zod": "^3.24.3"
   },
   "devDependencies": {
-    "@types/node": "^22.14.0",
+    "@types/node": "^22.14.1",
     "tsup": "^8.4.0",
     "tsx": "^4.19.3",
     "typescript": "^5.8.3"

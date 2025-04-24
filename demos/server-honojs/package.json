@@ -11,15 +11,15 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@hono/node-server": "^1.14.0",
-    "dotenv": "^16.4.7",
-    "hono": "^4.7.5",
+    "@hono/node-server": "^1.14.1",
+    "dotenv": "^16.5.0",
+    "hono": "^4.7.7",
     "hono-rate-limiter": "^0.4.2",
     "oauth-entra-id": "workspace:*",
-    "zod": "^3.24.2"
+    "zod": "^3.24.3"
   },
   "devDependencies": {
-    "@types/node": "^22.14.0",
+    "@types/node": "^22.14.1",
     "tsup": "^8.4.0",
     "tsx": "^4.19.3",
     "typescript": "^5.8.3"

@@ -73,7 +73,7 @@ declare global {
     export interface Request {
       oauthProvider: OAuthProvider;
       serverType: ServerType;
-      areOtherSystemsAllowed: boolean;
+      allowOtherSystems: boolean;
       /**
        * Stores the raw Microsoft access token and its payload.
        */

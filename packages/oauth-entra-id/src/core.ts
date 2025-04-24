@@ -445,6 +445,7 @@ export class OAuthProvider {
     if (!services || services.length === 0) {
       throw new OAuthError(400, { message: 'Invalid params', description: 'Service not Found' });
     }
+    this.debugLog('getTokenOnBehalfOf', `Services names: ${JSON.stringify(services)}`);
 
     const rawAccessToken = isJwt(parsedParams.accessToken)
       ? parsedParams.accessToken
@@ -470,6 +471,8 @@ export class OAuthProvider {
               if (!decodedAccessToken) return null;
               const aud = decodedAccessToken.aud;
               if (typeof aud !== 'string') return null;
+
+              this.debugLog('getTokenOnBehalfOf', `Service: ${service.serviceName}, Audience: ${aud}`);
 
               const secretKey = createSecretKey(service.secretKey);
 

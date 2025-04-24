@@ -47,7 +47,7 @@ export function authConfig(config: OAuthConfig & { allowOtherSystems?: boolean }
 
     req.oauthProvider = globalExpressOAuthProvider;
     req.serverType = 'express';
-    req.areOtherSystemsAllowed = !!allowOtherSystems;
+    req.allowOtherSystems = !!allowOtherSystems;
 
     next();
   };

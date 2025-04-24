@@ -46,7 +46,7 @@ export function authConfig(config: OAuthConfig & { allowOtherSystems?: boolean }
 
     req.oauthProvider = globalNestjsOAuthProvider;
     req.serverType = 'nestjs';
-    req.areOtherSystemsAllowed = !!allowOtherSystems;
+    req.allowOtherSystems = !!allowOtherSystems;
 
     next();
   };
