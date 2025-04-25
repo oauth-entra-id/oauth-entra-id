@@ -268,7 +268,7 @@ export class OAuthProvider {
    * @returns The logout URL and cookie deletion options.
    * @throws {OAuthError} If options are invalid.
    */
-  getLogoutUrl(params: { frontendUrl?: string }): {
+  getLogoutUrl(params?: { frontendUrl?: string }): {
     url: string;
     accessToken: Cookies['DeleteAccessToken'];
     refreshToken: Cookies['DeleteRefreshToken'];

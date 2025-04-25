@@ -202,6 +202,9 @@ importers:
       '@fastify/rate-limit':
         specifier: ^10.2.2
         version: 10.2.2
+      '@fastify/type-provider-typebox':
+        specifier: ^5.1.0
+        version: 5.1.0(@sinclair/typebox@0.34.33)
       '@sinclair/typebox':
         specifier: ^0.34.33
         version: 0.34.33
@@ -1260,6 +1263,11 @@ packages:
 
   '@fastify/rate-limit@10.2.2':
     resolution: {integrity: sha512-45vXZImiYthKlMohF4XoHXYiBXCyRYY+zmtjLZuQrGraW0Zj9hYPYNOIa47012+5A65M0KJQxIVbzYCNP90hcg==}
+
+  '@fastify/type-provider-typebox@5.1.0':
+    resolution: {integrity: sha512-F1AQHeLiKp1hu6GMWm5W6fZ6zXQ0mTV+qHOzrptAie9AYewvFr5Q3blfy8Qmx9gUgwA3Yj+CWvQQJeTwDgTnIg==}
+    peerDependencies:
+      '@sinclair/typebox': '>=0.26 <=0.34'
 
   '@floating-ui/core@1.6.9':
     resolution: {integrity: sha512-uMXCuQ3BItDUbAMhIXw7UPXRfAlOAvZzdK9BWpE60MCn+Svt3aLn9jsPTi/WNGlRUu2uI0v5S7JiIUsbsvh3fw==}
@@ -5587,6 +5595,10 @@ snapshots:
       '@lukeed/ms': 2.0.2
       fastify-plugin: 5.0.1
       toad-cache: 3.7.0
+
+  '@fastify/type-provider-typebox@5.1.0(@sinclair/typebox@0.34.33)':
+    dependencies:
+      '@sinclair/typebox': 0.34.33
 
   '@floating-ui/core@1.6.9':
     dependencies:

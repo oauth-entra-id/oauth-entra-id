@@ -3,6 +3,7 @@ import cors from '@fastify/cors';
 import formBody from '@fastify/formbody';
 import helmet from '@fastify/helmet';
 import rateLimiter from '@fastify/rate-limit';
+import type { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import Fastify from 'fastify';
 import { env } from './env';
 import { HttpException } from './error/HttpException';
@@ -12,17 +13,7 @@ export default async function createApp() {
   const app = Fastify({
     logger: true,
     trustProxy: env.NODE_ENV === 'production' && env.PROXIES ? env.PROXIES : false,
-  });
-
-  app.setErrorHandler((error, req, reply) => {
-    const { message, statusCode, description } = new HttpException(error);
-    if (env.NODE_ENV === 'development' && ![401, 403, 404].includes(statusCode)) console.error(error);
-    if (env.NODE_ENV === 'production' && [401, 403].includes(statusCode)) {
-      reply.status(404).send({ error: 'Not Found', statusCode: 404 });
-      return;
-    }
-    reply.status(statusCode).send({ error: message, statusCode, description });
-  });
+  }).withTypeProvider<TypeBoxTypeProvider>();
 
   await app.register(cors, {
     origin: [env.SERVER_URL, env.REACT_FRONTEND_URL],
@@ -79,6 +70,11 @@ export default async function createApp() {
   await app.register(cookieParser);
 
   await app.register(routesRouter, { prefix: new URL(env.SERVER_URL).pathname });
+
+  app.setErrorHandler((error, req, reply) => {
+    const { message, statusCode, description } = new HttpException(error);
+    reply.status(statusCode).send({ error: message, statusCode, description });
+  });
 
   return app;
 }

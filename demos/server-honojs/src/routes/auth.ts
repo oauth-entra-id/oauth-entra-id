@@ -4,17 +4,28 @@ import { deleteCookie, setCookie } from 'hono/cookie';
 import { z } from 'zod';
 import { oauthProvider } from '~/oauth';
 
+const zSchemas = {
+  authenticate: z
+    .object({
+      loginPrompt: z.enum(['email', 'select-account', 'sso']).optional(),
+      email: z.string().email().optional(),
+      frontendUrl: z.string().url().optional(),
+    })
+    .optional(),
+  callback: z.object({
+    code: z.string(),
+    state: z.string(),
+  }),
+  logout: z
+    .object({
+      frontendUrl: z.string().url().optional(),
+    })
+    .optional(),
+};
+
 export const authRouter = new Hono();
 
-const zAuthenticate = z
-  .object({
-    loginPrompt: z.enum(['email', 'select-account', 'sso']).optional(),
-    email: z.string().email().optional(),
-    frontendUrl: z.string().url().optional(),
-  })
-  .optional();
-
-authRouter.post('/authenticate', zValidator('json', zAuthenticate), async (c) => {
+authRouter.post('/authenticate', zValidator('json', zSchemas.authenticate), async (c) => {
   const body = c.req.valid('json');
   const { url } = await oauthProvider.getAuthUrl({
     loginPrompt: body?.loginPrompt,
@@ -24,12 +35,7 @@ authRouter.post('/authenticate', zValidator('json', zAuthenticate), async (c) =>
   return c.json({ url });
 });
 
-const zCallback = z.object({
-  code: z.string(),
-  state: z.string(),
-});
-
-authRouter.post('/callback', zValidator('form', zCallback), async (c) => {
+authRouter.post('/callback', zValidator('form', zSchemas.callback), async (c) => {
   const { code, state } = c.req.valid('form');
   const { url, accessToken, refreshToken } = await oauthProvider.getTokenByCode({ code, state });
 
@@ -38,13 +44,7 @@ authRouter.post('/callback', zValidator('form', zCallback), async (c) => {
   return c.redirect(url);
 });
 
-const zLogout = z
-  .object({
-    frontendUrl: z.string().url().optional(),
-  })
-  .optional();
-
-authRouter.post('/logout', zValidator('json', zLogout), async (c) => {
+authRouter.post('/logout', zValidator('json', zSchemas.logout), async (c) => {
   const body = c.req.valid('json');
   const { url, accessToken, refreshToken } = oauthProvider.getLogoutUrl({ frontendUrl: body?.frontendUrl });
 

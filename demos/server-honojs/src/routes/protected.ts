@@ -5,6 +5,12 @@ import { z } from 'zod';
 import { type RequireAuthentication, requireAuthentication } from '~/middlewares/require-authentication';
 import { oauthProvider } from '~/oauth';
 
+const zSchemas = {
+  onBehalfOf: z.object({
+    serviceNames: z.array(z.string()),
+  }),
+};
+
 export const protectedRouter = new Hono<RequireAuthentication>();
 
 protectedRouter.use(requireAuthentication);
@@ -13,11 +19,7 @@ protectedRouter.get('/user-info', (c) => {
   return c.json({ user: c.var.userInfo });
 });
 
-const zOnBehalfOf = z.object({
-  serviceNames: z.array(z.string()),
-});
-
-protectedRouter.post('/on-behalf-of', zValidator('json', zOnBehalfOf), async (c) => {
+protectedRouter.post('/on-behalf-of', zValidator('json', zSchemas.onBehalfOf), async (c) => {
   const { serviceNames } = c.req.valid('json');
   const results = await oauthProvider.getTokenOnBehalfOf({
     accessToken: c.var.msal.microsoftToken,

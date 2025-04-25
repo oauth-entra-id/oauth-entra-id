@@ -1,48 +1,59 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox';
+import { Type as t } from '@sinclair/typebox';
 import { oauthProvider } from '~/oauth';
 
-export const authRouter = async (app: FastifyInstance) => {
-  app.post('/authenticate', async (req, reply) => {
-    const body =
-      (req.body as
-        | {
-            loginPrompt?: 'email' | 'select-account' | 'sso';
-            email?: string;
-            frontendUrl?: string;
-          }
-        | undefined) || {};
+const tSchemas = {
+  authenticate: t.Optional(
+    t.Object({
+      loginPrompt: t.Optional(t.Union([t.Literal('email'), t.Literal('select-account'), t.Literal('sso')])),
+      email: t.Optional(t.String({ format: 'email' })),
+      frontendUrl: t.Optional(t.String({ format: 'uri' })),
+    }),
+  ),
+  callback: t.Object({
+    code: t.String(),
+    state: t.String(),
+  }),
+  //TODO: fix that it's not optional
+  logout: t.Optional(
+    t.Object({
+      frontendUrl: t.Optional(t.String({ format: 'uri' })),
+    }),
+  ),
+};
+
+export const authRouter: FastifyPluginAsyncTypebox = async (app) => {
+  app.post('/authenticate', { schema: { body: tSchemas.authenticate } }, async (req, reply) => {
+    const body = req.body;
 
     const { url } = await oauthProvider.getAuthUrl({
-      loginPrompt: body.loginPrompt,
-      email: body.email,
-      frontendUrl: body.frontendUrl,
+      loginPrompt: body?.loginPrompt,
+      email: body?.email,
+      frontendUrl: body?.frontendUrl,
     });
 
-    reply.status(200).send({ url });
+    return { url };
   });
 
-  app.post('/callback', async (req, reply) => {
-    const { code, state } = req.body as { code: string; state: string };
+  app.post('/callback', { schema: { body: tSchemas.callback } }, async (req, reply) => {
+    const { code, state } = req.body;
 
-    const { url, accessToken, refreshToken } = await oauthProvider.getTokenByCode({
-      code,
-      state,
-    });
+    const { url, accessToken, refreshToken } = await oauthProvider.getTokenByCode({ code, state });
 
     reply.setCookie(accessToken.name, accessToken.value, accessToken.options);
     if (refreshToken) reply.setCookie(refreshToken.name, refreshToken.value, refreshToken.options);
     reply.redirect(url);
   });
 
-  app.post('/logout', (req, reply) => {
-    const body = (req.body as { frontendUrl?: string } | undefined) || {};
+  app.post('/logout', { schema: { body: tSchemas.logout } }, (req, reply) => {
+    const body = req.body;
 
     const { url, accessToken, refreshToken } = oauthProvider.getLogoutUrl({
-      frontendUrl: body.frontendUrl,
+      frontendUrl: body?.frontendUrl,
     });
 
     reply.setCookie(accessToken.name, accessToken.value, accessToken.options);
     reply.setCookie(refreshToken.name, refreshToken.value, refreshToken.options);
-    reply.status(200).send({ url });
+    return { url };
   });
 };

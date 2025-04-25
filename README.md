@@ -12,11 +12,11 @@ A Monorepo that aims to provide a full-stack solution for authentication and aut
 
 ### Demo Apps 🚀
 
-- [React Demo App](apps/client-react/) 🖥️ - A [React](https://reactjs.org/) app that demonstrates how the frontend should behave with a backend-driven OAuth 2.0 authentication flow.
-- [Express Demo App](apps/server-express/) 📫- An [Express](https://expressjs.com/) app that implements `oauth-entra-id/express` for authentication.
-- [NestJS Demo App](apps/server-nestjs/) 🪺 - A [NestJS](https://nestjs.com/) app that implements `oauth-entra-id/nestjs` for authentication.
-- [HonoJS Demo App](apps/server-honojs/) 🔥 - A [HonoJS](https://honojs.com/) app that implements authentication using the core utilities of the package.
-- [Fastify Demo App](apps/server-fastify/) 🚀 - A [Fastify](https://www.fastify.io/) app that implements authentication using the core utilities of the package.
+- [React Demo App](demos/client-react/) 🖥️ - A [React](https://reactjs.org/) app that demonstrates how the frontend should behave with a backend-driven OAuth 2.0 authentication flow.
+- [Express Demo App](demos/server-express/) 📫- An [Express](https://expressjs.com/) app that implements `oauth-entra-id/express` for authentication.
+- [NestJS Demo App](demos/server-nestjs/) 🪺 - A [NestJS](https://nestjs.com/) app that implements `oauth-entra-id/nestjs` for authentication.
+- [HonoJS Demo App](demos/server-honojs/) 🔥 - A [HonoJS](https://honojs.com/) app that implements authentication using the core utilities of the package.
+- [Fastify Demo App](demos/server-fastify/) 🚀 - A [Fastify](https://www.fastify.io/) app that implements authentication using the core utilities of the package.
 
 #### Extra Features 🎁
 
@@ -30,7 +30,7 @@ All server apps include the following features:
 
 ## How Does Our Flow Work? 🌊
 
-![oauth-entra-id-flow](./oauth-entra-id-flow.png)
+![oauth-entra-id-flow](./assets/oauth-entra-id-flow.png)
 
 ## How to Run the Project Locally 🚀
 
@@ -54,9 +54,4 @@ You will need to set up environment variables in several places:
 
 - `.env`
 - `apps/client-react/.env`
-- `apps/server-express/.env`
-- `apps/server-nestjs/.env`
-- `apps/server-honojs/.env`
-- `apps/server-fastify/.env`
 
-Each project includes an `.env.example` file that you can copy to `.env` and fill in the required values.
