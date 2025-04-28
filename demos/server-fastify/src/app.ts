@@ -26,10 +26,10 @@ export default async function createApp() {
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'"], //'www.google-analytics.com'
-        styleSrc: ["'self'"], //'fonts.googleapis.com'
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'"],
         imgSrc: ["'self'"],
-        fontSrc: ["'self'"], //'fonts.gstatic.com'
+        fontSrc: ["'self'"],
         mediaSrc: ["'self'"],
         connectSrc: ["'self'"],
         objectSrc: ["'none'"],
@@ -64,6 +64,14 @@ export default async function createApp() {
         statusCode: 429,
       };
     },
+  });
+
+  app.addHook('preParsing', async (req, reply, payload) => {
+    const contentType = req.headers['content-type'];
+    if ((!contentType || contentType.includes('application/json')) && !req.body) {
+      req.body = {};
+    }
+    return payload;
   });
 
   await app.register(formBody);

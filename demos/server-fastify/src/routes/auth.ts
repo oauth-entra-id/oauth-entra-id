@@ -3,23 +3,18 @@ import { Type as t } from '@sinclair/typebox';
 import { oauthProvider } from '~/oauth';
 
 const tSchemas = {
-  authenticate: t.Optional(
-    t.Object({
-      loginPrompt: t.Optional(t.Union([t.Literal('email'), t.Literal('select-account'), t.Literal('sso')])),
-      email: t.Optional(t.String({ format: 'email' })),
-      frontendUrl: t.Optional(t.String({ format: 'uri' })),
-    }),
-  ),
+  authenticate: t.Object({
+    loginPrompt: t.Optional(t.Union([t.Literal('email'), t.Literal('select-account'), t.Literal('sso')])),
+    email: t.Optional(t.String({ format: 'email' })),
+    frontendUrl: t.Optional(t.String({ format: 'uri' })),
+  }),
   callback: t.Object({
     code: t.String(),
     state: t.String(),
   }),
-  //TODO: fix that it's not optional
-  logout: t.Optional(
-    t.Object({
-      frontendUrl: t.Optional(t.String({ format: 'uri' })),
-    }),
-  ),
+  logout: t.Object({
+    frontendUrl: t.Optional(t.String({ format: 'uri' })),
+  }),
 };
 
 export const authRouter: FastifyPluginAsyncTypebox = async (app) => {

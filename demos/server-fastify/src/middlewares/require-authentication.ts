@@ -16,23 +16,26 @@ declare module 'fastify' {
   }
 }
 
-export default async function protectRoute(req: FastifyRequest, reply: FastifyReply): Promise<void> {
+export default async function protectRoute(req: FastifyRequest, reply: FastifyReply) {
   const { accessTokenName, refreshTokenName } = oauthProvider.getCookieNames();
   const accessToken = req.cookies[accessTokenName];
   const refreshToken = req.cookies[refreshTokenName];
   if (!accessToken && !refreshToken) return reply.status(401).send({ error: 'Unauthorized', statusCode: 401 });
 
-  const microsoftInfo = await oauthProvider.verifyAccessToken(accessToken);
-  if (microsoftInfo) {
-    req.msal = microsoftInfo;
-    req.userInfo = {
-      uniqueId: microsoftInfo.payload.oid,
-      roles: microsoftInfo.payload.roles,
-      name: microsoftInfo.payload.name,
-      email: microsoftInfo.payload.preferred_username,
-    };
-    return;
+  if (accessToken) {
+    const microsoftInfo = await oauthProvider.verifyAccessToken(accessToken);
+    if (microsoftInfo) {
+      req.msal = microsoftInfo;
+      req.userInfo = {
+        uniqueId: microsoftInfo.payload.oid,
+        roles: microsoftInfo.payload.roles,
+        name: microsoftInfo.payload.name,
+        email: microsoftInfo.payload.preferred_username,
+      };
+      return;
+    }
   }
+
   if (!refreshToken) return reply.status(401).send({ error: 'Unauthorized', statusCode: 401 });
   const newTokens = await oauthProvider.getTokenByRefresh(refreshToken);
   if (!newTokens) return reply.status(401).send({ error: 'Unauthorized', statusCode: 401 });

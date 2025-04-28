@@ -26,10 +26,10 @@ async function bootstrap() {
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
-          scriptSrc: ["'self'"], //'www.google-analytics.com'
-          styleSrc: ["'self'"], //'fonts.googleapis.com'
+          scriptSrc: ["'self'"],
+          styleSrc: ["'self'"],
           imgSrc: ["'self'"],
-          fontSrc: ["'self'"], //'fonts.gstatic.com'
+          fontSrc: ["'self'"],
           mediaSrc: ["'self'"],
           connectSrc: ["'self'"],
           objectSrc: ["'none'"],

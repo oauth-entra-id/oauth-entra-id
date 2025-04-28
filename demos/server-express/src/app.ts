@@ -1,12 +1,13 @@
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
-import express, { type Application } from 'express';
+import express from 'express';
+import type { Application, NextFunction, Request, Response } from 'express';
 import rateLimiter from 'express-rate-limit';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import { authConfig } from 'oauth-entra-id/express';
 import { env } from './env';
-import { errorCatcher } from './error/errorCatcher';
+import { HttpException } from './error/HttpException';
 import { notFound } from './middlewares/not-found';
 import { routesRouter } from './routes';
 
@@ -35,10 +36,10 @@ export default function createApp(): Application {
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
-          scriptSrc: ["'self'"], //'www.google-analytics.com'
-          styleSrc: ["'self'"], //'fonts.googleapis.com'
+          scriptSrc: ["'self'"],
+          styleSrc: ["'self'"],
           imgSrc: ["'self'"],
-          fontSrc: ["'self'"], //'fonts.gstatic.com'
+          fontSrc: ["'self'"],
           mediaSrc: ["'self'"],
           connectSrc: ["'self'"],
           objectSrc: ["'none'"],
@@ -120,13 +121,8 @@ export default function createApp(): Application {
 
   app.use('*', notFound);
 
-  app.use((err, req, res, next) => {
+  app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
     const { message, statusCode, description } = new HttpException(err);
-    if (env.NODE_ENV === 'development' && ![401, 403, 404].includes(statusCode)) console.error(err);
-    if (env.NODE_ENV === 'production' && [401, 403].includes(statusCode)) {
-      res.status(404).json({ error: 'Not Found', statusCode: 404 });
-      return;
-    }
     res.status(statusCode).json({ error: message, statusCode, description });
   });
 
