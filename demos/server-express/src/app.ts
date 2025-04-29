@@ -68,7 +68,7 @@ export default function createApp(): Application {
   app.use(
     rateLimiter({
       windowMs: 60 * 1000,
-      limit: 20,
+      limit: 100,
       skip: (req) => req.ip === '127.0.0.6',
       handler: (req, res) => {
         res.status(429).json({ error: 'Too many requests from this IP, please try again after a break' });

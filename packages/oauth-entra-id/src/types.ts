@@ -33,8 +33,8 @@ export interface OAuthConfig {
     disableHttps?: boolean;
     disableSameSite?: boolean;
     cookieTimeFrame?: TimeFrame;
-    accessTokenExpiry?: number; // in seconds
-    refreshTokenExpiry?: number; // in seconds
+    accessTokenCookieExpiry?: number; // in seconds
+    refreshTokenCookieExpiry?: number; // in seconds
     debug?: boolean;
     onBehalfOfServices?: OnBehalfOfService[];
   };
@@ -45,8 +45,8 @@ export interface OAuthOptions {
   readonly isSameSite: boolean;
   readonly cookieTimeFrame: TimeFrame;
   readonly serviceNames?: string[];
-  readonly accessTokenExpiry: number; // in seconds
-  readonly refreshTokenExpiry: number; // in seconds
+  readonly accessTokenCookieExpiry: number; // in seconds
+  readonly refreshTokenCookieExpiry: number; // in seconds
   readonly debug: boolean;
 }
 

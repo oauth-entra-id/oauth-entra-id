@@ -3,7 +3,7 @@ import { Button } from '~/components/ui/Button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '~/components/ui/DropdownMenu';
 import { useDevTools } from '~/hooks/useDevTools';
 import { useToggle } from '~/hooks/useToggle';
-import { useThemeStore } from '~/stores/themeStore';
+import { useThemeStore } from '~/stores/theme-store';
 
 export function Navbar() {
   const setTheme = useThemeStore((state) => state.setTheme);

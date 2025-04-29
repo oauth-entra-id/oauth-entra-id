@@ -1,6 +1,8 @@
 import { useForm } from '@tanstack/react-form';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { AppInfo } from '~/components/AppInfo';
 import { ServersDropdown } from '~/components/ServersDropdown';
 import { Microsoft } from '~/components/icons/Microsoft';
@@ -13,31 +15,36 @@ import { MutedText, Title } from '~/components/ui/Text';
 import { cn } from '~/lib/utils';
 import { zEmailForm } from '~/lib/zod';
 import { getAuthUrl } from '~/services/user';
-import { useUserStore } from '~/stores/userStore';
+import { useUserStore } from '~/stores/user-store';
 
 export const Route = createFileRoute('/login')({
   component: Login,
 });
 
 function Login() {
-  const [ssoEnabled, setSsoEnabled] = useState(true);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [ssoEnabled, setSsoEnabled] = useState(true);
   const user = useUserStore((state) => state.user);
+  const { mutate: loginUser, mutateAsync: loginUserAsync } = useMutation({
+    mutationFn: getAuthUrl,
+    onSuccess: async (url) => {
+      window.location.href = url;
+      await queryClient.invalidateQueries({ queryKey: ['user'] });
+    },
+    onError: () => {
+      toast.error('Could not login', { duration: 1000 });
+    },
+  });
+  const form = useForm({
+    defaultValues: { email: '' },
+    validators: { onChange: zEmailForm },
+    onSubmit: async ({ value }) => await loginUserAsync({ email: value.email }),
+  });
 
   useEffect(() => {
     if (user) navigate({ to: '/' });
   }, [user, navigate]);
-
-  const loginUser = async (email?: string) => {
-    const url = await getAuthUrl({ email, loginPrompt: !ssoEnabled ? 'select-account' : undefined });
-    if (url) window.location.href = url;
-  };
-
-  const form = useForm({
-    defaultValues: { email: '' },
-    validators: { onChange: zEmailForm },
-    onSubmit: async ({ value }) => await loginUser(value.email),
-  });
 
   return (
     <div className="flex flex-col items-center justify-center mt-2">
@@ -82,7 +89,10 @@ function Login() {
               )}
             </form.Subscribe>
             <OrContinueWith />
-            <Button variant="outline" className="w-full" onClick={async () => await loginUser()}>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => loginUser({ loginPrompt: ssoEnabled ? undefined : 'select-account' })}>
               <Microsoft /> Microsoft
             </Button>
             <div className="flex items-center justify-center mt-2">

@@ -6,15 +6,15 @@ export function getCookieOptions({
   isHttps,
   isSameSite,
   cookieTimeFrame,
-  accessTokenExpiry,
-  refreshTokenExpiry,
+  accessTokenCookieExpiry,
+  refreshTokenCookieExpiry,
 }: {
   clientId: string;
   isHttps: boolean;
   isSameSite: boolean;
   cookieTimeFrame: 'sec' | 'ms';
-  accessTokenExpiry: number;
-  refreshTokenExpiry: number;
+  accessTokenCookieExpiry: number;
+  refreshTokenCookieExpiry: number;
 }) {
   const timeFrame = cookieTimeFrame === 'sec' ? 1 : 1000;
   const baseOptions = {
@@ -27,11 +27,11 @@ export function getCookieOptions({
   return {
     accessToken: {
       name: `${`${isHttps ? '__Host-' : ''}${ACCESS_TOKEN_NAME}-${clientId}`}`,
-      options: { ...baseOptions, maxAge: accessTokenExpiry * timeFrame },
+      options: { ...baseOptions, maxAge: accessTokenCookieExpiry * timeFrame },
     },
     refreshToken: {
       name: `${`${isHttps ? '__Host-' : ''}${REFRESH_TOKEN_NAME}-${clientId}`}`,
-      options: { ...baseOptions, maxAge: refreshTokenExpiry * timeFrame },
+      options: { ...baseOptions, maxAge: refreshTokenCookieExpiry * timeFrame },
     },
     deleteOptions: { ...baseOptions, sameSite: isHttps ? 'none' : undefined, maxAge: 0 },
   } as const;

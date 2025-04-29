@@ -80,16 +80,16 @@ export class OAuthProvider {
       isHttps,
       isSameSite,
       cookieTimeFrame: advanced.cookieTimeFrame,
-      accessTokenExpiry: advanced.accessTokenExpiry,
-      refreshTokenExpiry: advanced.refreshTokenExpiry,
+      accessTokenCookieExpiry: advanced.accessTokenCookieExpiry,
+      refreshTokenCookieExpiry: advanced.refreshTokenCookieExpiry,
     });
 
     const options = {
       isHttps,
       isSameSite,
       cookieTimeFrame: advanced.cookieTimeFrame,
-      accessTokenExpiry: advanced.accessTokenExpiry,
-      refreshTokenExpiry: advanced.refreshTokenExpiry,
+      accessTokenCookieExpiry: advanced.accessTokenCookieExpiry,
+      refreshTokenCookieExpiry: advanced.refreshTokenCookieExpiry,
       serviceNames,
       debug: advanced.debug,
     } as const;
@@ -485,8 +485,8 @@ export class OAuthProvider {
                 isHttps: service.isHttps,
                 isSameSite: service.isSameSite,
                 cookieTimeFrame: this.options.cookieTimeFrame,
-                accessTokenExpiry: service.accessTokenExpiry ?? this.options.accessTokenExpiry,
-                refreshTokenExpiry: service.refreshTokenExpiry ?? this.options.refreshTokenExpiry,
+                accessTokenCookieExpiry: service.accessTokenExpiry ?? this.options.accessTokenCookieExpiry,
+                refreshTokenCookieExpiry: service.refreshTokenExpiry ?? this.options.refreshTokenCookieExpiry,
               });
 
               return {

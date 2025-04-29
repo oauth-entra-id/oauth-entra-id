@@ -1,5 +1,6 @@
 import { Separator } from '@radix-ui/react-dropdown-menu';
 import { ToggleGroup } from '@radix-ui/react-toggle-group';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { useState } from 'react';
 import Confetti from 'react-confetti';
@@ -13,31 +14,40 @@ import { MutedText, Title } from '~/components/ui/Text';
 import { ToggleGroupItem } from '~/components/ui/ToggleGroup';
 import { useWindowDimensions } from '~/hooks/useWindowDimensions';
 import { getTokensOnBehalfOf, logoutAndGetLogoutUrl } from '~/services/user';
-import { type Color, useServerStore } from '~/stores/serverStore';
-import { useUserStore } from '~/stores/userStore';
+import { type Color, useServerStore } from '~/stores/server-store';
+import { useUserStore } from '~/stores/user-store';
 
 export const Route = createFileRoute('/(protected)/')({
   component: Home,
 });
 
 function Home() {
+  const queryClient = useQueryClient();
   const [selectedServiceNames, setSelectedServiceNames] = useState<Color[]>([]);
   const { width, height } = useWindowDimensions();
   const { user, setUser } = useUserStore();
-
-  async function handleLogout() {
-    const url = await logoutAndGetLogoutUrl();
-    if (!url) return;
-    setUser(null);
-    window.open(url, '_blank');
-  }
-
-  async function handleOnBehalfOf() {
-    const tokensSet = await getTokensOnBehalfOf({ serviceNames: selectedServiceNames });
-    if (!tokensSet) return;
-    setSelectedServiceNames([]);
-    toast.success(tokensSet === 1 ? 'New token created!' : `${tokensSet} new tokens created!`, { duration: 1000 });
-  }
+  const { mutate: handleLogout } = useMutation({
+    mutationFn: logoutAndGetLogoutUrl,
+    onSuccess: async (url) => {
+      await queryClient.invalidateQueries({ queryKey: ['user'] });
+      window.open(url, '_blank');
+      setUser(null);
+    },
+    onError: () => {
+      toast.error('Could not logout', { duration: 1000 });
+    },
+  });
+  const { mutate: handleOnBehalfOf } = useMutation({
+    mutationFn: () => getTokensOnBehalfOf({ serviceNames: selectedServiceNames }),
+    onSuccess: (tokensSet) => {
+      setSelectedServiceNames([]);
+      toast.success(tokensSet === 1 ? 'New token created!' : `${tokensSet} new tokens created!`, { duration: 1000 });
+    },
+    onError: () => {
+      setSelectedServiceNames([]);
+      toast.error('Could not create new tokens', { duration: 1000 });
+    },
+  });
 
   if (!user) return null;
 
@@ -76,10 +86,10 @@ function Home() {
                     variant="outline"
                     className="flex-1"
                     disabled={selectedServiceNames.length === 0}
-                    onClick={async () => await handleOnBehalfOf()}>
+                    onClick={() => handleOnBehalfOf()}>
                     New Tokens
                   </Button>
-                  <Button variant="destructive" className="flex-1" onClick={async () => await handleLogout()}>
+                  <Button variant="destructive" className="flex-1" onClick={() => handleLogout()}>
                     Logout
                   </Button>
                 </div>
@@ -109,7 +119,7 @@ function SelectServiceNames({
   selectedServiceNames,
   setSelectedServiceNames,
 }: { selectedServiceNames: Color[]; setSelectedServiceNames: (value: Color[]) => void }) {
-  const appRegs = useServerStore((state) => state.appRegs);
+  const appInfo = useServerStore((state) => state.appInfo);
 
   return (
     <div className="flex w-full items-center justify-center space-x-1">
@@ -120,21 +130,21 @@ function SelectServiceNames({
         value={selectedServiceNames}
         onValueChange={(value: Color[]) => setSelectedServiceNames(value)}>
         <ToggleGroupItem
-          disabled={appRegs?.currentServiceName === 'blue'}
+          disabled={appInfo?.currentServiceName === 'blue'}
           value="blue"
           aria-label="blue"
           className="font-bold">
           🔵 Blue
         </ToggleGroupItem>
         <ToggleGroupItem
-          disabled={appRegs?.currentServiceName === 'red'}
+          disabled={appInfo?.currentServiceName === 'red'}
           value="red"
           aria-label="red"
           className="font-bold">
           🔴 Red
         </ToggleGroupItem>
         <ToggleGroupItem
-          disabled={appRegs?.currentServiceName === 'yellow'}
+          disabled={appInfo?.currentServiceName === 'yellow'}
           value="yellow"
           aria-label="yellow"
           className="font-bold">

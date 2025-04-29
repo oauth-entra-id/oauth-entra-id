@@ -9,7 +9,7 @@ import { env } from '~/env';
 
 const zServer = z.enum(['express', 'nestjs', 'fastify', 'honojs']);
 
-type Server = z.infer<typeof zServer>;
+export type Server = z.infer<typeof zServer>;
 
 export const serversMap = {
   express: { value: 'express', label: 'Express', url: env.EXPRESS_SERVER, Icon: Express },
@@ -22,34 +22,35 @@ export type Color = 'blue' | 'red' | 'yellow';
 
 interface ServerStore {
   server: Server;
-  label: string;
+  serverLabel: string;
   serverUrl: string;
-  appRegs:
-    | undefined
-    | { currentServiceId: string; currentServiceName: Color; other: { blue: string; red: string; yellow: string } }
-    | null;
+  appInfo: {
+    currentServiceId: string;
+    currentServiceName: Color;
+    other: { blue: string; red: string; yellow: string };
+  } | null;
   setServer: (server: Server) => void;
-  setAppRegs: (appId: { current: Color; blue: string; red: string; yellow: string } | null) => void;
+  setAppInfo: (appId: { current: Color; blue: string; red: string; yellow: string } | null) => void;
 }
 
 export const useServerStore = create<ServerStore>()(
   persist(
     (set) => ({
       server: 'honojs',
-      label: serversMap.honojs.label,
+      serverLabel: serversMap.honojs.label,
       serverUrl: serversMap.honojs.url,
-      appRegs: undefined,
+      appInfo: null,
       setServer: (server) =>
         set({
           server,
-          label: serversMap[server].label,
+          serverLabel: serversMap[server].label,
           serverUrl: serversMap[server].url,
         }),
-      setAppRegs: (appInfo) => {
-        if (!appInfo) return set({ appRegs: null });
+      setAppInfo: (appInfo) => {
+        if (!appInfo) return set({ appInfo: null });
         const { current, blue, red, yellow } = appInfo;
         return set({
-          appRegs: {
+          appInfo: {
             currentServiceId: appInfo[current],
             currentServiceName: current,
             other: { blue, red, yellow },
@@ -71,9 +72,9 @@ export const useServerStore = create<ServerStore>()(
         return {
           ...currentState,
           server,
+          serverLabel: serversMap[server].label,
           serverUrl: serversMap[server].url,
-          label: serversMap[server].label,
-          appRegs: currentState.appRegs,
+          appInfo: currentState.appInfo,
         };
       },
     },

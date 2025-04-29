@@ -1,5 +1,5 @@
 import { LoaderCircle } from 'lucide-react';
-import { useThemeStore } from '~/stores/themeStore';
+import { useThemeStore } from '~/stores/theme-store';
 
 export function Loading() {
   const theme = useThemeStore((state) => state.theme);

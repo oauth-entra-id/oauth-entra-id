@@ -1,6 +1,9 @@
 import { scan } from 'react-scan';
 
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools as QueryDevTools } from '@tanstack/react-query-devtools';
 import { RouterProvider, createRouter } from '@tanstack/react-router';
+import { TanStackRouterDevtools as RouterDevTools } from '@tanstack/react-router-devtools';
 import { StrictMode } from 'react';
 import ReactDOM from 'react-dom/client';
 
@@ -12,30 +15,33 @@ scan({
   enabled: true,
 });
 
-// Create a new router instance
+export const queryClient = new QueryClient();
+
 const router = createRouter({
   routeTree,
-  context: {},
+  context: { queryClient },
   defaultPreload: 'intent',
   scrollRestoration: true,
   defaultStructuralSharing: true,
   defaultPreloadStaleTime: 0,
 });
 
-// Register the router instance for type safety
 declare module '@tanstack/react-router' {
   interface Register {
     router: typeof router;
   }
 }
 
-// Render the app
 const rootElement = document.getElementById('app');
 if (rootElement && !rootElement.innerHTML) {
   const root = ReactDOM.createRoot(rootElement);
   root.render(
     <StrictMode>
-      <RouterProvider router={router} />
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+        <RouterDevTools router={router} initialIsOpen={false} />
+        <QueryDevTools initialIsOpen={false} />
+      </QueryClientProvider>
     </StrictMode>,
   );
 }

@@ -1,6 +1,6 @@
 import * as DropdownMenuPrimitive from '@radix-ui/react-dropdown-menu';
 import { CheckIcon, ChevronRightIcon, CircleIcon } from 'lucide-react';
-import { useThemeStore } from '~/stores/themeStore';
+import { useThemeStore } from '~/stores/theme-store';
 
 import { cn } from '~/lib/utils';
 

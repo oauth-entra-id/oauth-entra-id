@@ -1,5 +1,5 @@
 import { ChevronDown } from 'lucide-react';
-import { serversMap, useServerStore } from '~/stores/serverStore';
+import { serversMap, useServerStore } from '~/stores/server-store';
 import { Button } from './ui/Button';
 import {
   DropdownMenu,
@@ -11,7 +11,7 @@ import {
 } from './ui/DropdownMenu';
 
 export function ServersDropdown() {
-  const { setServer, server, label } = useServerStore();
+  const { setServer, server, serverLabel } = useServerStore();
   const CurrentServerIcon = serversMap[server].Icon;
 
   return (
@@ -20,7 +20,7 @@ export function ServersDropdown() {
         <Button size="sm" variant="outline">
           <div className="flex items-center justify-between">
             <CurrentServerIcon />
-            <span className="text-sm mx-2">{label}</span>
+            <span className="text-sm mx-2">{serverLabel}</span>
             <ChevronDown />
           </div>
           <span className="sr-only">Toggle server</span>

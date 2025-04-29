@@ -55,7 +55,7 @@ export default async function createApp() {
   });
 
   await app.register(rateLimiter, {
-    max: 20,
+    max: 100,
     timeWindow: 60 * 1000,
     allowList: ['127.0.0.6'],
     errorResponseBuilder: (_req, _context) => {
