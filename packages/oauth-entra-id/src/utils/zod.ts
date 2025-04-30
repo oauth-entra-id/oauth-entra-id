@@ -43,6 +43,7 @@ export const zConfig = z.object({
   advanced: z
     .object({
       loginPrompt: zLoginPrompt.default('sso'),
+      allowOtherSystems: z.boolean().default(false),
       disableHttps: z.boolean().default(false),
       disableSameSite: z.boolean().default(false),
       cookieTimeFrame: z.enum(['ms', 'sec']).default('ms'),
@@ -53,6 +54,7 @@ export const zConfig = z.object({
     })
     .default({
       loginPrompt: 'sso',
+      allowOtherSystems: false,
       disableHttps: false,
       disableSameSite: false,
       cookieTimeFrame: 'ms',

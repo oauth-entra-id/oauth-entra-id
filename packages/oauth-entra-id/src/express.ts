@@ -10,53 +10,42 @@ import {
 } from './shared/endpoints';
 import { sharedRequireAuthentication } from './shared/middleware';
 import type { OAuthConfig } from './types';
-import { debugLog } from './utils/misc';
 
 const ERROR_MESSAGE = 'Make sure you used Express export and you used authConfig';
 
 let globalExpressOAuthProvider: OAuthProvider | null = null;
 
 /**
- * Middleware to configure the OAuthProvider for Express.
+ * Configures and initializes the OAuthProvider for Express.
  *
- * This middleware initializes and attaches an `OAuthProvider` instance
- * to the `req` object, making it accessible in subsequent middleware
- * and route handlers.
+ * Attaches the OAuthProvider instance to the Express request object,
+ * allowing route handlers and middleware to access it.
  *
- * ### Behavior:
- * - Ensures `cookie-parser` middleware is present.
- * - Initializes `OAuthProvider` if not already created.
- *
- * @param config - OAuth configuration with an optional flag to allow other systems.
+ * @param config - The full configuration used to initialize the OAuthProvider.
+ * @returns Express middleware function.
+ * @throws {OAuthError} If `cookie-parser` middleware has not been set up.
  */
-
-export function authConfig(config: OAuthConfig & { allowOtherSystems?: boolean }) {
-  const { allowOtherSystems, ...configuration } = config;
-
+export function authConfig(config: OAuthConfig) {
   return (req: Request, res: Response, next: NextFunction) => {
-    if (!req.cookies) throw new OAuthError(500, 'Missing cookie-parser middleware');
-    if (!globalExpressOAuthProvider) {
-      globalExpressOAuthProvider = new OAuthProvider(configuration);
+    if (!req.cookies) {
+      throw new OAuthError(500, 'Missing cookie-parser middleware');
     }
 
-    debugLog({
-      condition: !!globalExpressOAuthProvider.options.debug,
-      funcName: 'authConfig',
-      message: `allowOtherSystems: ${!!allowOtherSystems}`,
-    });
+    if (!globalExpressOAuthProvider) {
+      globalExpressOAuthProvider = new OAuthProvider(config);
+    }
 
     req.oauthProvider = globalExpressOAuthProvider;
     req.serverType = 'express';
-    req.allowOtherSystems = !!allowOtherSystems;
 
     next();
   };
 }
 
 /**
- * Express route handler to generate an authentication URL for OAuth.
+ * Express route handler to generate an authentication URL.
  *
- * ### Expected Request Body:
+ * Optional Request Body:
  * - `loginPrompt` (optional): `'email'` | `'select-account'` | `'sso'`
  * - `email` (optional): `string`
  * - `frontendUrl` (optional): `string`
@@ -76,9 +65,9 @@ export async function handleAuthentication(req: Request, res: Response, next: Ne
  * Express route handler to exchange an authorization code for tokens.
  * After the exchange, it stores the tokens in cookies and redirects the user back to the frontend.
  *
- * ### Expected Request Body:
- * - `code`: `string` (required)
- * - `state`: `string` (required)
+ * Expected Request Body:
+ * - `code`: `string`
+ * - `state`: `string`
  *
  * @throws {OAuthError} If token exchange fails, an error is passed to `next`.
  */
@@ -94,7 +83,7 @@ export async function handleCallback(req: Request, res: Response, next: NextFunc
 /**
  * Express route handler to log out a user by clearing cookies and generating a logout URL.
  *
- * ### Expected Request Body:
+ * Optional Request Body:
  * - `frontendUrl` (optional): `string`
  *
  * @throws {OAuthError} If logout fails, an error is passed to `next`.
@@ -111,8 +100,8 @@ export function handleLogout(req: Request, res: Response, next: NextFunction) {
 /**
  * Express route handler to obtain tokens on behalf of another system.
  *
- * ### Expected Request Body:
- * - `serviceNames`: `string[]` (required)
+ * Expected Request Body:
+ * - `serviceNames`: `string[]`
  *
  * @throws {OAuthError} If token exchange fails, an error is passed to `next`.
  */
@@ -128,7 +117,7 @@ export function handleOnBehalfOf(req: Request, res: Response, next: NextFunction
 /**
  * Middleware to require authentication for Express routes.
  *
- * ### Authentication Flow:
+ * Authentication Flow:
  * - If `allowOtherSystems` is **enabled**:
  *   - Checks for a Bearer token in the `Authorization` header.
  *   - If the token is **valid** and from **another system**, the request proceeds.

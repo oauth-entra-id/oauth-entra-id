@@ -4,7 +4,7 @@ import type { AuthenticationResult, ConfidentialClientApplication, CryptoProvide
 import jwt from 'jsonwebtoken';
 import jwks from 'jwks-rsa';
 import { OAuthError } from './error';
-import type { Azure, Cookies, LoginPrompt, MethodKeys, OAuthConfig, OAuthOptions, OnBehalfOfService } from './types';
+import type { Cookies, LoginPrompt, MethodKeys, OAuthConfig, OAuthOptions, OnBehalfOfService } from './types';
 import { getCookieOptions } from './utils/cookies';
 import { createSecretKey, decrypt, decryptObject, encrypt, encryptObject } from './utils/crypto';
 import { debugLog } from './utils/misc';
@@ -22,21 +22,28 @@ import {
   zToken,
 } from './utils/zod';
 
-// TODO: add type safety for Frontend URLs and Service Names
-// TODO: add Array.from(new Set()) to remove duplicates from frontendUrl
-// TODO: add better try catch to the map of getTokenOnBehalfOf
-// TODO: add platforms and checks within the method itself
-// TODO: replace cookie-parser with a custom cookie parser to avoid dependency
+// TODO: Type safety for Frontend URLs and Service Names
+// TODO: Mobile app support
+// TODO: Cookie Parser replace
+// TODO: Inject data to cookie
 
 /**
- * ### The Core of the Package
- * OAuthProvider handles authentication with Microsoft Entra ID using OAuth 2.0.
- * It manages authentication flows, token exchange, and JWT verification.
+ * The core authentication class that handles OAuth 2.0 flows using Microsoft Entra ID (Azure AD).
+ *
+ * Features:
+ * - Generates login and logout URLs
+ * - Handles token exchange (authorization code grant)
+ * - Issues secure, encrypted cookies
+ * - Validates JWTs
+ * - Supports refresh token rotation
+ * - Implements the On-Behalf-Of (OBO) flow for downstream service access
+ *
+ * Designed to be framework-agnostic with support for cookie-based workflows and frontend redirects.
  *
  * @class
  */
 export class OAuthProvider {
-  private readonly azure: Azure;
+  private readonly azure: OAuthConfig['azure'];
   private readonly frontendUrl: [string, ...string[]];
   private readonly serverCallbackUrl: string;
   private readonly secretKey: KeyObject;
@@ -50,9 +57,11 @@ export class OAuthProvider {
   private readonly jwksClient: jwks.JwksClient;
 
   /**
-   * Creates an instance of OAuthProvider.
-   * @param configuration - The OAuth configuration object.
-   * @throws {OAuthError} If the configuration is invalid.
+   * Creates a new OAuthProvider instance.
+   *
+   * @param configuration - The full OAuth configuration including Azure client credentials, frontend redirect URIs, server callback URL, secret keys, and advanced options.
+   *
+   * @throws {OAuthError} If the configuration is invalid or contains duplicate service definitions.
    */
   constructor(configuration: OAuthConfig) {
     const { data: config, error: configError } = zConfig.safeParse(configuration);
@@ -85,6 +94,7 @@ export class OAuthProvider {
     });
 
     const options = {
+      areOtherSystemsAllowed: advanced.allowOtherSystems,
       isHttps,
       isSameSite,
       cookieTimeFrame: advanced.cookieTimeFrame,
@@ -130,13 +140,14 @@ export class OAuthProvider {
     });
   }
 
-  private debugLog(methodName: MethodKeys<OAuthProvider> | 'verifyJwt', message: string) {
+  private localDebug(methodName: MethodKeys<OAuthProvider> | 'verifyJwt', message: string) {
     debugLog({ condition: this.options.debug, funcName: `OAuthProvider.${methodName}`, message });
   }
 
   /**
-   * Returns the names of the access and refresh token cookies.
-   * @returns The cookie names.
+   * Returns the cookie names used to store the access and refresh tokens.
+   *
+   * @returns Object containing `accessTokenName` and `refreshTokenName`.
    */
   getCookieNames() {
     return {
@@ -146,10 +157,11 @@ export class OAuthProvider {
   }
 
   /**
-   * Generates an authorization URL for OAuth authentication.
-   * @param params - The options for generating the authorization URL.
-   * @returns The authorization URL.
-   * @throws {OAuthError} If options are invalid.
+   * Generates an OAuth2 authorization URL with PKCE, login hints, and encrypted state.
+   *
+   * @param params - Optional parameters like login prompt, email hint, and custom frontend URL.
+   * @returns A signed Microsoft authentication URL.
+   * @throws {OAuthError} If validation fails or frontend host is not allowed.
    */
   async getAuthUrl(params: { loginPrompt?: LoginPrompt; email?: string; frontendUrl?: string }): Promise<{
     url: string;
@@ -178,7 +190,7 @@ export class OAuthProvider {
 
       const params = { nonce: this.msalCryptoProvider.createNewGuid(), loginHint: parsedParams.email, prompt };
       const state = encryptObject({ frontendUrl, codeVerifier: verifier, ...params }, this.secretKey);
-      this.debugLog('getAuthUrl', `Params: ${JSON.stringify({ ...params, state, frontendUrl })}`);
+      this.localDebug('getAuthUrl', `Params: ${JSON.stringify({ ...params, state, frontendUrl })}`);
 
       const microsoftUrl = await this.cca.getAuthCodeUrl({
         ...params,
@@ -213,10 +225,11 @@ export class OAuthProvider {
   }
 
   /**
-   * Exchanges an authorization code for an access token and refresh token.
-   * @param params - The options (code and state) for exchanging the code.
-   * @returns The access token, refresh token, frontend URL to redirect back to, and MSAL response.
-   * @throws {OAuthError} If options are invalid.
+   * Handles authorization code exchange to return encrypted tokens and redirect metadata.
+   *
+   * @param params - Includes the OAuth authorization `code` and encrypted `state`.
+   * @returns Access token, refresh token (if available), frontend redirect URL, and raw MSAL response.
+   * @throws {OAuthError} If the code or state are invalid.
    */
   async getTokenByCode(params: { code: string; state: string }): Promise<{
     accessToken: Cookies['AccessToken'];
@@ -233,7 +246,7 @@ export class OAuthProvider {
     if (stateError) {
       throw new OAuthError(400, { message: 'Invalid params: Invalid state', description: prettifyError(stateError) });
     }
-    this.debugLog('getTokenByCode', `State is decrypted: ${JSON.stringify(state)}`);
+    this.localDebug('getTokenByCode', `State is decrypted: ${JSON.stringify(state)}`);
 
     if (!this.frontendWhitelist.includes(new URL(state.frontendUrl).host)) {
       throw new OAuthError(403, 'Invalid params: Unlisted host frontend URL');
@@ -263,10 +276,11 @@ export class OAuthProvider {
   }
 
   /**
-   * Generates a logout URL for OAuth authentication.
-   * @param params - The options for generating the logout URL.
-   * @returns The logout URL and cookie deletion options.
-   * @throws {OAuthError} If options are invalid.
+   * Generates a logout URL and the cookie deletion configuration.
+   *
+   * @param params - Optional `frontendUrl` for post-logout redirection.
+   * @returns Logout URL and cookie clear options.
+   * @throws {OAuthError} If the URL is not on the whitelist.
    */
   getLogoutUrl(params?: { frontendUrl?: string }): {
     url: string;
@@ -338,7 +352,7 @@ export class OAuthProvider {
       if (typeof fullJwt.payload === 'string') {
         throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid JWT Payload' });
       }
-      this.debugLog('verifyJwt', `JWT Payload: ${JSON.stringify(fullJwt.payload)}`);
+      this.localDebug('verifyJwt', `JWT Payload: ${JSON.stringify(fullJwt.payload)}`);
 
       return fullJwt.payload;
     } catch (err) {
@@ -351,10 +365,10 @@ export class OAuthProvider {
   }
 
   /**
-   * Verifies an access token and returns the Microsoft token and payload.
-   * @param accessToken - An encrypted access token or JWT access token.
-   * @returns The Microsoft token and JWT payload.
-   * @throws {OAuthError} If the token is invalid.
+   * Verifies an access token, either as a raw JWT or encrypted string.
+   *
+   * @param accessToken - A JWT or encrypted access token.
+   * @returns The original token and decoded payload if valid; `null` otherwise.
    */
   async verifyAccessToken(accessToken: string): Promise<{ microsoftToken: string; payload: jwt.JwtPayload } | null> {
     try {
@@ -369,16 +383,17 @@ export class OAuthProvider {
       const payload = await this.verifyJwt(rawAccessToken);
       return { microsoftToken: rawAccessToken, payload };
     } catch (err) {
-      this.debugLog('verifyAccessToken', `Error verifying token: ${err}`);
+      this.localDebug('verifyAccessToken', `Error verifying token: ${err}`);
       return null;
     }
   }
 
   /**
-   * Refreshes an access token using a refresh token.
-   * @param refreshToken - The encrypted refresh token.
-   * @returns The new access token, refresh token, original JWT with its payload, and MSAL response.
-   * @throws {OAuthError} If the refresh token is invalid.
+   * Rotates tokens using a previously stored refresh token.
+   *
+   * @param refreshToken - Encrypted refresh token.
+   * @returns New access and refresh token cookies, raw MSAL response, and payload.
+   * @throws {OAuthError} If the refresh token is invalid or decryption fails.
    */
   async getTokenByRefresh(refreshToken: string): Promise<{
     newAccessToken: Cookies['AccessToken'];
@@ -418,11 +433,18 @@ export class OAuthProvider {
         msal: { microsoftToken: msalResponse.accessToken, payload: newAccessTokenPayload },
       };
     } catch (err) {
-      this.debugLog('getTokenByRefresh', `Error refreshing token: ${err}`);
+      this.localDebug('getTokenByRefresh', `Error refreshing token: ${err}`);
       return null;
     }
   }
 
+  /**
+   * Acquires tokens for trusted downstream services via the On-Behalf-Of (OBO) flow.
+   *
+   * @param params - Includes original access token and array of service names to act on behalf of.
+   * @returns Token pairs (access/refresh) and MSAL metadata for each target service.
+   * @throws {OAuthError} If configuration or token validation fails.
+   */
   async getTokenOnBehalfOf(params: { accessToken: string; serviceNames: string[] }): Promise<
     {
       accessToken: Cookies['AccessToken'];
@@ -445,7 +467,7 @@ export class OAuthProvider {
     if (!services || services.length === 0) {
       throw new OAuthError(400, { message: 'Invalid params', description: 'Service not Found' });
     }
-    this.debugLog('getTokenOnBehalfOf', `Services names: ${JSON.stringify(services)}`);
+    this.localDebug('getTokenOnBehalfOf', `Services names: ${JSON.stringify(services)}`);
 
     const rawAccessToken = isJwt(parsedParams.accessToken)
       ? parsedParams.accessToken
@@ -472,7 +494,7 @@ export class OAuthProvider {
               const aud = decodedAccessToken.aud;
               if (typeof aud !== 'string') return null;
 
-              this.debugLog('getTokenOnBehalfOf', `Service: ${service.serviceName}, Audience: ${aud}`);
+              this.localDebug('getTokenOnBehalfOf', `Service: ${service.serviceName}, Audience: ${aud}`);
 
               const secretKey = createSecretKey(service.secretKey);
 

@@ -5,48 +5,80 @@ import type { ACCESS_TOKEN_NAME, REFRESH_TOKEN_NAME } from './utils/cookies';
 export type ServerType = 'express' | 'nestjs';
 export type LoginPrompt = 'email' | 'select-account' | 'sso';
 export type TimeFrame = 'ms' | 'sec';
-
-export interface Azure {
-  clientId: string;
-  tenantId: 'common' | string;
-  scopes: string[];
-  secret: string;
-}
-
+/**
+ * Configuration for On-Behalf-Of authentication with an external service.
+ */
 export interface OnBehalfOfService {
+  /** Unique identifier for the service. */
   serviceName: string;
+  /** OAuth2 scope required to access the service. */
   scope: string;
+  /** Secret key used for decrypting/encrypting tokens. */
   secretKey: string;
+  /** Whether HTTPS is enforced. */
   isHttps: boolean;
+  /** Whether `SameSite` cookies are enforced. */
   isSameSite: boolean;
+  /** Optional expiration time for access tokens (in seconds or ms, based on time frame). */
   accessTokenExpiry?: number;
+  /** Optional expiration time for refresh tokens (in seconds or ms, based on time frame). */
   refreshTokenExpiry?: number;
 }
 
+/**
+ * Configuration object for initializing the OAuth provider.
+ */
 export interface OAuthConfig {
-  azure: Azure;
+  azure: {
+    /** Azure client ID. */
+    clientId: string;
+    /** Azure tenant ID or `'common'`. */
+    tenantId: 'common' | string;
+    /** Scopes requested for authentication. */
+    scopes: string[];
+    /** Client secret. */
+    secret: string;
+  };
+  /** Frontend redirect URL(s) allowed post-authentication. */
   frontendUrl: string | string[];
+  /** Server callback URL. */
   serverCallbackUrl: string;
+  /** Encryption secret key. */
   secretKey: string;
+  /** Optional advanced settings. */
   advanced?: {
+    /** Optional login prompt strategy. */
     loginPrompt?: LoginPrompt;
+    /** Allow cross-app token validation. */
+    allowOtherSystems?: boolean;
+    /** Disable HTTPS enforcement. */
     disableHttps?: boolean;
+    /** Disable SameSite cookie enforcement. */
     disableSameSite?: boolean;
+    /** Cookie time unit. */
     cookieTimeFrame?: TimeFrame;
-    accessTokenCookieExpiry?: number; // in seconds
-    refreshTokenCookieExpiry?: number; // in seconds
+    /** Cookie max-age for access tokens. */
+    accessTokenCookieExpiry?: number;
+    /** Cookie max-age for refresh tokens. */
+    refreshTokenCookieExpiry?: number;
+    /** Enable verbose logging. */
     debug?: boolean;
+    /** Configure on-behalf-of services. */
     onBehalfOfServices?: OnBehalfOfService[];
   };
 }
 
+/**
+ * Computed options after parsing `OAuthConfig`.
+ */
 export interface OAuthOptions {
+  readonly areOtherSystemsAllowed: boolean;
   readonly isHttps: boolean;
   readonly isSameSite: boolean;
   readonly cookieTimeFrame: TimeFrame;
   readonly serviceNames?: string[];
-  readonly accessTokenCookieExpiry: number; // in seconds
-  readonly refreshTokenCookieExpiry: number; // in seconds
+  readonly accessTokenCookieExpiry: number;
+  readonly refreshTokenCookieExpiry: number;
   readonly debug: boolean;
 }
 
@@ -71,25 +103,28 @@ export interface Endpoints {
 declare global {
   namespace Express {
     export interface Request {
+      /** OAuthProvider instance bound to the request. */
       oauthProvider: OAuthProvider;
+      /** The backend framework type. */
       serverType: ServerType;
-      allowOtherSystems: boolean;
+
       /**
-       * Stores the raw Microsoft access token and its payload.
+       * Stores the raw Microsoft access token and its decoded payload.
        */
       msal?: {
         microsoftToken: string;
         payload: JwtPayload;
       };
+
       /**
        * Stores user authentication details.
        *
-       * - If `isFromAnotherApp` is `false`, the user is authenticated locally.
-       * - If `isFromAnotherApp` is `true`, authentication comes from an external system.
+       * - If `isOtherApp` is `false`, the user is authenticated locally.
+       * - If `isOtherApp` is `true`, the token was issued by another service.
        */
       userInfo?:
-        | { isFromAnotherApp: false; uniqueId: string; roles: string[]; name: string; email: string }
-        | { isFromAnotherApp: true; uniqueId: string; roles: string[]; appId: string };
+        | { isOtherApp: false; uniqueId: string; roles: string[]; name: string; email: string }
+        | { isOtherApp: true; uniqueId: string; roles: string[]; appId: string };
     }
   }
 }

@@ -4,39 +4,39 @@ import { OAuthError } from '~/error';
 import { debugLog } from '~/utils/misc';
 
 export const sharedRequireAuthentication = async (req: Request, res: Response) => {
+  const oauthProvider = req.oauthProvider;
   const localDebug = (message: string) => {
-    debugLog({
-      condition: req.oauthProvider.options.debug,
-      funcName: req.serverType === 'express' ? 'requireAuthentication' : 'isAuthenticated',
-      message,
-    });
+    const funcName = req.serverType === 'express' ? 'requireAuthentication' : 'isAuthenticated';
+    debugLog({ condition: oauthProvider.options.debug, funcName, message });
   };
 
-  if (req.allowOtherSystems && req.headers.authorization?.startsWith('Bearer ')) {
+  // B2B Part:
+  if (oauthProvider.options.areOtherSystemsAllowed && req.headers.authorization?.startsWith('Bearer ')) {
     const authorizationJwt = req.headers.authorization.split(' ')[1];
     localDebug(`authorizationJwt: ${!!authorizationJwt}`);
-    if (!authorizationJwt) throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid access token' });
+    if (!authorizationJwt) {
+      throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid access token' });
+    }
 
-    const microsoftInfo = await req.oauthProvider.verifyAccessToken(authorizationJwt);
-    if (!microsoftInfo) throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid access token' });
+    const microsoftInfo = await oauthProvider.verifyAccessToken(authorizationJwt);
+    if (!microsoftInfo) {
+      throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid access token' });
+    }
 
     const isAnotherSystem = microsoftInfo.payload.aud !== microsoftInfo.payload.azp;
     localDebug(`isAnotherSystem: ${isAnotherSystem}`);
     if (!isAnotherSystem) {
-      throw new OAuthError(401, {
-        message: 'Unauthorized',
-        description: 'The token used is not from another system',
-      });
+      throw new OAuthError(401, { message: 'Unauthorized', description: 'The token used is not from another system' });
     }
 
     req.msal = microsoftInfo;
-    req.userInfo = getUserInfo({ payload: microsoftInfo.payload, isFromAnotherApp: true });
+    req.userInfo = getUserInfo({ payload: microsoftInfo.payload, isOtherApp: true });
     return true;
   }
 
-  const { accessTokenName, refreshTokenName } = req.oauthProvider.getCookieNames();
-  const accessTokenCookie = req.cookies[accessTokenName] as string | undefined;
-  const refreshTokenCookie = req.cookies[refreshTokenName] as string | undefined;
+  const { accessTokenName, refreshTokenName } = oauthProvider.getCookieNames();
+  const accessTokenCookie = req.cookies[accessTokenName];
+  const refreshTokenCookie = req.cookies[refreshTokenName];
 
   localDebug(`Cookies: ${accessTokenName}=${!!accessTokenCookie}, ${refreshTokenName}=${!!refreshTokenCookie}`);
   if (!accessTokenCookie && !refreshTokenCookie) {
@@ -44,39 +44,44 @@ export const sharedRequireAuthentication = async (req: Request, res: Response) =
   }
 
   if (accessTokenCookie) {
-    const microsoftInfo = await req.oauthProvider.verifyAccessToken(accessTokenCookie);
+    const microsoftInfo = await oauthProvider.verifyAccessToken(accessTokenCookie);
     if (microsoftInfo) {
       req.msal = microsoftInfo;
-      req.userInfo = getUserInfo({ payload: microsoftInfo.payload, isFromAnotherApp: false });
+      req.userInfo = getUserInfo({ payload: microsoftInfo.payload, isOtherApp: false });
       return true;
     }
   }
 
   localDebug('Access token is invalid, trying to refresh it...');
-  if (!refreshTokenCookie) throw new OAuthError(401, { message: 'Unauthorized', description: 'No refresh token' });
+  if (!refreshTokenCookie) {
+    throw new OAuthError(401, { message: 'Unauthorized', description: 'No refresh token' });
+  }
 
-  const newTokens = await req.oauthProvider.getTokenByRefresh(refreshTokenCookie);
-  if (!newTokens) throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid refresh token' });
-  const { newAccessToken, newRefreshToken, msal } = newTokens;
+  const newTokens = await oauthProvider.getTokenByRefresh(refreshTokenCookie);
+  if (!newTokens) {
+    throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid refresh token' });
+  }
+
   localDebug('Access token refreshed successfully');
 
+  const { newAccessToken, newRefreshToken, msal } = newTokens;
   res.cookie(newAccessToken.name, newAccessToken.value, newAccessToken.options);
   if (newRefreshToken) res.cookie(newRefreshToken.name, newRefreshToken.value, newRefreshToken.options);
   req.msal = msal;
-  req.userInfo = getUserInfo({ payload: msal.payload, isFromAnotherApp: false });
+  req.userInfo = getUserInfo({ payload: msal.payload, isOtherApp: false });
   return true;
 };
 
-function getUserInfo({ payload, isFromAnotherApp }: { payload: JwtPayload; isFromAnotherApp: boolean }) {
-  return isFromAnotherApp
+function getUserInfo({ payload, isOtherApp }: { payload: JwtPayload; isOtherApp: boolean }) {
+  return isOtherApp
     ? ({
-        isFromAnotherApp: true,
+        isOtherApp: true,
         uniqueId: payload.oid,
         roles: payload.roles,
         appId: payload.azp,
       } as const)
     : ({
-        isFromAnotherApp: false,
+        isOtherApp: false,
         uniqueId: payload.oid,
         roles: payload.roles,
         name: payload.name,

@@ -10,52 +10,42 @@ import {
 } from './shared/endpoints';
 import { sharedRequireAuthentication } from './shared/middleware';
 import type { OAuthConfig } from './types';
-import { debugLog } from './utils/misc';
 
-const ERROR_MESSAGE = 'Make sure you used Express export and you used authConfig';
+const ERROR_MESSAGE = 'Make sure you used NestJS export and you used authConfig';
 
 let globalNestjsOAuthProvider: OAuthProvider | null = null;
 
 /**
- * Middleware to configure the OAuthProvider for NestJS.
+ * Configures and initializes the OAuthProvider for NestJS.
  *
- * This middleware initializes and attaches an `OAuthProvider` instance
- * to the `req` object, making it accessible in subsequent middleware
- * and route handlers.
+ * Attaches the OAuthProvider instance to the NestJS request object,
+ * allowing route handlers and middleware to access it.
  *
- * ### Behavior:
- * - Ensures `cookie-parser` middleware is present.
- * - Initializes `OAuthProvider` if not already created.
- *
- * @param config - OAuth configuration with an optional flag to allow other systems.
+ * @param config - The full configuration used to initialize the OAuthProvider.
+ * @returns NestJS middleware function.
+ * @throws {OAuthError} If `cookie-parser` middleware has not been set up.
  */
-export function authConfig(config: OAuthConfig & { allowOtherSystems?: boolean }) {
-  const { allowOtherSystems, ...configuration } = config;
-
+export function authConfig(config: OAuthConfig) {
   return (req: Request, res: Response, next: NextFunction) => {
-    if (!req.cookies) throw new OAuthError(500, 'Missing cookie-parser middleware');
-    if (!globalNestjsOAuthProvider) {
-      globalNestjsOAuthProvider = new OAuthProvider(configuration);
+    if (!req.cookies) {
+      throw new OAuthError(500, 'Missing cookie-parser middleware');
     }
 
-    debugLog({
-      condition: !!globalNestjsOAuthProvider.options.debug,
-      funcName: 'authConfig',
-      message: `allowOtherSystems: ${!!allowOtherSystems}`,
-    });
+    if (!globalNestjsOAuthProvider) {
+      globalNestjsOAuthProvider = new OAuthProvider(config);
+    }
 
     req.oauthProvider = globalNestjsOAuthProvider;
     req.serverType = 'nestjs';
-    req.allowOtherSystems = !!allowOtherSystems;
 
     next();
   };
 }
 
 /**
- * NestJS route handler to generate an authentication URL for OAuth.
+ * NestJS route handler to generate an authentication URL.
  *
- * ### Expected Request Body:
+ * Optional Request Body:
  * - `loginPrompt` (optional): `'email'` | `'select-account'` | `'sso'`
  * - `email` (optional): `string`
  * - `frontendUrl` (optional): `string`
@@ -74,9 +64,10 @@ export async function handleAuthentication(req: Request, res: Response) {
 }
 
 /**
- * NestJS route handler to exchange an OAuth code for an access token.
+ * NestJS route handler to exchange an authorization code for tokens.
+ * After the exchange, it stores the tokens in cookies and redirects the user back to the frontend.
  *
- * ### Expected Request Body:
+ * Expected Request Body:
  * - `code`: `string`
  * - `state`: `string`
  *
@@ -96,7 +87,7 @@ export async function handleCallback(req: Request, res: Response) {
 /**
  * NestJS route handler to log out a user by clearing cookies and generating a logout URL.
  *
- * ### Expected Request Body:
+ * Optional Request Body:
  * - `frontendUrl` (optional): `string`
  *
  * @throws {OAuthError} If logout setup fails, an error is thrown.
@@ -115,8 +106,8 @@ export function handleLogout(req: Request, res: Response) {
 /**
  * NestJS route handler to handle On-Behalf-Of token exchange.
  *
- * ### Expected Request Body:
- * - `serviceNames`: `string[]` (required)
+ * Expected Request Body:
+ * - `serviceNames`: `string[]`
  *
  * @throws {OAuthError} If On-Behalf-Of setup fails, an error is thrown.
  */
@@ -134,7 +125,7 @@ export function handleOnBehalfOf(req: Request, res: Response) {
 /**
  * Middleware to check and require authentication for NestJS routes.
  *
- * ### Authentication Flow:
+ * Authentication Flow:
  * - If `allowOtherSystems` is **enabled**:
  *   - Checks for a Bearer token in the `Authorization` header.
  *   - If the token is **valid** and from **another system**, the request proceeds.
@@ -148,7 +139,8 @@ export function handleOnBehalfOf(req: Request, res: Response) {
  *     - The tokens are refreshed, and the request proceeds.
  *   - If **both tokens are invalid or missing**, an error is thrown.
  *
- * @throws {OAuthError} If authentication fails, an error is passed to the `next` function.
+ * @returns `true` if authentication succeeded, otherwise throws an `OAuthError`.
+ * @throws {OAuthError} If authentication fails.
  */
 export async function isAuthenticated(req: Request, res: Response) {
   try {
