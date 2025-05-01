@@ -66,7 +66,7 @@ async function bootstrap() {
         clientId: env.RED_AZURE_CLIENT_ID,
         tenantId: env.RED_AZURE_TENANT_ID,
         scopes: [env.RED_AZURE_CLIENT_SCOPE],
-        secret: env.RED_AZURE_CLIENT_SECRET,
+        clientSecret: env.RED_AZURE_CLIENT_SECRET,
       },
       frontendUrl: env.REACT_FRONTEND_URL,
       serverCallbackUrl: `${env.SERVER_URL}/auth/callback`,

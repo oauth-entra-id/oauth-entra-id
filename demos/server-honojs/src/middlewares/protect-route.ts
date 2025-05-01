@@ -3,24 +3,22 @@ import { createMiddleware } from 'hono/factory';
 import { HTTPException } from 'hono/http-exception';
 import { oauthProvider } from '~/oauth';
 
-type UserInfo = {
-  msal: {
-    microsoftToken: string;
-    payload: Record<string, unknown>;
-  };
-  userInfo: {
-    uniqueId: string;
-    roles: string[];
-    name: string;
-    email: string;
+export type ProtectRoute = {
+  Variables: {
+    msal: {
+      microsoftToken: string;
+      payload: Record<string, unknown>;
+    };
+    userInfo: {
+      uniqueId: string;
+      roles: string[];
+      name: string;
+      email: string;
+    };
   };
 };
 
-export type RequireAuthentication = {
-  Variables: UserInfo;
-};
-
-export const requireAuthentication = createMiddleware<RequireAuthentication>(async (c, next) => {
+export const protectRoute = createMiddleware<ProtectRoute>(async (c, next) => {
   const { accessTokenName, refreshTokenName } = oauthProvider.getCookieNames();
   const accessToken = getCookie(c, accessTokenName);
   const refreshToken = getCookie(c, refreshTokenName);

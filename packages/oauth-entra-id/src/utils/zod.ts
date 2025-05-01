@@ -36,7 +36,12 @@ const zOnBehalfOfService = z.object({
 });
 
 export const zConfig = z.object({
-  azure: z.object({ clientId: zUuid, tenantId: zUuid, scopes: zScopes, secret: zStr.min(32) }),
+  azure: z.object({
+    clientId: zUuid,
+    tenantId: z.union([z.literal('common'), zUuid]),
+    scopes: zScopes,
+    clientSecret: zStr.min(32),
+  }),
   frontendUrl: z.union([zUrl.transform((url) => [url]), z.array(zUrl).min(1)]),
   serverCallbackUrl: zUrl,
   secretKey: zSecretKey,
@@ -44,25 +49,19 @@ export const zConfig = z.object({
     .object({
       loginPrompt: zLoginPrompt.default('sso'),
       allowOtherSystems: z.boolean().default(false),
-      disableHttps: z.boolean().default(false),
-      disableSameSite: z.boolean().default(false),
-      cookieTimeFrame: z.enum(['ms', 'sec']).default('ms'),
-      accessTokenCookieExpiry: z.number().positive().default(3600),
-      refreshTokenCookieExpiry: z.number().min(3600).default(2592000),
       debug: z.boolean().default(false),
+      cookies: z
+        .object({
+          timeUnit: z.enum(['ms', 'sec']).default('ms'),
+          disableHttps: z.boolean().default(false),
+          disableSameSite: z.boolean().default(false),
+          accessTokenExpiry: z.number().positive().default(3600),
+          refreshTokenExpiry: z.number().min(3600).default(2592000),
+        })
+        .default({}),
       onBehalfOfServices: z.array(zOnBehalfOfService).min(1).optional(),
     })
-    .default({
-      loginPrompt: 'sso',
-      allowOtherSystems: false,
-      disableHttps: false,
-      disableSameSite: false,
-      cookieTimeFrame: 'ms',
-      accessTokenCookieExpiry: 3600,
-      refreshTokenCookieExpiry: 2592000,
-      debug: false,
-      onBehalfOfServices: undefined,
-    }),
+    .default({}),
 });
 
 export const zGetAuthUrl = z

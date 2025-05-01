@@ -5,18 +5,18 @@ export function getCookieOptions({
   clientId,
   isHttps,
   isSameSite,
-  cookieTimeFrame,
+  cookiesTimeUnit,
   accessTokenCookieExpiry,
   refreshTokenCookieExpiry,
 }: {
   clientId: string;
   isHttps: boolean;
   isSameSite: boolean;
-  cookieTimeFrame: 'sec' | 'ms';
+  cookiesTimeUnit: 'sec' | 'ms';
   accessTokenCookieExpiry: number;
   refreshTokenCookieExpiry: number;
 }) {
-  const timeFrame = cookieTimeFrame === 'sec' ? 1 : 1000;
+  const timeFrame = cookiesTimeUnit === 'sec' ? 1 : 1000;
   const baseOptions = {
     httpOnly: true,
     secure: isHttps,

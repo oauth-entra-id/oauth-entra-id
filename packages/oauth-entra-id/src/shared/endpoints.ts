@@ -6,34 +6,34 @@ export const sharedHandleAuthentication = async (req: Request, res: Response) =>
   const body = req.body as Endpoints['Authenticate'] | undefined;
   const params = body ? { loginPrompt: body.loginPrompt, email: body.email, frontendUrl: body.frontendUrl } : {};
 
-  const { url } = await req.oauthProvider.getAuthUrl(params);
+  const { authUrl } = await req.oauthProvider.getAuthUrl(params);
 
-  res.status(200).json({ url });
+  res.status(200).json({ url: authUrl });
 };
 
 export const sharedHandleCallback = async (req: Request, res: Response) => {
   const body = req.body as Endpoints['Callback'] | undefined;
   if (!body) throw new OAuthError(400, { message: 'Invalid params', description: 'Body must contain code and state' });
 
-  const { url, accessToken, refreshToken } = await req.oauthProvider.getTokenByCode({
+  const { frontendUrl, accessToken, refreshToken } = await req.oauthProvider.getTokenByCode({
     code: body.code,
     state: body.state,
   });
 
   res.cookie(accessToken.name, accessToken.value, accessToken.options);
   if (refreshToken) res.cookie(refreshToken.name, refreshToken.value, refreshToken.options);
-  res.redirect(url);
+  res.redirect(frontendUrl);
 };
 
 export const sharedHandleLogout = (req: Request, res: Response) => {
   const body = req.body as Endpoints['Logout'] | undefined;
   const params = body ? { frontendUrl: body.frontendUrl } : {};
 
-  const { url, accessToken, refreshToken } = req.oauthProvider.getLogoutUrl(params);
+  const { logoutUrl, deleteAccessToken, deleteRefreshToken } = req.oauthProvider.getLogoutUrl(params);
 
-  res.cookie(accessToken.name, accessToken.value, accessToken.options);
-  res.cookie(refreshToken.name, refreshToken.value, refreshToken.options);
-  res.status(200).json({ url });
+  res.cookie(deleteAccessToken.name, deleteAccessToken.value, deleteAccessToken.options);
+  res.cookie(deleteRefreshToken.name, deleteRefreshToken.value, deleteRefreshToken.options);
+  res.status(200).json({ url: logoutUrl });
 };
 
 export const sharedHandleOnBehalfOf = async (req: Request, res: Response) => {

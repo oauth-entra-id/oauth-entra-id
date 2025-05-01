@@ -17,7 +17,7 @@ npm install oauth-entra-id
 - 🍪 Cookie-based authentication.
 - 🔄️ Access token and refresh token management and rotation.
 - ✅ Built-in validation for Microsoft-issued JWTs using Entra ID public keys.
-- 📢 Supports On Behalf Of (OBO) flow.
+- 📢 Supports On-Behalf-Of (OBO) flow.
 
 ## Architecture 🏗️
 
@@ -33,23 +33,24 @@ npm install oauth-entra-id
 - `frontendUrl` - The frontend URL(s) of the application for redirection. It can be a single URL or an array of URLs.
 - `serverCallbackUrl` - The URL of your server's callback endpoint. This should match the redirect URI you set in Azure. for example: `http://localhost:3000/auth/callback`.
 - `secretKey` - A 32-character long secret key for encryption. This key is used to encrypt the cookies and should be kept secret.
-- `advanced` (optional) - Advanced configuration options:
-  - `loginPrompt` (optional) - The login prompt type. It can be `"email" | "select-account" | "sso"` (default: `"sso"`).
-  - `allowOtherSystems` (optional) - Allow authentication for other systems (via Authorization header). Default: `false`.
-  - `disableHttps` (optional) - Disable HTTPS check. Default: `false`.
-  - `disableSameSite` (optional) - Disable SameSite cookie attribute. Default: `false`.
-  - `cookieTimeFrame` (optional) - The time frame for the cookie expiry. It can be `"ms" | "sec"` (default: `"ms"`).
-  - `accessTokenCookieExpiry` (optional) - The expiry time for the access token cookie in seconds (default: 1 hour).
-  - `refreshTokenCookieExpiry` (optional) - The expiry time for the refresh token cookie in seconds (default: 1 month).
-  - `debug` (optional) - Enable debug logs. Default: `false`.
-  - `onBehalfOfServices` (optional) - An array of configurations for On Behalf Of services:
+- `advanced` - Advanced configuration options:
+  - `loginPrompt` - The login prompt type. It can be `"email" | "select-account" | "sso"` (default: `"sso"`).
+  - `allowOtherSystems` - Allow authentication for other systems (via Authorization header). Default: `false`.
+  - `debug` - Enable debug logs. Default: `false`.
+  - `cookies` - Cookie configuration options:
+    - `timeUnit` - The time unit for the cookie expiry. It can be `"ms" | "sec"` (default: `"ms"`).
+    - `disableHttps` - Disable Secure cookie enforcement. Default: `false`.
+    - `disableSameSite` - Disable SameSite cookie attribute. Default: `false`.
+    - `accessTokenExpiry` - The expiry time for the access token cookie in seconds (default: 1 hour).
+    - `refreshTokenExpiry` - The expiry time for the refresh token cookie in seconds (default: 1 month).
+  - `onBehalfOfServices` - An array of configurations for On-Behalf-Of services:
     - `serviceName` - Unique name for the service.
     - `scope` - The scope for the service. For example: `api://some-service/.default`.
     - `secretKey` - The secret key to encrypt the tokens for the service.
     - `isHttps` - Whether the service uses HTTPS or not.
     - `isSameSite` - Whether to use SameSite cookie attribute or not.
-    - `accessTokenExpiry` (optional) - The expiry time for the access token in seconds (default: 1 hour).
-    - `refreshTokenExpiry` (optional) - The expiry time for the refresh token in seconds (default: 1 month).
+    - `accessTokenExpiry` - The expiry time for the access token in seconds (default: 1 hour).
+    - `refreshTokenExpiry` - The expiry time for the refresh token in seconds (default: 1 month).
 
 ```typescript
 export interface OAuthConfig {
@@ -57,7 +58,7 @@ export interface OAuthConfig {
     clientId: string;
     tenantId: string;
     scopes: string[];
-    secret: string;
+    clientSecret: string;
   };
   frontendUrl: string | string[];
   serverCallbackUrl: string;
@@ -65,12 +66,14 @@ export interface OAuthConfig {
   advanced?: {
     loginPrompt?: "email" | "select-account" | "sso"; // default: "sso"
     allowOtherSystems?: boolean; //default: false
-    disableHttps?: boolean; //default: false
-    disableSameSite?: boolean; //default: false
-    cookieTimeFrame?: "ms" | "sec"; // default: "ms"
-    accessTokenCookieExpiry?: number; //default: 1 hour
-    refreshTokenCookieExpiry?: number; //default: 1 month
     debug?: boolean;
+    cookies?:{
+      timeUnit?: "ms" | "sec"; // default: "ms"
+      disableHttps?: boolean; //default: false
+      disableSameSite?: boolean; //default: false
+      accessTokenExpiry?: number; //default: 1 hour
+      refreshTokenExpiry?: number; //default: 1 month
+    }
     onBehalfOfServices?: {
       serviceName: string;
       scope: string;
@@ -88,8 +91,8 @@ export interface OAuthConfig {
 
 The package provides three main modules for different frameworks:
 - `oauth-entra-id` - Core package for any TS/JS framework (e.g., Express, NestJS, HonoJS, Fastify, etc.). jump to **[Core](#usage---core-)**.
-- `oauth-entra-id/express` - For Express.js applications (recommended). Jump to **[Express](#usage-express-)**.
-- `oauth-entra-id/nestjs` - For NestJS applications (recommended). Jump to **[NestJS](#usage-nestjs-)**.
+- `oauth-entra-id/express` - For Express.js applications (recommended). Jump to **[Express](#usage---express-)**.
+- `oauth-entra-id/nestjs` - For NestJS applications (recommended). Jump to **[NestJS](#usage----nestjs-)**.
 
 ## Usage - Core 🧱
 
@@ -106,12 +109,14 @@ const oauthProvider = new OAuthProvider({
     clientId: env.AZURE_CLIENT_ID,
     tenantId: env.AZURE_TENANT_ID,
     scopes: [env.AZURE_CLIENT_SCOPE],
-    secret: env.AZURE_CLIENT_SECRET,
+    clientSecret: env.AZURE_CLIENT_SECRET,
   },
   frontendUrl: env.FRONTEND_URL,
   serverCallbackUrl: `${env.SERVER_URL}/auth/callback`,
   secretKey: env.SECRET,
-  advanced: { cookieTimeFrame: 'sec' }
+  advanced: { 
+    cookies: { timeUnit: 'sec' }, 
+   }
 });
 ```
 
@@ -127,8 +132,8 @@ Authenticate HonoJS example:
 ```typescript
 app.post('/authenticate', async (c) => {
   const { loginPrompt, email, frontendUrl } = await c.req.json();
-  const { url } = await oauthProvider.generateAuthUrl({ loginPrompt, email, frontendUrl });
-  return c.json({ url });
+  const { authUrl } = await oauthProvider.getAuthUrl({ loginPrompt, email, frontendUrl });
+  return c.json({ url:authUrl });
 });
 ```
 
@@ -141,12 +146,12 @@ Callback HonoJS example:
 ```typescript
 app.post('/callback', async (c) => {
   const { code, state } = await c.req.parseBody();
-  const { accessToken, refreshToken, url } = await oauthProvider.exchangeCodeForToken({ code, state });
+  const { frontendUrl, accessToken, refreshToken } = await oauthProvider.exchangeCodeForToken({ code, state });
   setCookie(c, accessToken.name, accessToken.value, accessToken.options);
   if (refreshToken) {
     setCookie(c, refreshToken.name, refreshToken.value, refreshToken.options);
   }
-  return c.redirect(url);
+  return c.redirect(frontendUrl);
 })
 ```
 
@@ -158,10 +163,10 @@ Logout HonoJS example:
 ```typescript
 app.post('/logout', async (c) => {
   const { frontendUrl } = await c.req.json();
-  const { url, accessToken, refreshToken } = oauthProvider.getLogoutUrl({ frontendUrl });
-  deleteCookie(c, accessToken.name, accessToken.options);
-  deleteCookie(c, refreshToken.name, refreshToken.options);
-  return c.json({ url });
+  const { logoutUrl, deleteAccessToken, deleteRefreshToken } = oauthProvider.getLogoutUrl({ frontendUrl });
+  deleteCookie(c, deleteAccessToken.name, deleteAccessToken.options);
+  deleteCookie(c, deleteRefreshToken.name, deleteRefreshToken.options);
+  return c.json({ url:logoutUrl });
 });
 ```
 
@@ -189,7 +194,7 @@ export const protectRoute = createMiddleware(async (c, next) => {
     const microsoftInfo = await oauthProvider.verifyAccessToken(accessToken);
     if (microsoftInfo) {
       c.set('userInfo', {
-        accessToken: microsoftInfo.microsoftToken,
+        accessToken: msal.microsoftToken,
         uniqueId: microsoftInfo.payload.oid,
         roles: microsoftInfo.payload.roles,
         name: microsoftInfo.payload.name,
@@ -216,7 +221,7 @@ export const protectRoute = createMiddleware(async (c, next) => {
     setCookie(c, newRefreshToken.name, newRefreshToken.value, newRefreshToken.options);
   }
   c.set('userInfo', {
-    accessToken: microsoftInfo.microsoftToken,
+    accessToken: msal.microsoftToken,
     uniqueId: msal.payload.oid,
     roles: msal.payload.roles,
     name: msal.payload.name,
@@ -294,7 +299,7 @@ function bootstrap() {
         clientId: env.AZURE_CLIENT_ID,
         tenantId: env.AZURE_TENANT_ID,
         scopes: [env.AZURE_CLIENT_SCOPE],
-        secret: env.AZURE_CLIENT_SECRET,
+        clientSecret: env.AZURE_CLIENT_SECRET,
       },
       frontendUrl: env.FRONTEND_URL,
       serverCallbackUrl: `${env.SERVER_URL}/auth/callback`,
@@ -326,16 +331,16 @@ authRouter.post('/callback', handleCallback);
 authRouter.post('/logout', handleLogout);
 ```
 
-Now to secure your routes, you can use the `requireAuthentication` middleware and access the user information from the request object.
+Now to secure your routes, you can use the `protectRoute` middleware and access the user information from the request object.
 
 ```typescript
 import express from 'express';
 import type { Router, Request, Response } from 'express';
-import { requireAuthentication } from 'oauth-entra-id/express';
+import { protectRoute } from 'oauth-entra-id/express';
 
 const protectedRouter: Router = express.Router();
 
-protectedRouter.get('/user-info', requireAuthentication, (req: Request, res: Response) => {
+protectedRouter.get('/user-info', protectRoute, (req: Request, res: Response) => {
   res.status(200).json({ message: 'Protected route :)', user: req.userInfo });
 });
 ```
@@ -376,7 +381,7 @@ async function bootstrap() {
         clientId: env.AZURE_CLIENT_ID,
         tenantId: env.AZURE_TENANT_ID,
         scopes: [env.AZURE_CLIENT_SCOPE],
-        secret: env.AZURE_CLIENT_SECRET,
+        clientSecret: env.AZURE_CLIENT_SECRET,
       },
       frontendUrl: env.FRONTEND_URL,
       serverCallbackUrl: `${env.SERVER_URL}/auth/callback`,
@@ -457,6 +462,7 @@ export class ProtectedController {
 
 ## Notes❗
 
+- **CORS**: Make sure to set the `credentials` option to `true` in your CORS configuration. This allows cookies to be sent with cross-origin requests.
 - **TSConfig**: Make sure you set the `module` is not `commonjs` in your `tsconfig.json`. Our recommendation is to set `module` to `node16` and `target` to `es6`.
 - **Frontend Cookies** - Make sure to include credentials with every request from the frontend to the backend.
 

@@ -21,34 +21,34 @@ export const authRouter: FastifyPluginAsyncTypebox = async (app) => {
   app.post('/authenticate', { schema: { body: tSchemas.authenticate } }, async (req, reply) => {
     const body = req.body;
 
-    const { url } = await oauthProvider.getAuthUrl({
+    const { authUrl } = await oauthProvider.getAuthUrl({
       loginPrompt: body?.loginPrompt,
       email: body?.email,
       frontendUrl: body?.frontendUrl,
     });
 
-    return { url };
+    return { url: authUrl };
   });
 
   app.post('/callback', { schema: { body: tSchemas.callback } }, async (req, reply) => {
     const { code, state } = req.body;
 
-    const { url, accessToken, refreshToken } = await oauthProvider.getTokenByCode({ code, state });
+    const { frontendUrl, accessToken, refreshToken } = await oauthProvider.getTokenByCode({ code, state });
 
     reply.setCookie(accessToken.name, accessToken.value, accessToken.options);
     if (refreshToken) reply.setCookie(refreshToken.name, refreshToken.value, refreshToken.options);
-    reply.redirect(url);
+    reply.redirect(frontendUrl);
   });
 
   app.post('/logout', { schema: { body: tSchemas.logout } }, (req, reply) => {
     const body = req.body;
 
-    const { url, accessToken, refreshToken } = oauthProvider.getLogoutUrl({
+    const { logoutUrl, deleteAccessToken, deleteRefreshToken } = oauthProvider.getLogoutUrl({
       frontendUrl: body?.frontendUrl,
     });
 
-    reply.setCookie(accessToken.name, accessToken.value, accessToken.options);
-    reply.setCookie(refreshToken.name, refreshToken.value, refreshToken.options);
-    return { url };
+    reply.setCookie(deleteAccessToken.name, deleteAccessToken.value, deleteAccessToken.options);
+    reply.setCookie(deleteRefreshToken.name, deleteRefreshToken.value, deleteRefreshToken.options);
+    return { url: logoutUrl };
   });
 };

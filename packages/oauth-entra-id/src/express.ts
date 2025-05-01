@@ -8,7 +8,7 @@ import {
   sharedHandleLogout,
   sharedHandleOnBehalfOf,
 } from './shared/endpoints';
-import { sharedRequireAuthentication } from './shared/middleware';
+import { sharedIsAuthenticated } from './shared/middleware';
 import type { OAuthConfig } from './types';
 
 const ERROR_MESSAGE = 'Make sure you used Express export and you used authConfig';
@@ -115,7 +115,7 @@ export function handleOnBehalfOf(req: Request, res: Response, next: NextFunction
 }
 
 /**
- * Middleware to require authentication for Express routes.
+ * Middleware to protect routes by checking user authentication status.
  *
  * Authentication Flow:
  * - If `allowOtherSystems` is **enabled**:
@@ -134,10 +134,10 @@ export function handleOnBehalfOf(req: Request, res: Response, next: NextFunction
  * @throws {OAuthError} If authentication fails, an error is passed to the `next` function.
  */
 
-export async function requireAuthentication(req: Request, res: Response, next: NextFunction) {
+export async function protectRoute(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.oauthProvider || req.serverType !== 'express') throw new OAuthError(500, ERROR_MESSAGE);
-    const isAuth = await sharedRequireAuthentication(req, res);
+    const isAuth = await sharedIsAuthenticated(req, res);
     if (isAuth) {
       next();
       return;

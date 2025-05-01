@@ -44,13 +44,13 @@ import {
  */
 export class OAuthProvider {
   private readonly azure: OAuthConfig['azure'];
-  private readonly frontendUrl: [string, ...string[]];
+  private readonly frontendUrls: [string, ...string[]];
   private readonly serverCallbackUrl: string;
   private readonly secretKey: KeyObject;
-  private readonly frontendWhitelist: string[];
+  private readonly frontendWhitelist: Set<string>;
   private readonly loginPrompt: LoginPrompt;
   private readonly defaultCookieOptions: Cookies['DefaultCookieOptions'];
-  private readonly onBehalfOfServices: OnBehalfOfService[] | undefined;
+  private readonly onBehalfOfServices: Map<string, OnBehalfOfService> | undefined;
   readonly options: OAuthOptions;
   private readonly cca: ConfidentialClientApplication;
   private readonly msalCryptoProvider: CryptoProvider;
@@ -72,13 +72,15 @@ export class OAuthProvider {
 
     const { azure, frontendUrl, serverCallbackUrl, secretKey, advanced } = config;
 
-    const frontHosts = Array.from(new Set(frontendUrl.map((url) => new URL(url).host)));
+    const frontHosts = new Set(frontendUrl.map((url) => new URL(url).host));
     const serverHost = new URL(serverCallbackUrl).host;
-    const isHttps = !advanced.disableHttps && [serverHost, ...frontHosts].every((host) => host.startsWith('https'));
-    const isSameSite = !advanced.disableSameSite && frontHosts.length === 1 ? frontHosts[0] === serverHost : false;
-    const serviceNames = advanced.onBehalfOfServices
-      ? Array.from(new Set(advanced.onBehalfOfServices.map((service) => service.serviceName)))
+    const isHttps =
+      !advanced.cookies.disableHttps && [serverHost, ...frontHosts].every((url) => url.startsWith('https'));
+    const isSameSite = !advanced.cookies.disableSameSite && frontHosts.size === 1 ? frontHosts.has(serverHost) : false;
+    const onBehalfOfServices = advanced.onBehalfOfServices
+      ? new Map(advanced.onBehalfOfServices.map((service) => [service.serviceName, service]))
       : undefined;
+    const serviceNames = onBehalfOfServices ? Array.from(onBehalfOfServices.keys()) : undefined;
 
     if (serviceNames && advanced.onBehalfOfServices && serviceNames.length !== advanced.onBehalfOfServices.length) {
       throw new OAuthError(500, { message: 'Invalid OAuthProvider config', description: 'Duplicate services found' });
@@ -88,18 +90,18 @@ export class OAuthProvider {
       clientId: azure.clientId,
       isHttps,
       isSameSite,
-      cookieTimeFrame: advanced.cookieTimeFrame,
-      accessTokenCookieExpiry: advanced.accessTokenCookieExpiry,
-      refreshTokenCookieExpiry: advanced.refreshTokenCookieExpiry,
+      cookiesTimeUnit: advanced.cookies.timeUnit,
+      accessTokenCookieExpiry: advanced.cookies.accessTokenExpiry,
+      refreshTokenCookieExpiry: advanced.cookies.refreshTokenExpiry,
     });
 
     const options = {
       areOtherSystemsAllowed: advanced.allowOtherSystems,
       isHttps,
       isSameSite,
-      cookieTimeFrame: advanced.cookieTimeFrame,
-      accessTokenCookieExpiry: advanced.accessTokenCookieExpiry,
-      refreshTokenCookieExpiry: advanced.refreshTokenCookieExpiry,
+      cookiesTimeUnit: advanced.cookies.timeUnit,
+      accessTokenCookieExpiry: advanced.cookies.accessTokenExpiry,
+      refreshTokenCookieExpiry: advanced.cookies.refreshTokenExpiry,
       serviceNames,
       debug: advanced.debug,
     } as const;
@@ -108,7 +110,7 @@ export class OAuthProvider {
       auth: {
         clientId: azure.clientId,
         authority: `https://login.microsoftonline.com/${azure.tenantId}`,
-        clientSecret: azure.secret,
+        clientSecret: azure.clientSecret,
       },
     });
 
@@ -121,13 +123,13 @@ export class OAuthProvider {
     });
 
     this.azure = azure;
-    this.frontendUrl = frontendUrl as [string, ...string[]];
+    this.frontendUrls = frontendUrl as [string, ...string[]];
     this.serverCallbackUrl = serverCallbackUrl;
     this.secretKey = createSecretKey(secretKey);
     this.frontendWhitelist = frontHosts;
     this.loginPrompt = advanced.loginPrompt;
     this.defaultCookieOptions = defaultCookieOptions;
-    this.onBehalfOfServices = advanced.onBehalfOfServices;
+    this.onBehalfOfServices = onBehalfOfServices;
     this.options = options;
     this.cca = cca;
     this.msalCryptoProvider = new msal.CryptoProvider();
@@ -164,7 +166,7 @@ export class OAuthProvider {
    * @throws {OAuthError} If validation fails or frontend host is not allowed.
    */
   async getAuthUrl(params: { loginPrompt?: LoginPrompt; email?: string; frontendUrl?: string }): Promise<{
-    url: string;
+    authUrl: string;
   }> {
     const { data: parsedParams, error: paramsError } = zGetAuthUrl.safeParse(params);
     if (paramsError) {
@@ -173,13 +175,13 @@ export class OAuthProvider {
     if (parsedParams.loginPrompt === 'email' && !parsedParams.email) {
       throw new OAuthError(400, 'Invalid params: Email is required');
     }
-    if (parsedParams.frontendUrl && !this.frontendWhitelist.includes(new URL(parsedParams.frontendUrl).host)) {
+    if (parsedParams.frontendUrl && !this.frontendWhitelist.has(new URL(parsedParams.frontendUrl).host)) {
       throw new OAuthError(403, 'Invalid params: Unlisted host frontend URL');
     }
 
     try {
       const { verifier, challenge } = await this.msalCryptoProvider.generatePkceCodes();
-      const frontendUrl = parsedParams.frontendUrl ?? this.frontendUrl[0];
+      const frontendUrl = parsedParams.frontendUrl ?? this.frontendUrls[0];
       const configuredPrompt = parsedParams.loginPrompt ?? this.loginPrompt;
       const prompt =
         parsedParams.email || configuredPrompt === 'email'
@@ -206,7 +208,7 @@ export class OAuthProvider {
         throw new OAuthError(500, 'Illegitimate Microsoft Auth URL');
       }
 
-      return { url: microsoftUrl };
+      return { authUrl: microsoftUrl };
     } catch (err) {
       if (err instanceof OAuthError) throw err;
       throw new OAuthError(500, {
@@ -234,7 +236,7 @@ export class OAuthProvider {
   async getTokenByCode(params: { code: string; state: string }): Promise<{
     accessToken: Cookies['AccessToken'];
     refreshToken: Cookies['RefreshToken'] | null;
-    url: string;
+    frontendUrl: string;
     msalResponse: AuthenticationResult;
   }> {
     const { data: parsedParams, error: paramsError } = zGetTokenByCode.safeParse(params);
@@ -248,7 +250,7 @@ export class OAuthProvider {
     }
     this.localDebug('getTokenByCode', `State is decrypted: ${JSON.stringify(state)}`);
 
-    if (!this.frontendWhitelist.includes(new URL(state.frontendUrl).host)) {
+    if (!this.frontendWhitelist.has(new URL(state.frontendUrl).host)) {
       throw new OAuthError(403, 'Invalid params: Unlisted host frontend URL');
     }
 
@@ -267,7 +269,7 @@ export class OAuthProvider {
       return {
         accessToken: { value: accessToken, ...this.defaultCookieOptions.accessToken },
         refreshToken: refreshToken ? { value: refreshToken, ...this.defaultCookieOptions.refreshToken } : null,
-        url: state.frontendUrl,
+        frontendUrl: state.frontendUrl,
         msalResponse,
       };
     } catch (err) {
@@ -283,29 +285,29 @@ export class OAuthProvider {
    * @throws {OAuthError} If the URL is not on the whitelist.
    */
   getLogoutUrl(params?: { frontendUrl?: string }): {
-    url: string;
-    accessToken: Cookies['DeleteAccessToken'];
-    refreshToken: Cookies['DeleteRefreshToken'];
+    logoutUrl: string;
+    deleteAccessToken: Cookies['DeleteAccessToken'];
+    deleteRefreshToken: Cookies['DeleteRefreshToken'];
   } {
     const { data: parsedParams, error: urlError } = zGetLogoutUrl.safeParse(params);
     if (urlError) {
       throw new OAuthError(400, { message: 'Invalid params: Invalid URL', description: prettifyError(urlError) });
     }
-    if (parsedParams.frontendUrl && !this.frontendWhitelist.includes(new URL(parsedParams.frontendUrl).host)) {
+    if (parsedParams.frontendUrl && !this.frontendWhitelist.has(new URL(parsedParams.frontendUrl).host)) {
       throw new OAuthError(403, 'Invalid params: Unlisted host frontend URL');
     }
 
     const logoutUrl = new URL(`https://login.microsoftonline.com/${this.azure.tenantId}/oauth2/v2.0/logout`);
-    logoutUrl.searchParams.set('post_logout_redirect_uri', parsedParams.frontendUrl ?? this.frontendUrl[0]);
+    logoutUrl.searchParams.set('post_logout_redirect_uri', parsedParams.frontendUrl ?? this.frontendUrls[0]);
 
     return {
-      url: logoutUrl.toString(),
-      accessToken: {
+      logoutUrl: logoutUrl.toString(),
+      deleteAccessToken: {
         name: this.defaultCookieOptions.accessToken.name,
         value: '',
         options: this.defaultCookieOptions.deleteOptions,
       },
-      refreshToken: {
+      deleteRefreshToken: {
         name: this.defaultCookieOptions.refreshToken.name,
         value: '',
         options: this.defaultCookieOptions.deleteOptions,
@@ -461,7 +463,7 @@ export class OAuthProvider {
     }
 
     const services = parsedParams.serviceNames
-      .map((serviceName) => this.onBehalfOfServices?.find((configService) => configService.serviceName === serviceName))
+      .map((serviceName) => this.onBehalfOfServices?.get(serviceName))
       .filter((service) => !!service);
 
     if (!services || services.length === 0) {
@@ -506,7 +508,7 @@ export class OAuthProvider {
                 clientId: aud,
                 isHttps: service.isHttps,
                 isSameSite: service.isSameSite,
-                cookieTimeFrame: this.options.cookieTimeFrame,
+                cookiesTimeUnit: this.options.cookiesTimeUnit,
                 accessTokenCookieExpiry: service.accessTokenExpiry ?? this.options.accessTokenCookieExpiry,
                 refreshTokenCookieExpiry: service.refreshTokenExpiry ?? this.options.refreshTokenCookieExpiry,
               });

@@ -2,7 +2,7 @@ import { zValidator } from '@hono/zod-validator';
 import { Hono } from 'hono';
 import { setCookie } from 'hono/cookie';
 import { z } from 'zod';
-import { type RequireAuthentication, requireAuthentication } from '~/middlewares/require-authentication';
+import { type ProtectRoute, protectRoute } from '~/middlewares/protect-route';
 import { oauthProvider } from '~/oauth';
 
 const zSchemas = {
@@ -11,9 +11,9 @@ const zSchemas = {
   }),
 };
 
-export const protectedRouter = new Hono<RequireAuthentication>();
+export const protectedRouter = new Hono<ProtectRoute>();
 
-protectedRouter.use(requireAuthentication);
+protectedRouter.use(protectRoute);
 
 protectedRouter.get('/user-info', (c) => {
   return c.json({ user: c.var.userInfo });

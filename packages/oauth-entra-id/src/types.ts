@@ -4,7 +4,7 @@ import type { ACCESS_TOKEN_NAME, REFRESH_TOKEN_NAME } from './utils/cookies';
 
 export type ServerType = 'express' | 'nestjs';
 export type LoginPrompt = 'email' | 'select-account' | 'sso';
-export type TimeFrame = 'ms' | 'sec';
+export type TimeUnit = 'ms' | 'sec';
 /**
  * Configuration for On-Behalf-Of authentication with an external service.
  */
@@ -36,34 +36,37 @@ export interface OAuthConfig {
     tenantId: 'common' | string;
     /** Scopes requested for authentication. */
     scopes: string[];
-    /** Client secret. */
-    secret: string;
+    /** Azure client secret. */
+    clientSecret: string;
   };
-  /** Frontend redirect URL(s) allowed post-authentication. */
+  /** Allowed frontend redirect URL(s). */
   frontendUrl: string | string[];
-  /** Server callback URL. */
+  /** Backend callback URL configured in Azure. */
   serverCallbackUrl: string;
-  /** Encryption secret key. */
+  /** 32-byte encryption key used to encrypt/decrypt tokens. */
   secretKey: string;
   /** Optional advanced settings. */
   advanced?: {
-    /** Optional login prompt strategy. */
+    /** Login prompt behavior during user authentication. */
     loginPrompt?: LoginPrompt;
-    /** Allow cross-app token validation. */
+    /** Allow tokens issued by other trusted systems. */
     allowOtherSystems?: boolean;
-    /** Disable HTTPS enforcement. */
-    disableHttps?: boolean;
-    /** Disable SameSite cookie enforcement. */
-    disableSameSite?: boolean;
-    /** Cookie time unit. */
-    cookieTimeFrame?: TimeFrame;
-    /** Cookie max-age for access tokens. */
-    accessTokenCookieExpiry?: number;
-    /** Cookie max-age for refresh tokens. */
-    refreshTokenCookieExpiry?: number;
-    /** Enable verbose logging. */
+    /** Enable debug logging for internal flow. */
     debug?: boolean;
-    /** Configure on-behalf-of services. */
+    /** Cookie behavior and expiration settings. */
+    cookies?: {
+      /** Unit of time used for cookie max-age (e.g. `"ms"` or `"sec"`). */
+      timeUnit?: TimeUnit;
+      /** Disable Secure cookie enforcement. */
+      disableHttps?: boolean;
+      /** Disable SameSite enforcement (e.g., for cross-domain). */
+      disableSameSite?: boolean;
+      /** Max-age for access token cookies. */
+      accessTokenExpiry?: number;
+      /** Max-age for refresh token cookies. */
+      refreshTokenExpiry?: number;
+    };
+    /** Additional trusted services for On-Behalf-Of token exchange. */
     onBehalfOfServices?: OnBehalfOfService[];
   };
 }
@@ -75,7 +78,7 @@ export interface OAuthOptions {
   readonly areOtherSystemsAllowed: boolean;
   readonly isHttps: boolean;
   readonly isSameSite: boolean;
-  readonly cookieTimeFrame: TimeFrame;
+  readonly cookiesTimeUnit: TimeUnit;
   readonly serviceNames?: string[];
   readonly accessTokenCookieExpiry: number;
   readonly refreshTokenCookieExpiry: number;

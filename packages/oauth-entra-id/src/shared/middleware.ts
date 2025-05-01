@@ -3,10 +3,10 @@ import type { JwtPayload } from 'jsonwebtoken';
 import { OAuthError } from '~/error';
 import { debugLog } from '~/utils/misc';
 
-export const sharedRequireAuthentication = async (req: Request, res: Response) => {
+export const sharedIsAuthenticated = async (req: Request, res: Response) => {
   const oauthProvider = req.oauthProvider;
   const localDebug = (message: string) => {
-    const funcName = req.serverType === 'express' ? 'requireAuthentication' : 'isAuthenticated';
+    const funcName = req.serverType === 'express' ? 'protectRoute' : 'isAuthenticated';
     debugLog({ condition: oauthProvider.options.debug, funcName, message });
   };
 

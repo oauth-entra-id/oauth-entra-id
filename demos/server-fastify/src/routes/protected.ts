@@ -1,6 +1,6 @@
 import type { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox';
 import { Type as t } from '@sinclair/typebox';
-import protectRoute from '~/middlewares/require-authentication';
+import protectRoute from '~/middlewares/protect-route';
 import { oauthProvider } from '~/oauth';
 
 const tSchemas = {

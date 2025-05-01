@@ -27,28 +27,30 @@ export const authRouter = new Hono();
 
 authRouter.post('/authenticate', zValidator('json', zSchemas.authenticate), async (c) => {
   const body = c.req.valid('json');
-  const { url } = await oauthProvider.getAuthUrl({
+  const { authUrl } = await oauthProvider.getAuthUrl({
     loginPrompt: body?.loginPrompt,
     email: body?.email,
     frontendUrl: body?.frontendUrl,
   });
-  return c.json({ url });
+  return c.json({ url: authUrl });
 });
 
 authRouter.post('/callback', zValidator('form', zSchemas.callback), async (c) => {
   const { code, state } = c.req.valid('form');
-  const { url, accessToken, refreshToken } = await oauthProvider.getTokenByCode({ code, state });
+  const { frontendUrl, accessToken, refreshToken } = await oauthProvider.getTokenByCode({ code, state });
 
   setCookie(c, accessToken.name, accessToken.value, accessToken.options);
   if (refreshToken) setCookie(c, refreshToken.name, refreshToken.value, refreshToken.options);
-  return c.redirect(url);
+  return c.redirect(frontendUrl);
 });
 
 authRouter.post('/logout', zValidator('json', zSchemas.logout), async (c) => {
   const body = c.req.valid('json');
-  const { url, accessToken, refreshToken } = oauthProvider.getLogoutUrl({ frontendUrl: body?.frontendUrl });
+  const { logoutUrl, deleteAccessToken, deleteRefreshToken } = oauthProvider.getLogoutUrl({
+    frontendUrl: body?.frontendUrl,
+  });
 
-  deleteCookie(c, accessToken.name, accessToken.options);
-  deleteCookie(c, refreshToken.name, refreshToken.options);
-  return c.json({ url });
+  deleteCookie(c, deleteAccessToken.name, deleteAccessToken.options);
+  deleteCookie(c, deleteRefreshToken.name, deleteRefreshToken.options);
+  return c.json({ url: logoutUrl });
 });
