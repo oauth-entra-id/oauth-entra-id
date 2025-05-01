@@ -92,7 +92,7 @@ export interface OAuthConfig {
 The package provides three main modules for different frameworks:
 - `oauth-entra-id` - Core package for any TS/JS framework (e.g., Express, NestJS, HonoJS, Fastify, etc.). jump to **[Core](#usage---core-)**.
 - `oauth-entra-id/express` - For Express.js applications (recommended). Jump to **[Express](#usage---express-)**.
-- `oauth-entra-id/nestjs` - For NestJS applications (recommended). Jump to **[NestJS](#usage----nestjs-)**.
+- `oauth-entra-id/nestjs` - For NestJS applications (recommended). Jump to **[NestJS](#usage---nestjs-)**.
 
 ## Usage - Core 🧱
 
