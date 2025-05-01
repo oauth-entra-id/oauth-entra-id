@@ -1,4 +1,4 @@
-# OAuth Entra ID
+# OAuth Entra ID [(npm)](https://www.npmjs.com/package/oauth-entra-id) 
 
 ## Overview 🪟
 
