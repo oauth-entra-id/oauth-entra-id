@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { queryOptions, useQuery } from '@tanstack/react-query';
 import { Outlet, createRootRoute } from '@tanstack/react-router';
 import { useEffect } from 'react';
 import { toast } from 'sonner';
@@ -7,9 +7,9 @@ import { Navbar } from '~/components/NavBar';
 import { Loading } from '~/components/pages/Loading';
 import { NotFound } from '~/components/pages/NotFound';
 import { Sonner } from '~/components/ui/Sonner';
-import { appInfoOptions } from '~/queries/app-info';
-import { userDataOptions } from '~/queries/user';
-import { useServerStore } from '~/stores/server-store';
+import { getAppInfo } from '~/services/app-info';
+import { getUserData } from '~/services/user';
+import { type Server, useServerStore } from '~/stores/server-store';
 import { useThemeStore } from '~/stores/theme-store';
 import { useUserStore } from '~/stores/user-store';
 
@@ -24,6 +24,7 @@ function Root() {
   const setUser = useUserStore((state) => state.setUser);
   const server = useServerStore((state) => state.server);
   const setAppInfo = useServerStore((state) => state.setAppInfo);
+  // Using isFetching instead of isPending to avoid showing cached data
   const { data: userData, isFetching: isUserDataFetching, error: userDataError } = useQuery(userDataOptions(server));
   const { data: appInfo, isFetching: isAppInfoFetching, error: appInfoError } = useQuery(appInfoOptions(server));
 
@@ -53,3 +54,21 @@ function Root() {
     </div>
   );
 }
+
+const userDataOptions = (server: Server) => {
+  return queryOptions({
+    queryKey: ['user', server],
+    queryFn: getUserData,
+    refetchOnWindowFocus: false,
+    retry: 1,
+  });
+};
+
+const appInfoOptions = (server: Server) => {
+  return queryOptions({
+    queryKey: ['app-info', server],
+    queryFn: getAppInfo,
+    refetchOnWindowFocus: false,
+    retry: 1,
+  });
+};

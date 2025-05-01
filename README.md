@@ -1,34 +1,49 @@
-# 🧙🏽‍♂️ OAuth Entra ID Monorepo 🧙🏽‍♂️
+# OAuth Entra ID
 
 ## Overview 🪟
 
-A Monorepo that aims to provide a full-stack solution for authentication and authorization using our `oauth-entra-id` package which securely implements OAuth 2.0 to connect with Microsoft Entra ID. 🎉
+`oauth-entra-id` is a framework-agnostic package that provides a secure and simple way to implement OAuth 2.0 authentication and authorization with Microsoft Entra ID (formerly Azure AD). It abstracts away the complexity of OAuth 2.0, allowing developers to focus on building their applications without worrying about the underlying authentication and authorization mechanisms.
 
-## What's Inside? 🤔
+## Installation 🚀
 
-### The Package! 📦
+```bash
+npm install oauth-entra-id
+```
 
-- [oauth-entra-id](packages/oauth-entra-id/) 💯 - Secure and simple package that provides all utilities needed for OAuth 2.0 with Entra ID for all types of NodeJS server frameworks. Read more about the package in [README](packages/oauth-entra-id/README.md).
+## Features 📦
 
-### Demo Apps 🚀
+- 🔐 Secure backend-driven OAuth 2.0 Authorization Code Grant flow with PKCE (Proof Key for Code Exchange).
+- 🍪 Cookie-based authentication.
+- 🔄️ Access token and refresh token management and rotation.
+- ✅ Built-in validation for Microsoft-issued JWTs using Entra ID public keys.
+- 📢 Supports On Behalf Of (OBO) flow.
 
-- [React Demo App](demos/client-react/) 🖥️ - A [React](https://reactjs.org/) app that demonstrates how the frontend should behave with a backend-driven OAuth 2.0 authentication flow.
-- [Express Demo App](demos/server-express/) 📫- An [Express](https://expressjs.com/) app that implements `oauth-entra-id/express` for authentication.
-- [NestJS Demo App](demos/server-nestjs/) 🪺 - A [NestJS](https://nestjs.com/) app that implements `oauth-entra-id/nestjs` for authentication.
-- [HonoJS Demo App](demos/server-honojs/) 🔥 - A [HonoJS](https://honojs.com/) app that implements authentication using the core utilities of the package.
-- [Fastify Demo App](demos/server-fastify/) 🚀 - A [Fastify](https://www.fastify.io/) app that implements authentication using the core utilities of the package.
+ **For further reading, check out the [documentation](packages/oauth-entra-id/README.md). 💯**
 
-#### Extra Features 🎁
+## Demo Apps 👀
 
-All server apps include the following features:
+You can explore the demo apps to see how to integrate the package into your applications.
 
-- **HTTP Security Headers** - Sets security headers to protect against common web vulnerabilities.
-- **Rate Limiting** - Limits the number of requests a user can make to the server.
-- **Logging** - Logs all requests to the server, with the user's IP address and request method.
-- **Error Handling** - Handles errors gracefully and returns a user-friendly error message, while hiding sensitive information.
-- **Environment Variables Handling** - Loads environment variables from a `.env` file and provides validates them.
+- [React Demo App](demos/client-react/) 🖥️ -  React 19 frontend showcasing best practices for frontend integration in an OAuth 2.0 cookie-based flow.
+> React 19, TanStack Router, TanStack Query (React Query), TanStack Form, Zustand, Tailwind, ShadCN Components, Axios and Zod. 
 
-## How Does Our Flow Work? 🌊
+- [Express Demo App](demos/server-express/) 📫- Express server, implements `oauth-entra-id/express` for authentication.
+- [NestJS Demo App](demos/server-nestjs/) 🪺 - NestJS server, implements `oauth-entra-id/nestjs` for authentication.
+- [HonoJS Demo App](demos/server-honojs/) 🔥 - HonoJS server, implements authentication using the core utilities of the package.
+- [Fastify Demo App](demos/server-fastify/) ⚡ - Fastify server, implements authentication using the core utilities of the package.
+
+> In each server demo you get a fully working server with the following features:
+> - Login, callback, logout flow.
+> - Secure protected routes.
+> - User input validation.
+> - Environment variables handling.
+> - HTTP security headers.
+> - CORS setup with credentials
+> - Rate limiting.
+> - Logging.
+> - Centralized error handling
+
+## Architecture 🏗️
 
 ![oauth-entra-id-flow](./assets/oauth-entra-id-flow.png)
 
@@ -54,4 +69,3 @@ You will need to set up environment variables in several places:
 
 - `.env`
 - `apps/client-react/.env`
-

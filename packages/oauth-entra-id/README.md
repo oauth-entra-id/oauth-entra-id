@@ -1,8 +1,8 @@
-# 🎯 OAuth Entra ID 🎯
+# 💯 OAuth Entra ID 💯
 
 ## Overview 🪟
 
-This package simplifies integrating OAuth 2.0 with Microsoft Entra ID in Node.js applications. It provides secure utilities to implement the OAuth 2.0 Authorization Code Grant flow with PKCE, abstracting away authentication complexities. Designed to work with every Node.js framework, the package offers ready-to-use functions for secure user authentication and access control.
+`oauth-entra-id` is a framework-agnostic package that provides a secure and simple way to implement OAuth 2.0 authentication and authorization with Microsoft Entra ID (formerly Azure AD). It abstracts away the complexity of OAuth 2.0, allowing developers to focus on building their applications without worrying about the underlying authentication and authorization mechanisms.
 
 ## Installation 🚀
 
@@ -10,15 +10,252 @@ This package simplifies integrating OAuth 2.0 with Microsoft Entra ID in Node.js
 npm install oauth-entra-id
 ```
 
-## Implementation 🛠️
+## Features 📦
 
-There are demos for each framework in the `apps` directory.
 
-### _Express_ 📫
+- 🔐 Secure backend-driven OAuth 2.0 Authorization Code Grant flow with PKCE (Proof Key for Code Exchange).
+- 🍪 Cookie-based authentication.
+- 🔄️ Access token and refresh token management and rotation.
+- ✅ Built-in validation for Microsoft-issued JWTs using Entra ID public keys.
+- 📢 Supports On Behalf Of (OBO) flow.
 
-For Express, import from `oauth-entra-id/express` to integrate OAuth2.0 easily and securely.
+## Architecture 🏗️
 
-1. Install `cookie-parser` and `cors` packages:
+![oauth-entra-id-flow](https://github.com/oauth-entra-id/oauth-entra-id/blob/main/assets/oauth-entra-id-flow.png)
+
+## Configuration ⚙️
+
+- `azure` - Azure parameters:
+  - `clientId` - The client ID of your Azure application.
+  - `tenantId` - `common` for multi-tenant applications or your tenant ID for single-tenant applications.
+  - `scopes` - The scopes you want to request from Microsoft Entra ID. For example: `["openid", "profile", "offline_access"]`.
+  - `clientSecret` - The client secret of your Azure application.
+- `frontendUrl` - The frontend URL(s) of the application for redirection. It can be a single URL or an array of URLs.
+- `serverCallbackUrl` - The URL of your server's callback endpoint. This should match the redirect URI you set in Azure. for example: `http://localhost:3000/auth/callback`.
+- `secretKey` - A 32-character long secret key for encryption. This key is used to encrypt the cookies and should be kept secret.
+- `advanced` (optional) - Advanced configuration options:
+  - `loginPrompt` (optional) - The login prompt type. It can be `"email" | "select-account" | "sso"` (default: `"sso"`).
+  - `allowOtherSystems` (optional) - Allow authentication for other systems (via Authorization header). Default: `false`.
+  - `disableHttps` (optional) - Disable HTTPS check. Default: `false`.
+  - `disableSameSite` (optional) - Disable SameSite cookie attribute. Default: `false`.
+  - `cookieTimeFrame` (optional) - The time frame for the cookie expiry. It can be `"ms" | "sec"` (default: `"ms"`).
+  - `accessTokenCookieExpiry` (optional) - The expiry time for the access token cookie in seconds (default: 1 hour).
+  - `refreshTokenCookieExpiry` (optional) - The expiry time for the refresh token cookie in seconds (default: 1 month).
+  - `debug` (optional) - Enable debug logs. Default: `false`.
+  - `onBehalfOfServices` (optional) - An array of configurations for On Behalf Of services:
+    - `serviceName` - Unique name for the service.
+    - `scope` - The scope for the service. For example: `api://some-service/.default`.
+    - `secretKey` - The secret key to encrypt the tokens for the service.
+    - `isHttps` - Whether the service uses HTTPS or not.
+    - `isSameSite` - Whether to use SameSite cookie attribute or not.
+    - `accessTokenExpiry` (optional) - The expiry time for the access token in seconds (default: 1 hour).
+    - `refreshTokenExpiry` (optional) - The expiry time for the refresh token in seconds (default: 1 month).
+
+```typescript
+export interface OAuthConfig {
+  azure: {
+    clientId: string;
+    tenantId: string;
+    scopes: string[];
+    secret: string;
+  };
+  frontendUrl: string | string[];
+  serverCallbackUrl: string;
+  secretKey: string;
+  advanced?: {
+    loginPrompt?: "email" | "select-account" | "sso"; // default: "sso"
+    allowOtherSystems?: boolean; //default: false
+    disableHttps?: boolean; //default: false
+    disableSameSite?: boolean; //default: false
+    cookieTimeFrame?: "ms" | "sec"; // default: "ms"
+    accessTokenCookieExpiry?: number; //default: 1 hour
+    refreshTokenCookieExpiry?: number; //default: 1 month
+    debug?: boolean;
+    onBehalfOfServices?: {
+      serviceName: string;
+      scope: string;
+      secretKey: string;
+      isHttps: boolean;
+      isSameSite: boolean;
+      accessTokenExpiry?: number; //default: 1 hour
+      refreshTokenExpiry?: number; //default: 1 month
+    }[];
+  };
+}
+```
+
+## Usage 🎯
+
+The package provides three main modules for different frameworks:
+- `oauth-entra-id` - Core package for any TS/JS framework (e.g., Express, NestJS, HonoJS, Fastify, etc.). jump to **[Core](#usage---core-)**.
+- `oauth-entra-id/express` - For Express.js applications (recommended). Jump to **[Express](#usage-express-)**.
+- `oauth-entra-id/nestjs` - For NestJS applications (recommended). Jump to **[NestJS](#usage-nestjs-)**.
+
+## Usage - Core 🧱
+
+The core package provides the flexibility to integrate OAuth 2.0 with Entra ID in any Node.js framework.
+
+Let's start by creating a global instance of `OAuthProvider` in your application. This instance will be used to handle authentication, token exchange, and other OAuth-related operations.
+
+```typescript
+import { OAuthProvider } from 'oauth-entra-id';
+import env from './env';
+
+const oauthProvider = new OAuthProvider({
+  azure: {
+    clientId: env.AZURE_CLIENT_ID,
+    tenantId: env.AZURE_TENANT_ID,
+    scopes: [env.AZURE_CLIENT_SCOPE],
+    secret: env.AZURE_CLIENT_SECRET,
+  },
+  frontendUrl: env.FRONTEND_URL,
+  serverCallbackUrl: `${env.SERVER_URL}/auth/callback`,
+  secretKey: env.SECRET,
+  advanced: { cookieTimeFrame: 'sec' }
+});
+```
+
+### Core Methods:
+
+#### `getAuthUrl()`
+Generates a Microsoft authentication URL for the user to log in. It accepts an optional `params` object with the following properties:
+- `loginPrompt` (optional) - Login prompt type, to override the default value.
+- `email` (optional) - If email is provided, the login prompt will be set to `email` and the email will be pre-filled in the login form.
+- `frontendUrl` (optional) - The frontend URL to redirect the user after authentication.
+
+Authenticate HonoJS example:
+```typescript
+app.post('/authenticate', async (c) => {
+  const { loginPrompt, email, frontendUrl } = await c.req.json();
+  const { url } = await oauthProvider.generateAuthUrl({ loginPrompt, email, frontendUrl });
+  return c.json({ url });
+});
+```
+
+#### `getTokenByCode()`
+Exchanges the authorization code for access and refresh tokens. It accepts an object with the following properties:
+- `code` - The authorization code received from Microsoft.
+- `state` - The state parameter received from Microsoft.
+
+Callback HonoJS example:
+```typescript
+app.post('/callback', async (c) => {
+  const { code, state } = await c.req.parseBody();
+  const { accessToken, refreshToken, url } = await oauthProvider.exchangeCodeForToken({ code, state });
+  setCookie(c, accessToken.name, accessToken.value, accessToken.options);
+  if (refreshToken) {
+    setCookie(c, refreshToken.name, refreshToken.value, refreshToken.options);
+  }
+  return c.redirect(url);
+})
+```
+
+#### `getLogoutUrl()`
+Generates a logout URL for the user to log out from Microsoft. It accepts an optional `params` object with the following properties:
+- `frontendUrl` (optional) - The frontend URL to redirect the user after logout.
+
+Logout HonoJS example:
+```typescript
+app.post('/logout', async (c) => {
+  const { frontendUrl } = await c.req.json();
+  const { url, accessToken, refreshToken } = oauthProvider.getLogoutUrl({ frontendUrl });
+  deleteCookie(c, accessToken.name, accessToken.options);
+  deleteCookie(c, refreshToken.name, refreshToken.options);
+  return c.json({ url });
+});
+```
+
+#### `getCookieNames()`
+Returns the names of the access and refresh token cookies. This is useful for deleting the cookies on logout.
+
+#### `verifyAccessToken()`
+Verifies the access token received from Microsoft either encrypted or unencrypted. It accepts an `accessToken` string and returns the decoded token payload if valid.
+
+#### `getTokenByRefresh()`
+Verifies and uses the refresh token to get new set of access and refresh tokens. It accepts an `refreshToken` string and returns a set of new tokens.
+
+Protect Middleware HonoJS example:
+```typescript
+export const protectRoute = createMiddleware(async (c, next) => {
+  const { accessTokenName, refreshTokenName } = oauthProvider.getCookieNames();
+  const accessToken = getCookie(c, accessTokenName);
+  const refreshToken = getCookie(c, refreshTokenName);
+
+  if (!accessToken && !refreshToken) {
+    throw new HTTPException(401, { message: 'Unauthorized' });
+  }
+
+  if (accessToken) {
+    const microsoftInfo = await oauthProvider.verifyAccessToken(accessToken);
+    if (microsoftInfo) {
+      c.set('userInfo', {
+        accessToken: microsoftInfo.microsoftToken,
+        uniqueId: microsoftInfo.payload.oid,
+        roles: microsoftInfo.payload.roles,
+        name: microsoftInfo.payload.name,
+        email: microsoftInfo.payload.preferred_username,
+      });
+
+      await next();
+      return;
+    }
+  }
+
+  if (!refreshToken) {
+    throw new HTTPException(401, { message: 'Unauthorized' });
+  }
+
+  const newTokens = await oauthProvider.getTokenByRefresh(refreshToken);
+  if (!newTokens) {
+    throw new HTTPException(401, { message: 'Unauthorized' });
+  }
+
+  const { newAccessToken, newRefreshToken, msal } = newTokens;
+  setCookie(c, newAccessToken.name, newAccessToken.value, newAccessToken.options);
+  if (newRefreshToken) {
+    setCookie(c, newRefreshToken.name, newRefreshToken.value, newRefreshToken.options);
+  }
+  c.set('userInfo', {
+    accessToken: microsoftInfo.microsoftToken,
+    uniqueId: msal.payload.oid,
+    roles: msal.payload.roles,
+    name: msal.payload.name,
+    email: msal.payload.preferred_username,
+  });
+
+  await next();
+});
+```
+
+#### `getOnBehalfOfToken()`
+Generates an On Behalf Of (OBO) tokens for a specific services. It accepts an object with the following properties:
+- `accessToken` - The access token received from Microsoft.
+- `serviceNames` - an array of service names that were configured in the `onBehalfOfServices` array in the `advanced` configuration.
+
+On Behalf Of HonoJS example:
+```typescript
+app.post('/on-behalf-of', protectRoute, async (c) => {
+  const { serviceNames } = await c.req.json();
+  const accessToken = c.get('userInfo').accessToken;
+  const results = await oauthProvider.getOnBehalfOfToken({ accessToken, serviceNames });
+
+  for (const result of results) {
+    const { accessToken, refreshToken } = result;
+    setCookie(c, accessToken.name, accessToken.value, accessToken.options);
+    if (refreshToken) {
+      setCookie(c, refreshToken.name, refreshToken.value, refreshToken.options);
+    }
+  }
+
+  return c.json({ message: 'On Behalf Of tokens generated successfully' });
+});
+```
+
+## Usage - Express 📫
+
+When using the package with Express, you should import from `oauth-entra-id/express` to easily integrate OAuth2.0.
+
+Also, you need to install `cookie-parser` and `cors` packages:
 
 ```bash
 npm install cookie-parser cors
@@ -27,15 +264,7 @@ npm install cookie-parser cors
 npm install --save-dev @types/cookie-parser @types/cors
 ```
 
-2. Import `authConfig` and configure it in the root of your Express app:
-
-- `azure` - Azure parameters: `clientId`, `tenantId`, `scopes`, and `clientSecret`.
-- `frontendUrl` - The frontend URL of the application for redirection.
-- `serverCallbackUrl` - matching the redirect URI in Azure, for example: `http://localhost:3000/auth/callback`.
-- `secretKey` - 32 characters long secret key for encryption.
-- `loginPrompt` (optional, default: sso) - can be `"email" | "select-account" | "sso"`.
-- `debug` (optional, default: false) - to enable debug logs.
-- `allowOtherSystems` (optional, default: false) - allow authentication for other systems (via Authorization header).
+Then in the root of your Express app, import `authConfig` and configure it:
 
 ```typescript
 import express from 'express';
@@ -53,30 +282,28 @@ function bootstrap() {
       origin: env.FRONTEND_URL,
       methods: 'GET,POST,PUT,DELETE,OPTIONS',
       allowedHeaders: ['Content-Type', 'Authorization'],
-      credentials: true,
+      credentials: true, // <-- Allow credentials to be included in CORS requests
     }),
   );
   // Other configurations...
-  app.use(cookieParser());
+  app.use(cookieParser()); // <-- Use cookie-parser middleware
 
   app.use(
     authConfig({
       azure: {
         clientId: env.AZURE_CLIENT_ID,
         tenantId: env.AZURE_TENANT_ID,
-        scopes: env.AZURE_CLIENT_SCOPES,
-        clientSecret: env.AZURE_CLIENT_SECRET,
+        scopes: [env.AZURE_CLIENT_SCOPE],
+        secret: env.AZURE_CLIENT_SECRET,
       },
       frontendUrl: env.FRONTEND_URL,
       serverCallbackUrl: `${env.SERVER_URL}/auth/callback`,
       secretKey: env.SECRET,
-      loginPrompt: 'select-account', // Optional - default: "sso", can be "email" | "select-account" | "sso"
-      debug: false, // Optional
-      allowOtherSystems: false, // Optional
     }),
   );
 
-  // Other configurations...
+  // Here you can add your routes and other configurations
+
   const port = Number(env.PORT) || 3000;
   app.listen(port, () => {
     console.log(`🚀 Express server running at http://localhost:${port}`);
@@ -86,7 +313,7 @@ function bootstrap() {
 bootstrap();
 ```
 
-3. Define routes for `login`, `callback`, and `logout` using POST methods for security.
+Now you can define your routes for `login`, `callback`, and `logout` using POST methods for security.
 
 ```typescript
 import express, { type Router } from 'express';
@@ -94,17 +321,12 @@ import { handleAuthentication, handleCallback, handleLogout } from 'oauth-entra-
 
 export const authRouter: Router = express.Router();
 
-// Generates the authentication URL
 authRouter.post('/authenticate', handleAuthentication);
-
-// Exchanges the code from Microsoft for tokens
 authRouter.post('/callback', handleCallback);
-
-// Clears cookies and sends back a URL to let the user logout from Microsoft
 authRouter.post('/logout', handleLogout);
 ```
 
-4. Secure routes with `requireAuthentication` and use the user information:
+Now to secure your routes, you can use the `requireAuthentication` middleware and access the user information from the request object.
 
 ```typescript
 import express from 'express';
@@ -114,15 +336,13 @@ import { requireAuthentication } from 'oauth-entra-id/express';
 const protectedRouter: Router = express.Router();
 
 protectedRouter.get('/user-info', requireAuthentication, (req: Request, res: Response) => {
-  res.status(200).json({ message: 'You view a protected route :)', user: req.userInfo });
+  res.status(200).json({ message: 'Protected route :)', user: req.userInfo });
 });
 ```
 
-- **NOTE**: Make sure you have `errorCatcher` middleware for your application to catch errors, since the package will throw `OAuthError` within the `next` function in case of any error.
-
-### _NestJS_ 🪺
-
-1. Install `cookie-parser` package:
+## Usage - Express 🪺
+When using the package with Express, you should import from `oauth-entra-id/nestjs` to easily integrate OAuth2.0.
+Also, you need to install `cookie-parser` package:
 
 ```bash
 npm install cookie-parser
@@ -131,7 +351,7 @@ npm install cookie-parser
 npm install --save-dev @types/cookie-parser
 ```
 
-2. Import `authConfig` in NestJS, the parameters are similar parameters as [Express](#express-)
+Then in the root of your NestJS app, import `authConfig` and configure it:
 
 ```typescript
 import { NestFactory } from '@nestjs/core';
@@ -145,25 +365,22 @@ async function bootstrap() {
     origin: env.FRONTEND_URL,
     methods: 'GET,POST,PUT,DELETE,OPTIONS',
     allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true,
+    credentials: true, // <-- Allow credentials to be included in CORS requests
   });
   // Other configurations...
-  app.use(cookieParser());
+  app.use(cookieParser()); // <-- Use cookie-parser middleware
 
   app.use(
     authConfig({
       azure: {
         clientId: env.AZURE_CLIENT_ID,
         tenantId: env.AZURE_TENANT_ID,
-        scopes: env.AZURE_CLIENT_SCOPES,
-        clientSecret: env.AZURE_CLIENT_SECRET,
+        scopes: [env.AZURE_CLIENT_SCOPE],
+        secret: env.AZURE_CLIENT_SECRET,
       },
       frontendUrl: env.FRONTEND_URL,
       serverCallbackUrl: `${env.SERVER_URL}/auth/callback`,
       secretKey: env.SECRET,
-      loginPrompt: 'select-account', // Optional - default: "sso", can be "email" | "select-account" | "sso"
-      debug: false, // Optional
-      allowOtherSystems: false, // Optional
     }),
   );
 
@@ -176,7 +393,7 @@ async function bootstrap() {
 bootstrap();
 ```
 
-3. Set up a controller with routes for `login`, `callback`, and `logout`.
+Now you can define your routes for `login`, `callback`, and `logout` using POST methods for security.
 
 ```typescript
 import type { Request, Response } from 'express';
@@ -185,27 +402,24 @@ import { handleAuthentication, handleCallback, handleLogout } from 'oauth-entra-
 
 @Controller('auth')
 export class AuthController {
-  // Generates the authentication URL
   @Post('authenticate')
-  async generateAuthUrl(@Req() req: Request, @Res() res: Response) {
+  async authenticate(@Req() req: Request, @Res() res: Response) {
     await handleAuthentication(req, res);
   }
 
-  // Exchanges the code from Microsoft for tokens
   @Post('callback')
-  async exchangeCodeForToken(@Req() req: Request, @Res() res: Response) {
+  async callback(@Req() req: Request, @Res() res: Response) {
     await handleCallback(req, res);
   }
 
-  // Clears cookies and sends back a URL to let the user logout from Microsoft
   @Post('logout')
-  async generateLogoutUrl(@Req() req: Request, @Res() res: Response) {
+  async logout(@Req() req: Request, @Res() res: Response) {
     handleLogout(req, res);
   }
 }
 ```
 
-4. Create a guard to protect your routes and get the user information.
+Let's create a guard to protect your routes and get the user information.
 
 ```typescript
 import type { Request, Response } from 'express';
@@ -213,7 +427,7 @@ import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from
 import { isAuthenticated } from 'oauth-entra-id/nestjs';
 
 @Injectable()
-export class RequireAuthentication implements CanActivate {
+export class ProtectRoute implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest<Request>();
     const res = context.switchToHttp().getResponse<Response>();
@@ -222,164 +436,24 @@ export class RequireAuthentication implements CanActivate {
 }
 ```
 
-5. Now you can use the `RequireAuthentication` to protect your routes and get the user information.
+Now you can use the `ProtectRoute` to protect your routes and get the user information.
 
 ```typescript
 import type { Request } from 'express';
 import { Controller, Get, UseGuards, Req } from '@nestjs/common';
-import { RequireAuthentication } from '~/guards/protect-route.guard';
+import { ProtectRoute } from '../guards/protect-route.guard';
 
 @Controller('protected')
-@UseGuards(RequireAuthentication)
+@UseGuards(ProtectRoute)
 export class ProtectedController {
   constructor() {}
 
   @Get('user-info')
   getUserInfo(@Req() req: Request) {
-    return { message: 'You view a protected route :)', user: req.userInfo };
+    return { message: 'Protected route :)', user: req.userInfo };
   }
 }
 ```
-
-- **NOTE**: Make sure you have `errorFilter` that will catch `OAuthError`.
-
-### _Core_ 🔧
-
-The core utilities provide you the flexibility to integrate OAuth 2.0 with Entra ID in any Node.js framework.
-
-Here is how to use the core package in your application (the following example uses HonoJS):
-
-1. Create a global instance of OAuthProvider
-
-```typescript
-import { OAuthProvider } from 'oauth-entra-id';
-import env from './env';
-
-const oauthProvider = new OAuthProvider({
-  azure: {
-    clientId: env.AZURE_CLIENT_ID,
-    tenantId: env.AZURE_TENANT_ID,
-    scopes: env.AZURE_CLIENT_SCOPES,
-    clientSecret: env.AZURE_CLIENT_SECRET,
-  },
-  frontendUrl: env.FRONTEND_URL,
-  serverCallbackUrl: `${env.SERVER_URL}/auth/callback`,
-  secretKey: env.SECRET,
-  cookieTimeFrame: 'sec', // Optional - default: "ms" can be "ms" | "sec"
-  loginPrompt: 'select-account', // Optional - default: "sso", can be "email" | "select-account" | "sso"
-  debug: false, // Optional
-});
-```
-
-2. Create 3 routes for `login`, `callback`, and `logout`.
-
-```typescript
-import { Hono } from 'hono';
-import { setCookie, deleteCookie } from 'hono/cookie';
-import { HTTPException } from 'hono/http-exception';
-import { oauthProvider } from './oauthProvider';
-
-export const authRouter = new Hono();
-
-authRouter.post('/authenticate', async (c) => {
-  const { loginPrompt, email, frontendUrl } = await c.req.json();
-
-  const { authUrl } = await oauthProvider.generateAuthUrl({ loginPrompt, email, frontendUrl });
-
-  return c.json({ url: authUrl });
-});
-
-authRouter.post('/callback', async (c) => {
-  if (!c.req.header('content-type')?.includes('application/x-www-form-urlencoded')) {
-    throw new HTTPException(400, { message: 'Invalid content type' });
-  }
-
-  const { code, state } = await c.req.parseBody();
-
-  const { frontendUrl, accessToken, refreshToken } = await oauthProvider.exchangeCodeForToken({ code, state });
-
-  setCookie(c, accessToken.name, accessToken.value, accessToken.options);
-  if (refreshToken) setCookie(c, refreshToken.name, refreshToken.value, refreshToken.options);
-  return c.redirect(frontendUrl);
-});
-
-authRouter.post('/logout', async (c) => {
-  const { frontendUrl } = await c.req.json();
-
-  const { logoutUrl, accessToken, refreshToken } = oauthProvider.getLogoutUrl({ frontendUrl });
-
-  deleteCookie(c, accessToken.name, accessToken.options);
-  deleteCookie(c, refreshToken.name, refreshToken.options);
-  return c.json({ url: logoutUrl });
-});
-```
-
-3. Secure your routes using a middleware.
-
-```typescript
-import { createMiddleware } from 'hono/factory';
-import { getCookie } from 'hono/cookie';
-import { HTTPException } from 'hono/http-exception';
-import { oauthProvider } from './oauthProvider';
-
-type RequireAuthentication = {
-  userInfo: {
-    uniqueId: string;
-    roles: string[];
-    name: string;
-    email: string;
-  };
-};
-
-export const requireAuthentication = createMiddleware<{ Variables: RequireAuthentication }>(async (c, next) => {
-  const { accessTokenName, refreshTokenName } = oauthProvider.getCookieNames();
-  const accessToken = getCookie(c, accessTokenName);
-  const refreshToken = getCookie(c, refreshTokenName);
-
-  if (!accessToken && !refreshToken) throw new HTTPException(401, { message: 'Unauthorized' });
-  const microsoftInfo = await oauthProvider.verifyAccessToken(accessToken);
-  if (microsoftInfo) {
-    c.set('userInfo', {
-      uniqueId: microsoftInfo.payload.oid,
-      roles: microsoftInfo.payload.roles,
-      name: microsoftInfo.payload.name,
-      email: microsoftInfo.payload.preferred_username,
-    });
-
-    await next();
-    return;
-  }
-  if (!refreshToken) throw new HTTPException(401, { message: 'Unauthorized' });
-  const newTokens = await oauthProvider.refreshAccessToken(refreshToken);
-  if (!newTokens) throw new HTTPException(401, { message: 'Unauthorized' });
-  const { newAccessToken, newRefreshToken, msal } = newTokens;
-  setCookie(c, newAccessToken.name, newAccessToken.value, newAccessToken.options);
-  if (newRefreshToken) setCookie(c, newRefreshToken.name, newRefreshToken.value, newRefreshToken.options);
-  c.set('userInfo', {
-    uniqueId: msal.payload.oid,
-    roles: msal.payload.roles,
-    name: msal.payload.name,
-    email: msal.payload.preferred_username,
-  });
-
-  await next();
-});
-```
-
-4. Use the middleware to protect your routes and access the user information.
-
-```typescript
-import { Hono } from 'hono';
-import { protectRoute } from './protect-route';
-
-export const protectedRouter = new Hono();
-
-protectedRouter.get('/user-info', protectRoute, (c) => {
-  return c.json({ message: 'You view a protected route :)', user: c.var.userInfo });
-});
-```
-
-- **NOTE**: Make sure you have `errorFilter` that will catch `OAuthError`, an example is available in NestJS demo.
 
 ## Notes❗
 
