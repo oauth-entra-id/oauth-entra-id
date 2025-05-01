@@ -345,8 +345,8 @@ protectedRouter.get('/user-info', protectRoute, (req: Request, res: Response) =>
 });
 ```
 
-## Usage - Express 🪺
-When using the package with Express, you should import from `oauth-entra-id/nestjs` to easily integrate OAuth2.0.
+## Usage - NestJS 🪺
+When using the package with NestJS, you should import from `oauth-entra-id/nestjs` to easily integrate OAuth2.0.
 Also, you need to install `cookie-parser` package:
 
 ```bash
