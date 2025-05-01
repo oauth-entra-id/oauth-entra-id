@@ -33,12 +33,10 @@ You can explore the demo apps to see how to integrate the package into your appl
 - [Fastify Demo App](demos/server-fastify/) ⚡ - Fastify server, implements authentication using the core utilities of the package.
 
 > In each server demo you get a fully working server with the following features:
-> - Login, callback, logout flow.
-> - Secure protected routes.
+> - Auth flows and protected routes.
 > - User input validation.
 > - Environment variables handling.
-> - HTTP security headers.
-> - CORS setup with credentials
+> - HTTP security headers and CORS setup with credentials.
 > - Rate limiting.
 > - Logging.
 > - Centralized error handling
