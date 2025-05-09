@@ -1,5 +1,5 @@
 {
-  "name": "server-fastify",
+  "name": "server-honojs",
   "version": "0.0.0",
   "private": true,
   "main": "dist/index.js",
@@ -11,22 +11,18 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@fastify/cookie": "^11.0.2",
-    "@fastify/cors": "^11.0.1",
-    "@fastify/formbody": "^8.0.2",
-    "@fastify/helmet": "^13.0.1",
-    "@fastify/rate-limit": "^10.2.2",
-    "@fastify/type-provider-typebox": "^5.1.0",
-    "@sinclair/typebox": "^0.34.33",
+    "@hono/node-server": "^1.14.1",
+    "@hono/zod-validator": "^0.5.0",
     "dotenv": "^16.5.0",
-    "fastify": "^5.3.2",
+    "hono": "^4.7.9",
+    "hono-rate-limiter": "^0.4.2",
     "oauth-entra-id": "workspace:*",
-    "zod": "^3.24.3"
+    "zod": "^3.24.4"
   },
   "devDependencies": {
-    "@types/node": "^22.14.1",
+    "@types/node": "^22.15.17",
     "tsup": "^8.4.0",
-    "tsx": "^4.19.3",
+    "tsx": "^4.19.4",
     "typescript": "^5.8.3"
   }
 }
