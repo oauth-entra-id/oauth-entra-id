@@ -1,8 +1,13 @@
 {
   "name": "oauth-entra-id",
   "version": "1.0.0",
-  "description": "Simple and Secure OAuth 2.0 for Microsoft Entra ID",
-  "license": "MIT",
+  "description": "🛡️ Secure and simple way to implement OAuth 2.0 with Microsoft Entra ID",
+  "homepage": "https://github.com/oauth-entra-id/oauth-entra-id",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/oauth-entra-id/oauth-entra-id",
+    "directory": "packages/oauth-entra-id"
+  },
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -78,5 +83,19 @@
     "@types/node": "^22.14.1",
     "tsup": "^8.4.0",
     "typescript": "^5.8.3"
-  }
+  },
+  "license": "MIT",
+  "keywords": [
+    "auth",
+    "oauth",
+    "typescript",
+    "microsoft",
+    "entra-id",
+    "azure-ad",
+    "azure",
+    "msal",
+    "jsonwebtoken",
+    "express",
+    "nestjs"
+  ]
 }
