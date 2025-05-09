@@ -59,10 +59,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@azure/msal-node": "^3.5.1",
+    "@azure/msal-node": "^3.5.3",
     "jsonwebtoken": "^9.0.2",
     "jwks-rsa": "^3.2.0",
-    "zod": "^3.24.3"
+    "zod": "^3.24.4"
   },
   "peerDependencies": {
     "cookie-parser": ">=1.4.7",
@@ -80,7 +80,7 @@
     "@types/cookie-parser": "^1.4.8",
     "@types/express": "^5.0.1",
     "@types/jsonwebtoken": "^9.0.9",
-    "@types/node": "^22.14.1",
+    "@types/node": "^22.15.17",
     "tsup": "^8.4.0",
     "typescript": "^5.8.3"
   },
