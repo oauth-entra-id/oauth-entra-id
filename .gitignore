@@ -8,5 +8,3 @@ dist-ssr
 *.local
 .env
 .cache
-server/dist
-public/dist
