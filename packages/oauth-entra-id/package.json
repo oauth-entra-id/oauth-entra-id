@@ -5,7 +5,7 @@
   "homepage": "https://github.com/oauth-entra-id/oauth-entra-id",
   "repository": {
     "type": "git",
-    "url": "https://github.com/oauth-entra-id/oauth-entra-id",
+    "url": "git+https://github.com/oauth-entra-id/oauth-entra-id.git",
     "directory": "packages/oauth-entra-id"
   },
   "type": "module",
