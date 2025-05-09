@@ -15,7 +15,7 @@ npm install oauth-entra-id
 
 - 🔐 Secure backend-driven OAuth 2.0 Authorization Code Grant flow with PKCE (Proof Key for Code Exchange).
 - 🍪 Cookie-based authentication.
-- 🔄️ Access token and refresh token management and rotation.
+- 🔄️ Access token and refresh token management (including token rotation).
 - ✅ Built-in validation for Microsoft-issued JWTs using Entra ID public keys.
 - 📢 Supports On-Behalf-Of (OBO) flow.
 
@@ -31,7 +31,7 @@ npm install oauth-entra-id
   - `scopes` - The scopes you want to request from Microsoft Entra ID. For example: `["openid", "profile", "offline_access"]`.
   - `clientSecret` - The client secret of your Azure application.
 - `frontendUrl` - The frontend URL(s) of the application for redirection. It can be a single URL or an array of URLs.
-- `serverCallbackUrl` - The URL of your server's callback endpoint. This should match the redirect URI you set in Azure. for example: `http://localhost:3000/auth/callback`.
+- `serverCallbackUrl` - The URL of your server's callback endpoint. This should match the redirect URI you set in Azure. For example: `http://localhost:3000/auth/callback`.
 - `secretKey` - A 32-character long secret key for encryption. This key is used to encrypt the cookies and should be kept secret.
 - `advanced` - Advanced configuration options:
   - `loginPrompt` - The login prompt type. It can be `"email" | "select-account" | "sso"` (default: `"sso"`).
@@ -146,7 +146,7 @@ Callback HonoJS example:
 ```typescript
 app.post('/callback', async (c) => {
   const { code, state } = await c.req.parseBody();
-  const { frontendUrl, accessToken, refreshToken } = await oauthProvider.exchangeCodeForToken({ code, state });
+  const { frontendUrl, accessToken, refreshToken } = await oauthProvider.getTokenByCode({ code, state });
   setCookie(c, accessToken.name, accessToken.value, accessToken.options);
   if (refreshToken) {
     setCookie(c, refreshToken.name, refreshToken.value, refreshToken.options);
@@ -326,12 +326,12 @@ import { handleAuthentication, handleCallback, handleLogout } from 'oauth-entra-
 
 export const authRouter: Router = express.Router();
 
-authRouter.post('/authenticate', handleAuthentication);
-authRouter.post('/callback', handleCallback);
-authRouter.post('/logout', handleLogout);
+authRouter.post('/authenticate', handleAuthentication); // Returns {url: authUrl}
+authRouter.post('/callback', handleCallback); // Set tokens in cookies and redirect to frontendUrl
+authRouter.post('/logout', handleLogout); // Delete cookies and returns {url: logoutUrl}
 ```
 
-Now to secure your routes, you can use the `protectRoute` middleware and access the user information from the request object.
+To secure your routes, you can use the `protectRoute` middleware and access the user information from the request object.
 
 ```typescript
 import express from 'express';
@@ -409,22 +409,22 @@ import { handleAuthentication, handleCallback, handleLogout } from 'oauth-entra-
 export class AuthController {
   @Post('authenticate')
   async authenticate(@Req() req: Request, @Res() res: Response) {
-    await handleAuthentication(req, res);
+    await handleAuthentication(req, res); // Returns {url: authUrl}
   }
 
   @Post('callback')
   async callback(@Req() req: Request, @Res() res: Response) {
-    await handleCallback(req, res);
+    await handleCallback(req, res); // Set tokens in cookies and redirect to frontendUrl
   }
 
   @Post('logout')
   async logout(@Req() req: Request, @Res() res: Response) {
-    handleLogout(req, res);
+    handleLogout(req, res); // Delete cookies and returns {url: logoutUrl}
   }
 }
 ```
 
-Let's create a guard to protect your routes and get the user information.
+Let's create the guard that will protect your routes while getting the user information.
 
 ```typescript
 import type { Request, Response } from 'express';
