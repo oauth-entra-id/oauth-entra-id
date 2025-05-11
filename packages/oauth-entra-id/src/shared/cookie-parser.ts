@@ -50,7 +50,7 @@ export function setCookie(res: Response, name: string, value: string, options: C
     throw new OAuthError(400, { message: 'Bad cookie name', description: 'Invalid cookie name' });
   }
 
-  if (!cookieValueRegex.test(value)) {
+  if (value !== '' && !cookieValueRegex.test(value)) {
     throw new OAuthError(400, { message: 'Bad cookie value', description: 'Invalid cookie value' });
   }
 
