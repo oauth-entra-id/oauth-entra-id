@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { OAuthError } from '~/error';
 import type { Endpoints } from '~/types';
+import { setCookie } from './cookie-parser';
 
 export const sharedHandleAuthentication = async (req: Request, res: Response) => {
   const body = req.body as Endpoints['Authenticate'] | undefined;
@@ -20,8 +21,8 @@ export const sharedHandleCallback = async (req: Request, res: Response) => {
     state: body.state,
   });
 
-  res.cookie(accessToken.name, accessToken.value, accessToken.options);
-  if (refreshToken) res.cookie(refreshToken.name, refreshToken.value, refreshToken.options);
+  setCookie(res, accessToken.name, accessToken.value, accessToken.options);
+  if (refreshToken) setCookie(res, refreshToken.name, refreshToken.value, refreshToken.options);
   res.redirect(frontendUrl);
 };
 
@@ -31,8 +32,8 @@ export const sharedHandleLogout = (req: Request, res: Response) => {
 
   const { logoutUrl, deleteAccessToken, deleteRefreshToken } = req.oauthProvider.getLogoutUrl(params);
 
-  res.cookie(deleteAccessToken.name, deleteAccessToken.value, deleteAccessToken.options);
-  res.cookie(deleteRefreshToken.name, deleteRefreshToken.value, deleteRefreshToken.options);
+  setCookie(res, deleteAccessToken.name, deleteAccessToken.value, deleteAccessToken.options);
+  setCookie(res, deleteRefreshToken.name, deleteRefreshToken.value, deleteRefreshToken.options);
   res.status(200).json({ url: logoutUrl });
 };
 
@@ -49,10 +50,9 @@ export const sharedHandleOnBehalfOf = async (req: Request, res: Response) => {
     accessToken: req.msal.microsoftToken,
   });
 
-  for (const result of results) {
-    const { accessToken, refreshToken } = result;
-    res.cookie(accessToken.name, accessToken.value, accessToken.options);
-    if (refreshToken) res.cookie(refreshToken.name, refreshToken.value, refreshToken.options);
+  for (const { accessToken, refreshToken } of results) {
+    setCookie(res, accessToken.name, accessToken.value, accessToken.options);
+    if (refreshToken) setCookie(res, refreshToken.name, refreshToken.value, refreshToken.options);
   }
 
   res.status(200).json({ tokensSet: results.length });

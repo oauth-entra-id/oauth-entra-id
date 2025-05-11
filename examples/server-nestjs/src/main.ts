@@ -1,6 +1,5 @@
 import { ValidationPipe } from '@nestjs/common';
 import { HttpAdapterHost, NestFactory } from '@nestjs/core';
-import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import { authConfig } from 'oauth-entra-id/nestjs';
@@ -59,7 +58,6 @@ async function bootstrap() {
 
   app.setGlobalPrefix(new URL(env.SERVER_URL).pathname);
 
-  app.use(cookieParser());
   app.use(
     authConfig({
       azure: {

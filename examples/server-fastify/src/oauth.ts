@@ -12,7 +12,6 @@ export const oauthProvider = new OAuthProvider({
   frontendUrl: env.REACT_FRONTEND_URL,
   secretKey: env.RED_SECRET_KEY,
   advanced: {
-    cookies: { timeUnit: 'sec' },
     onBehalfOfServices: [
       {
         serviceName: 'blue',

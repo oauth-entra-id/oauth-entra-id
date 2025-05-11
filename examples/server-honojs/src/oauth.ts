@@ -12,7 +12,6 @@ export const oauthProvider = new OAuthProvider({
   serverCallbackUrl: `${env.SERVER_URL}/auth/callback`,
   secretKey: env.BLUE_SECRET_KEY,
   advanced: {
-    cookies: { timeUnit: 'sec' },
     onBehalfOfServices: [
       {
         serviceName: 'red',

@@ -1,15 +1,15 @@
-import './types';
+import '~/types';
 import type { NextFunction, Request, Response } from 'express';
-import { OAuthProvider } from './core';
-import { OAuthError } from './error';
+import { OAuthProvider } from '~/core';
+import { OAuthError } from '~/error';
 import {
   sharedHandleAuthentication,
   sharedHandleCallback,
   sharedHandleLogout,
   sharedHandleOnBehalfOf,
-} from './shared/endpoints';
-import { sharedIsAuthenticated } from './shared/middleware';
-import type { OAuthConfig } from './types';
+} from '~/shared/endpoints';
+import { sharedIsAuthenticated } from '~/shared/middleware';
+import type { OAuthConfig } from '~/types';
 
 const ERROR_MESSAGE = 'Make sure you used Express export and you used authConfig';
 
@@ -23,14 +23,9 @@ let globalExpressOAuthProvider: OAuthProvider | null = null;
  *
  * @param config - The full configuration used to initialize the OAuthProvider.
  * @returns Express middleware function.
- * @throws {OAuthError} If `cookie-parser` middleware has not been set up.
  */
 export function authConfig(config: OAuthConfig) {
   return (req: Request, res: Response, next: NextFunction) => {
-    if (!req.cookies) {
-      throw new OAuthError(500, 'Missing cookie-parser middleware');
-    }
-
     if (!globalExpressOAuthProvider) {
       globalExpressOAuthProvider = new OAuthProvider(config);
     }

@@ -1,7 +1,8 @@
 import type { Request, Response } from 'express';
 import type { JwtPayload } from 'jsonwebtoken';
 import { OAuthError } from '~/error';
-import { debugLog } from '~/utils/misc';
+import { debugLog } from '~/utils/debugLog';
+import { getCookie } from './cookie-parser';
 
 export const sharedIsAuthenticated = async (req: Request, res: Response) => {
   const oauthProvider = req.oauthProvider;
@@ -35,8 +36,8 @@ export const sharedIsAuthenticated = async (req: Request, res: Response) => {
   }
 
   const { accessTokenName, refreshTokenName } = oauthProvider.getCookieNames();
-  const accessTokenCookie = req.cookies[accessTokenName];
-  const refreshTokenCookie = req.cookies[refreshTokenName];
+  const accessTokenCookie = getCookie(req, accessTokenName);
+  const refreshTokenCookie = getCookie(req, refreshTokenName);
 
   localDebug(`Cookies: ${accessTokenName}=${!!accessTokenCookie}, ${refreshTokenName}=${!!refreshTokenCookie}`);
   if (!accessTokenCookie && !refreshTokenCookie) {

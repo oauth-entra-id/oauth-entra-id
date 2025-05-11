@@ -3,9 +3,9 @@ import { type Options, defineConfig } from 'tsup';
 export default defineConfig((options: Options) => ({
   name: 'oauth-entra-id',
   entry: {
-    index: 'src/index.ts',
-    express: 'src/express.ts',
-    nestjs: 'src/nestjs.ts',
+    index: 'src/exports/index.ts',
+    express: 'src/exports/express.ts',
+    nestjs: 'src/exports/nestjs.ts',
   },
   outDir: 'dist',
   format: ['cjs', 'esm'],
@@ -18,6 +18,6 @@ export default defineConfig((options: Options) => ({
   cjsInterop: true,
   tsconfig: 'tsconfig.json',
   skipNodeModulesBundle: true,
-  external: ['express', 'cookie-parser'],
+  external: ['express'],
   ...options,
 }));
