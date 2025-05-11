@@ -7,10 +7,12 @@
     "dev": "turbo run dev --filter=./examples/*",
     "format": "pnpm biome format --write .",
     "lint": "pnpm biome lint --write .",
-    "typecheck": "turbo run typecheck"
+    "typecheck": "turbo run typecheck",
+    "prepare": "husky"
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
+    "husky": "^9.1.7",
     "turbo": "^2.5.3"
   },
   "packageManager": "pnpm@10.7.1",
