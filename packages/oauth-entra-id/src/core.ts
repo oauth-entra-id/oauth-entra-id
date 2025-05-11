@@ -5,11 +5,11 @@ import jwt from 'jsonwebtoken';
 import jwks from 'jwks-rsa';
 import { OAuthError } from './error';
 import type { Cookies, LoginPrompt, MethodKeys, OAuthConfig, OAuthOptions, OnBehalfOfService } from './types';
-import { getCookieOptions } from './utils/cookies';
 import { createSecretKey, decrypt, decryptObject, encrypt, encryptObject } from './utils/crypto';
-import { debugLog } from './utils/misc';
+import { debugLog } from './utils/debugLog';
+import { getCookieOptions } from './utils/get-cookie-options';
+import { isJwt } from './utils/regex';
 import {
-  isJwt,
   prettifyError,
   zConfig,
   zEncrypted,
@@ -21,11 +21,6 @@ import {
   zState,
   zToken,
 } from './utils/zod';
-
-// TODO: Type safety for Frontend URLs and Service Names
-// TODO: Mobile app support
-// TODO: Cookie Parser replace
-// TODO: Inject data to cookie
 
 /**
  * The core authentication class that handles OAuth 2.0 flows using Microsoft Entra ID (Azure AD).

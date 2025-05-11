@@ -1,6 +1,6 @@
 import type { JwtPayload } from 'jsonwebtoken';
 import type { OAuthProvider } from './core';
-import type { ACCESS_TOKEN_NAME, REFRESH_TOKEN_NAME } from './utils/cookies';
+import type { ACCESS_TOKEN_NAME, REFRESH_TOKEN_NAME } from './utils/get-cookie-options';
 
 export type ServerType = 'express' | 'nestjs';
 export type LoginPrompt = 'email' | 'select-account' | 'sso';

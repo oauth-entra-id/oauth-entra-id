@@ -1,15 +1,15 @@
-import './types';
+import '~/types';
 import type { NextFunction, Request, Response } from 'express';
-import { OAuthProvider } from './core';
-import { OAuthError } from './error';
+import { OAuthProvider } from '~/core';
+import { OAuthError } from '~/error';
 import {
   sharedHandleAuthentication,
   sharedHandleCallback,
   sharedHandleLogout,
   sharedHandleOnBehalfOf,
-} from './shared/endpoints';
-import { sharedIsAuthenticated } from './shared/middleware';
-import type { OAuthConfig } from './types';
+} from '~/shared/endpoints';
+import { sharedIsAuthenticated } from '~/shared/middleware';
+import type { OAuthConfig } from '~/types';
 
 const ERROR_MESSAGE = 'Make sure you used NestJS export and you used authConfig';
 

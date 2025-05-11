@@ -1,16 +1,9 @@
 import { type ZodError, z } from 'zod';
+import { base64urlWithDotRegex, encryptedRegex, jwtRegex, tokenRegex } from './regex';
 
 export function prettifyError(error: ZodError) {
   return error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join(', ');
 }
-
-export const base64urlWithDotRegex = /^[A-Za-z0-9._-]+$/;
-export const jwtRegex = /^[A-Za-z0-9_-]+?\.[A-Za-z0-9_-]+?\.[A-Za-z0-9_-]+?$/;
-export const encryptedRegex = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.$/;
-export const tokenRegex = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.?$/;
-
-export const isEncrypted = (str: string) => encryptedRegex.test(str);
-export const isJwt = (str: string) => jwtRegex.test(str);
 
 export const zStr = z.string().trim();
 export const zUuid = zStr.uuid();

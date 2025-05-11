@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import type { JwtPayload } from 'jsonwebtoken';
 import { OAuthError } from '~/error';
-import { debugLog } from '~/utils/misc';
+import { debugLog } from '~/utils/debugLog';
 
 export const sharedIsAuthenticated = async (req: Request, res: Response) => {
   const oauthProvider = req.oauthProvider;
