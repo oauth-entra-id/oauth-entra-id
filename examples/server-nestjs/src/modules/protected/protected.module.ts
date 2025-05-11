@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
-import { ProtectedController } from './protected.controller';
 import { ProtectRouteGuard } from '~/guards/protect-route.guard';
+import { ProtectedController } from './protected.controller';
 
 @Module({
   providers: [ProtectRouteGuard],

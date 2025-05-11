@@ -7,6 +7,7 @@
     "dev": "turbo run dev --filter=./examples/*",
     "format": "pnpm biome format --write .",
     "lint": "pnpm biome lint --write .",
+    "check": "pnpm biome check --write .",
     "typecheck": "turbo run typecheck",
     "prepare": "husky"
   },
