@@ -9,12 +9,10 @@
       "dependsOn": ["^build"],
       "outputs": ["build/**", ".vercel/**", "dist/**", ".next/**", "!.next/cache/**"]
     },
-    "lint": {
-      "dependsOn": ["^build"]
-    },
-    "typecheck": {
-      "dependsOn": ["^build"]
-    },
+    "format": {},
+    "lint": {},
+    "check": {},
+    "typecheck": {},
     "dev": {
       "dependsOn": ["^build"],
       "cache": false,
