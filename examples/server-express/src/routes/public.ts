@@ -20,8 +20,3 @@ publicRouter.get('/app-info', (req: Request, res: Response) => {
     yellow: env.YELLOW_AZURE_CLIENT_ID,
   });
 });
-
-publicRouter.get('/test', (req: Request, res: Response) => {
-  const headers = req.headers;
-  res.status(200).json({ headers });
-});
