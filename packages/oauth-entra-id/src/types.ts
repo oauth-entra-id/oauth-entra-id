@@ -177,6 +177,15 @@ export interface Cookies {
   };
 }
 
+export interface CookieParserOptions {
+  httpOnly?: boolean;
+  secure?: boolean;
+  sameSite?: 'strict' | 'lax' | 'none';
+  maxAge?: number;
+  path?: string;
+  domain?: string;
+}
+
 export type MethodKeys<T> = {
   // biome-ignore lint/suspicious/noExplicitAny: <explanation>
   [K in keyof T]: T[K] extends (...args: any[]) => any ? K : never;

@@ -38,7 +38,7 @@ npm install oauth-entra-id
   - `allowOtherSystems` - Allow authentication for other systems (via Authorization header). Default: `false`.
   - `debug` - Enable debug logs. Default: `false`.
   - `cookies` - Cookie configuration options:
-    - `timeUnit` - The time unit for the cookie expiry. It can be `"ms" | "sec"` (default: `"ms"`).
+    - `timeUnit` - The time unit for the cookie expiry. It can be `"ms" | "sec"` (default: `"sec"`).
     - `disableHttps` - Disable Secure cookie enforcement. Default: `false`.
     - `disableSameSite` - Disable SameSite cookie attribute. Default: `false`.
     - `accessTokenExpiry` - The expiry time for the access token cookie in seconds (default: 1 hour).
@@ -68,7 +68,7 @@ export interface OAuthConfig {
     allowOtherSystems?: boolean; //default: false
     debug?: boolean;
     cookies?:{
-      timeUnit?: "ms" | "sec"; // default: "ms"
+      timeUnit?: "ms" | "sec"; // default: "sec"
       disableHttps?: boolean; //default: false
       disableSameSite?: boolean; //default: false
       accessTokenExpiry?: number; //default: 1 hour
@@ -114,9 +114,6 @@ const oauthProvider = new OAuthProvider({
   frontendUrl: env.FRONTEND_URL,
   serverCallbackUrl: `${env.SERVER_URL}/auth/callback`,
   secretKey: env.SECRET,
-  advanced: { 
-    cookies: { timeUnit: 'sec' }, 
-   }
 });
 ```
 
@@ -260,13 +257,13 @@ app.post('/on-behalf-of', protectRoute, async (c) => {
 
 When using the package with Express, you should import from `oauth-entra-id/express` to easily integrate OAuth2.0.
 
-Also, you need to install `cookie-parser` and `cors` packages:
+Also, you need to install `cors` package:
 
 ```bash
-npm install cookie-parser cors
+npm install cors
 
 # For TypeScript
-npm install --save-dev @types/cookie-parser @types/cors
+npm install --save-dev @types/cors
 ```
 
 Then in the root of your Express app, import `authConfig` and configure it:
@@ -274,7 +271,6 @@ Then in the root of your Express app, import `authConfig` and configure it:
 ```typescript
 import express from 'express';
 import cors from 'cors';
-import cookieParser from 'cookie-parser';
 import { authConfig } from 'oauth-entra-id/express';
 import env from './env';
 
@@ -291,7 +287,6 @@ function bootstrap() {
     }),
   );
   // Other configurations...
-  app.use(cookieParser()); // <-- Use cookie-parser middleware
 
   app.use(
     authConfig({
@@ -347,14 +342,6 @@ protectedRouter.get('/user-info', protectRoute, (req: Request, res: Response) =>
 
 ## Usage - NestJS 🪺
 When using the package with NestJS, you should import from `oauth-entra-id/nestjs` to easily integrate OAuth2.0.
-Also, you need to install `cookie-parser` package:
-
-```bash
-npm install cookie-parser
-
-# For TypeScript
-npm install --save-dev @types/cookie-parser
-```
 
 Then in the root of your NestJS app, import `authConfig` and configure it:
 
@@ -373,7 +360,6 @@ async function bootstrap() {
     credentials: true, // <-- Allow credentials to be included in CORS requests
   });
   // Other configurations...
-  app.use(cookieParser()); // <-- Use cookie-parser middleware
 
   app.use(
     authConfig({

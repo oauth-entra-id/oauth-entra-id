@@ -1,4 +1,3 @@
-import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import express from 'express';
 import type { Application, NextFunction, Request, Response } from 'express';
@@ -82,8 +81,6 @@ export default function createApp(): Application {
     });
   }
   app.use(morgan(env.NODE_ENV === 'production' ? 'combined' : 'dev'));
-
-  app.use(cookieParser());
 
   app.use(
     authConfig({

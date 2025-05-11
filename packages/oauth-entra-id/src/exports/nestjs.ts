@@ -23,14 +23,9 @@ let globalNestjsOAuthProvider: OAuthProvider | null = null;
  *
  * @param config - The full configuration used to initialize the OAuthProvider.
  * @returns NestJS middleware function.
- * @throws {OAuthError} If `cookie-parser` middleware has not been set up.
  */
 export function authConfig(config: OAuthConfig) {
   return (req: Request, res: Response, next: NextFunction) => {
-    if (!req.cookies) {
-      throw new OAuthError(500, 'Missing cookie-parser middleware');
-    }
-
     if (!globalNestjsOAuthProvider) {
       globalNestjsOAuthProvider = new OAuthProvider(config);
     }

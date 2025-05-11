@@ -18,6 +18,6 @@ export default defineConfig((options: Options) => ({
   cjsInterop: true,
   tsconfig: 'tsconfig.json',
   skipNodeModulesBundle: true,
-  external: ['express', 'cookie-parser'],
+  external: ['express'],
   ...options,
 }));

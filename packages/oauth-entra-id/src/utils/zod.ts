@@ -45,7 +45,7 @@ export const zConfig = z.object({
       debug: z.boolean().default(false),
       cookies: z
         .object({
-          timeUnit: z.enum(['ms', 'sec']).default('ms'),
+          timeUnit: z.enum(['ms', 'sec']).default('sec'),
           disableHttps: z.boolean().default(false),
           disableSameSite: z.boolean().default(false),
           accessTokenExpiry: z.number().positive().default(3600),
