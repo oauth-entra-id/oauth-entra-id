@@ -116,7 +116,7 @@ export default function createApp(): Application {
 
   app.use(new URL(env.SERVER_URL).pathname, routesRouter);
 
-  app.use('*', notFound);
+  app.use(notFound);
 
   app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
     const { message, statusCode, description } = new HttpException(err);
