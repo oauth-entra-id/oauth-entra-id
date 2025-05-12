@@ -223,6 +223,12 @@ export class OAuthProvider {
     const accessToken = encryptObject({ at: msalResponse.accessToken }, secretKey ?? this.secretKey);
     const rawRefreshToken = await this.extractRefreshTokenFromCache(msalResponse);
     const refreshToken = rawRefreshToken ? encrypt(rawRefreshToken, secretKey ?? this.secretKey) : null;
+    if (accessToken.length > 4096 || (refreshToken && refreshToken.length > 4096)) {
+      throw new OAuthError(500, {
+        message: 'Internal server error',
+        description: 'Token size exceeds maximum allowed length',
+      });
+    }
     return { accessToken, refreshToken };
   }
 
