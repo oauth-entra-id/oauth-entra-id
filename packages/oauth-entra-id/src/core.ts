@@ -9,18 +9,7 @@ import { createSecretKey, decrypt, decryptObject, encrypt, encryptObject } from 
 import { debugLog } from './utils/debugLog';
 import { getCookieOptions } from './utils/get-cookie-options';
 import { isJwt } from './utils/regex';
-import {
-  prettifyError,
-  zConfig,
-  zEncrypted,
-  zGetAuthUrl,
-  zGetLogoutUrl,
-  zGetTokenByCode,
-  zGetTokenOnBehalfOf,
-  zJwt,
-  zState,
-  zToken,
-} from './utils/zod';
+import { prettifyError, zConfig, zEncrypted, zJwt, zJwtOrEncrypted, zMethods, zState } from './utils/zod';
 
 /**
  * The core authentication class that handles OAuth 2.0 flows using Microsoft Entra ID (Azure AD).
@@ -163,7 +152,7 @@ export class OAuthProvider {
   async getAuthUrl(params: { loginPrompt?: LoginPrompt; email?: string; frontendUrl?: string }): Promise<{
     authUrl: string;
   }> {
-    const { data: parsedParams, error: paramsError } = zGetAuthUrl.safeParse(params);
+    const { data: parsedParams, error: paramsError } = zMethods.getAuthUrl.safeParse(params);
     if (paramsError) {
       throw new OAuthError(400, { message: 'Invalid params', description: prettifyError(paramsError) });
     }
@@ -234,7 +223,7 @@ export class OAuthProvider {
     frontendUrl: string;
     msalResponse: AuthenticationResult;
   }> {
-    const { data: parsedParams, error: paramsError } = zGetTokenByCode.safeParse(params);
+    const { data: parsedParams, error: paramsError } = zMethods.getTokenByCode.safeParse(params);
     if (paramsError) {
       throw new OAuthError(400, { message: 'Invalid params', description: prettifyError(paramsError) });
     }
@@ -284,7 +273,7 @@ export class OAuthProvider {
     deleteAccessToken: Cookies['DeleteAccessToken'];
     deleteRefreshToken: Cookies['DeleteRefreshToken'];
   } {
-    const { data: parsedParams, error: urlError } = zGetLogoutUrl.safeParse(params);
+    const { data: parsedParams, error: urlError } = zMethods.getLogoutUrl.safeParse(params);
     if (urlError) {
       throw new OAuthError(400, { message: 'Invalid params: Invalid URL', description: prettifyError(urlError) });
     }
@@ -369,7 +358,7 @@ export class OAuthProvider {
    */
   async verifyAccessToken(accessToken: string): Promise<{ microsoftToken: string; payload: jwt.JwtPayload } | null> {
     try {
-      const { data: token, error: tokenError } = zToken.safeParse(accessToken);
+      const { data: token, error: tokenError } = zJwtOrEncrypted.safeParse(accessToken);
       if (tokenError) {
         throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid access token' });
       }
@@ -452,7 +441,7 @@ export class OAuthProvider {
     if (!this.onBehalfOfServices) {
       throw new OAuthError(400, { message: 'Invalid params', description: 'On Behalf Of Services not configured' });
     }
-    const { data: parsedParams, error: paramsError } = zGetTokenOnBehalfOf.safeParse(params);
+    const { data: parsedParams, error: paramsError } = zMethods.getTokenOnBehalfOf.safeParse(params);
     if (paramsError) {
       throw new OAuthError(400, { message: 'Invalid params', description: prettifyError(paramsError) });
     }

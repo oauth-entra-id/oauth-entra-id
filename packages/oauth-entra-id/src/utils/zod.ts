@@ -1,9 +1,8 @@
 import { type ZodError, z } from 'zod';
-import { base64urlWithDotRegex, encryptedRegex, jwtRegex, tokenRegex } from './regex';
+import { base64urlWithDotRegex, encryptedRegex, jwtOrEncryptedRegex, jwtRegex } from './regex';
 
-export function prettifyError(error: ZodError) {
-  return error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join(', ');
-}
+export const prettifyError = (error: ZodError) =>
+  error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join(', ');
 
 export const zStr = z.string().trim();
 export const zUuid = zStr.uuid();
@@ -12,58 +11,48 @@ export const zEmail = zStr.max(320).email();
 export const zLoginPrompt = z.enum(['email', 'select-account', 'sso']);
 export const zEncrypted = zStr.max(4096).regex(encryptedRegex);
 export const zJwt = zStr.max(4096).regex(jwtRegex);
-export const zToken = zStr.max(4096).regex(tokenRegex);
-const zSecretKey = zStr.min(16).max(64);
-const zScope = zStr.min(3).max(128);
-const zScopes = z.array(zScope).min(1);
-const zServiceName = zStr.min(1).max(64);
+export const zJwtOrEncrypted = zStr.max(4096).regex(jwtOrEncryptedRegex);
+
+const zAzure = z.object({
+  clientId: zUuid,
+  tenantId: z.union([z.literal('common'), zUuid]),
+  scopes: z.array(zStr.min(3).max(128)).min(1),
+  clientSecret: zStr.min(32),
+});
+
+const zCookieConfig = z.object({
+  timeUnit: z.enum(['ms', 'sec']).default('sec'),
+  disableHttps: z.boolean().default(false),
+  disableSameSite: z.boolean().default(false),
+  accessTokenExpiry: z.number().positive().default(3600),
+  refreshTokenExpiry: z.number().min(3600).default(2592000),
+});
 
 const zOnBehalfOfService = z.object({
-  serviceName: zServiceName,
-  scope: zScope,
-  secretKey: zSecretKey,
+  serviceName: zStr.min(1).max(64),
+  scope: zStr.min(3).max(128),
+  secretKey: zStr.min(16).max(64),
   isHttps: z.boolean(),
   isSameSite: z.boolean(),
   accessTokenExpiry: z.number().positive().default(3600),
   refreshTokenExpiry: z.number().min(3600).default(2592000),
 });
 
-export const zConfig = z.object({
-  azure: z.object({
-    clientId: zUuid,
-    tenantId: z.union([z.literal('common'), zUuid]),
-    scopes: zScopes,
-    clientSecret: zStr.min(32),
-  }),
-  frontendUrl: z.union([zUrl.transform((url) => [url]), z.array(zUrl).min(1)]),
-  serverCallbackUrl: zUrl,
-  secretKey: zSecretKey,
-  advanced: z
-    .object({
-      loginPrompt: zLoginPrompt.default('sso'),
-      allowOtherSystems: z.boolean().default(false),
-      debug: z.boolean().default(false),
-      cookies: z
-        .object({
-          timeUnit: z.enum(['ms', 'sec']).default('sec'),
-          disableHttps: z.boolean().default(false),
-          disableSameSite: z.boolean().default(false),
-          accessTokenExpiry: z.number().positive().default(3600),
-          refreshTokenExpiry: z.number().min(3600).default(2592000),
-        })
-        .default({}),
-      onBehalfOfServices: z.array(zOnBehalfOfService).min(1).optional(),
-    })
-    .default({}),
+const zAdvanced = z.object({
+  loginPrompt: zLoginPrompt.default('sso'),
+  allowOtherSystems: z.boolean().default(false),
+  debug: z.boolean().default(false),
+  cookies: zCookieConfig.default({}),
+  onBehalfOfServices: z.array(zOnBehalfOfService).min(1).optional(),
 });
 
-export const zGetAuthUrl = z
-  .object({
-    loginPrompt: zLoginPrompt.optional(),
-    email: zEmail.optional(),
-    frontendUrl: zUrl.optional(),
-  })
-  .default({});
+export const zConfig = z.object({
+  azure: zAzure,
+  frontendUrl: z.union([zUrl.transform((url) => [url]), z.array(zUrl).min(1)]),
+  serverCallbackUrl: zUrl,
+  secretKey: zStr.min(16).max(64),
+  advanced: zAdvanced.default({}),
+});
 
 export const zState = z.object({
   frontendUrl: zUrl,
@@ -81,18 +70,25 @@ export const zAuthParams = z.object({
   codeVerifier: zStr.max(128),
 });
 
-export const zGetTokenByCode = z.object({
-  code: zStr.max(2048).regex(base64urlWithDotRegex),
-  state: zEncrypted,
-});
-
-export const zGetLogoutUrl = z
-  .object({
-    frontendUrl: zUrl.optional(),
-  })
-  .default({});
-
-export const zGetTokenOnBehalfOf = z.object({
-  accessToken: zToken,
-  serviceNames: z.array(zServiceName).min(1),
-});
+export const zMethods = {
+  getAuthUrl: z
+    .object({
+      loginPrompt: zLoginPrompt.optional(),
+      email: zEmail.optional(),
+      frontendUrl: zUrl.optional(),
+    })
+    .default({}),
+  getTokenByCode: z.object({
+    code: zStr.max(2048).regex(base64urlWithDotRegex),
+    state: zEncrypted,
+  }),
+  getLogoutUrl: z
+    .object({
+      frontendUrl: zUrl.optional(),
+    })
+    .default({}),
+  getTokenOnBehalfOf: z.object({
+    accessToken: zJwtOrEncrypted,
+    serviceNames: z.array(zStr.min(1).max(64)).min(1),
+  }),
+};
