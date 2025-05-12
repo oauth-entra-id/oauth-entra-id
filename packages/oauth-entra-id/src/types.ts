@@ -5,6 +5,7 @@ import type { ACCESS_TOKEN_NAME, REFRESH_TOKEN_NAME } from './utils/get-cookie-o
 export type ServerType = 'express' | 'nestjs';
 export type LoginPrompt = 'email' | 'select-account' | 'sso';
 export type TimeUnit = 'ms' | 'sec';
+export type InjectedData = Record<string, string | number | boolean>;
 /**
  * Configuration for On-Behalf-Of authentication with an external service.
  */
@@ -126,7 +127,14 @@ declare global {
        * - If `isOtherApp` is `true`, the token was issued by another service.
        */
       userInfo?:
-        | { isOtherApp: false; uniqueId: string; roles: string[]; name: string; email: string }
+        | {
+            isOtherApp: false;
+            uniqueId: string;
+            roles: string[];
+            name: string;
+            email: string;
+            injectedData?: InjectedData;
+          }
         | { isOtherApp: true; uniqueId: string; roles: string[]; appId: string };
     }
   }
@@ -185,8 +193,3 @@ export interface CookieParserOptions {
   path?: string;
   domain?: string;
 }
-
-export type MethodKeys<T> = {
-  // biome-ignore lint/suspicious/noExplicitAny: <explanation>
-  [K in keyof T]: T[K] extends (...args: any[]) => any ? K : never;
-}[keyof T];

@@ -4,7 +4,7 @@ import type { AuthenticationResult, ConfidentialClientApplication, CryptoProvide
 import jwt from 'jsonwebtoken';
 import jwks from 'jwks-rsa';
 import { OAuthError } from './error';
-import type { Cookies, LoginPrompt, MethodKeys, OAuthConfig, OAuthOptions, OnBehalfOfService } from './types';
+import type { Cookies, InjectedData, LoginPrompt, OAuthConfig, OAuthOptions, OnBehalfOfService } from './types';
 import { createSecretKey, decrypt, decryptObject, encrypt, encryptObject } from './utils/crypto';
 import { debugLog } from './utils/debugLog';
 import { getCookieOptions } from './utils/get-cookie-options';
@@ -135,7 +135,15 @@ export class OAuthProvider {
     });
   }
 
-  private localDebug(methodName: MethodKeys<OAuthProvider> | 'verifyJwt', message: string) {
+  private localDebug(
+    methodName:
+      | {
+          // biome-ignore lint/suspicious/noExplicitAny: <explanation>
+          [K in keyof OAuthProvider]: OAuthProvider[K] extends (...args: any[]) => any ? K : never;
+        }[keyof OAuthProvider]
+      | 'verifyJwt',
+    message: string,
+  ) {
     debugLog({ condition: this.options.debug, funcName: `OAuthProvider.${methodName}`, message });
   }
 
@@ -370,7 +378,7 @@ export class OAuthProvider {
     }
   }
 
-  private getRawAccessToken(accessToken: string) {
+  private getRawAccessToken(accessToken: string): { rawAccessToken: string; injectedData?: InjectedData } {
     const { data: token, error: tokenError } = zJwtOrEncrypted.safeParse(accessToken);
     if (tokenError) {
       throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid access token' });
@@ -398,7 +406,7 @@ export class OAuthProvider {
   async verifyAccessToken(accessToken: string): Promise<{
     microsoftToken: string;
     payload: jwt.JwtPayload;
-    injectedData: Record<string, string | number | boolean> | undefined;
+    injectedData: InjectedData | undefined;
   } | null> {
     try {
       const { rawAccessToken, injectedData } = this.getRawAccessToken(accessToken);
@@ -410,7 +418,7 @@ export class OAuthProvider {
     }
   }
 
-  injectData({ accessToken, data }: { accessToken: string; data: Record<string, string | number | boolean> }) {
+  injectData({ accessToken, data }: { accessToken: string; data: InjectedData }) {
     const { rawAccessToken, injectedData } = this.getRawAccessToken(accessToken);
     const { data: nextAccessToken, error: nextAccessTokenError } = zAccessTokenStructure.safeParse({
       at: rawAccessToken,

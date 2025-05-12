@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 import type { JwtPayload } from 'jsonwebtoken';
 import type { OAuthProvider } from '~/core';
 import { OAuthError } from '~/error';
+import type { InjectedData } from '~/types';
 import { debugLog } from '~/utils/debugLog';
 import { getCookie, setCookie } from './cookie-parser';
 
@@ -72,7 +73,7 @@ async function checkAuthorizationToken({
     }
 
     return {
-      msal: microsoftInfo,
+      msal: { microsoftToken: bearerAccessToken, payload: microsoftInfo.payload },
       userInfo: getUserInfo({ payload: microsoftInfo.payload, isOtherApp: true }),
     };
   }
@@ -89,8 +90,12 @@ async function checkAccessToken({
     const microsoftInfo = await oauthProvider.verifyAccessToken(cookieAccessToken);
     if (microsoftInfo) {
       return {
-        msal: microsoftInfo,
-        userInfo: getUserInfo({ payload: microsoftInfo.payload, isOtherApp: false }),
+        msal: { microsoftToken: microsoftInfo.microsoftToken, payload: microsoftInfo.payload },
+        userInfo: getUserInfo({
+          payload: microsoftInfo.payload,
+          injectedData: microsoftInfo.injectedData,
+          isOtherApp: false,
+        }),
       };
     }
   }
@@ -114,7 +119,11 @@ async function refreshTokens({
   };
 }
 
-function getUserInfo({ payload, isOtherApp }: { payload: JwtPayload; isOtherApp: boolean }) {
+function getUserInfo({
+  payload,
+  injectedData,
+  isOtherApp,
+}: { payload: JwtPayload; injectedData?: InjectedData; isOtherApp: boolean }) {
   return isOtherApp
     ? ({
         isOtherApp: true,
@@ -128,6 +137,7 @@ function getUserInfo({ payload, isOtherApp }: { payload: JwtPayload; isOtherApp:
         roles: payload.roles,
         name: payload.name,
         email: payload.preferred_username,
+        injectedData,
       } as const);
 }
 
