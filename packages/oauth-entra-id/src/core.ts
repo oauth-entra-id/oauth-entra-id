@@ -370,38 +370,65 @@ export class OAuthProvider {
     }
   }
 
+  private getRawAccessToken(accessToken: string) {
+    const { data: token, error: tokenError } = zJwtOrEncrypted.safeParse(accessToken);
+    if (tokenError) {
+      throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid access token' });
+    }
+
+    if (isJwt(token)) {
+      return { rawAccessToken: token };
+    }
+
+    const accessTokenObj = decryptObject(token, this.secretKey);
+    const { data: parsedAccessToken, error: accessTokenError } = zAccessTokenStructure.safeParse(accessTokenObj);
+    if (accessTokenError) {
+      throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid access token' });
+    }
+
+    return { rawAccessToken: parsedAccessToken.at, injectedData: parsedAccessToken.inj };
+  }
+
   /**
    * Verifies an access token, either as a raw JWT or encrypted string.
    *
    * @param accessToken - A JWT or encrypted access token.
-   * @returns The original token and decoded payload if valid; `null` otherwise.
+   * @returns The original token and decoded payload if valid; `null` otherwise. If the token has injected data, it will be returned as well.
    */
-  async verifyAccessToken(accessToken: string): Promise<{ microsoftToken: string; payload: jwt.JwtPayload } | null> {
+  async verifyAccessToken(accessToken: string): Promise<{
+    microsoftToken: string;
+    payload: jwt.JwtPayload;
+    injectedData: Record<string, string | number | boolean> | undefined;
+  } | null> {
     try {
-      const { data: token, error: tokenError } = zJwtOrEncrypted.safeParse(accessToken);
-      if (tokenError) {
-        throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid access token' });
-      }
-
-      let rawAccessToken: string;
-
-      if (isJwt(token)) {
-        rawAccessToken = token;
-      } else {
-        const accessTokenObj = decryptObject(token, this.secretKey);
-        const { data: parsedAccessToken, error: accessTokenError } = zAccessTokenStructure.safeParse(accessTokenObj);
-        if (accessTokenError) {
-          throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid access token' });
-        }
-        rawAccessToken = parsedAccessToken.at;
-      }
-
+      const { rawAccessToken, injectedData } = this.getRawAccessToken(accessToken);
       const payload = await this.verifyJwt(rawAccessToken);
-      return { microsoftToken: rawAccessToken, payload };
+      return { microsoftToken: rawAccessToken, payload, injectedData };
     } catch (err) {
       this.localDebug('verifyAccessToken', `Error verifying token: ${err}`);
       return null;
     }
+  }
+
+  injectData({ accessToken, data }: { accessToken: string; data: Record<string, string | number | boolean> }) {
+    const { rawAccessToken, injectedData } = this.getRawAccessToken(accessToken);
+    const { data: nextAccessToken, error: nextAccessTokenError } = zAccessTokenStructure.safeParse({
+      at: rawAccessToken,
+      inj: data,
+    });
+    if (nextAccessTokenError) {
+      throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid access token' });
+    }
+
+    const encryptedAccessToken = encryptObject(nextAccessToken, this.secretKey);
+    if (encryptedAccessToken.length > 4096) {
+      throw new OAuthError(500, {
+        message: 'Internal server error',
+        description: 'Token size exceeds maximum allowed length',
+      });
+    }
+
+    return encryptedAccessToken;
   }
 
   /**
