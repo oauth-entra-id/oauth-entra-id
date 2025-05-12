@@ -70,6 +70,10 @@ export const zAuthParams = z.object({
   codeVerifier: zStr.max(128),
 });
 
+export const zAccessTokenStructure = z.object({
+  at: zJwt,
+});
+
 export const zMethods = {
   getAuthUrl: z
     .object({

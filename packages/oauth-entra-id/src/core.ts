@@ -9,7 +9,16 @@ import { createSecretKey, decrypt, decryptObject, encrypt, encryptObject } from 
 import { debugLog } from './utils/debugLog';
 import { getCookieOptions } from './utils/get-cookie-options';
 import { isJwt } from './utils/regex';
-import { prettifyError, zConfig, zEncrypted, zJwt, zJwtOrEncrypted, zMethods, zState } from './utils/zod';
+import {
+  prettifyError,
+  zAccessTokenStructure,
+  zConfig,
+  zEncrypted,
+  zJwt,
+  zJwtOrEncrypted,
+  zMethods,
+  zState,
+} from './utils/zod';
 
 /**
  * The core authentication class that handles OAuth 2.0 flows using Microsoft Entra ID (Azure AD).
@@ -246,7 +255,7 @@ export class OAuthProvider {
         ...state,
       });
 
-      const accessToken = encrypt(msalResponse.accessToken, this.secretKey);
+      const accessToken = encryptObject({ at: msalResponse.accessToken }, this.secretKey);
       const rawRefreshToken = await this.extractRefreshTokenFromCache(msalResponse);
       const refreshToken = rawRefreshToken ? encrypt(rawRefreshToken, this.secretKey) : null;
 
@@ -362,10 +371,20 @@ export class OAuthProvider {
       if (tokenError) {
         throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid access token' });
       }
-      const rawAccessToken = isJwt(token) ? token : decrypt(token, this.secretKey);
-      if (!rawAccessToken) {
-        throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid JWT Token' });
+
+      let rawAccessToken: string;
+
+      if (isJwt(token)) {
+        rawAccessToken = token;
+      } else {
+        const accessTokenObj = decryptObject(token, this.secretKey);
+        const { data: parsedAccessToken, error: accessTokenError } = zAccessTokenStructure.safeParse(accessTokenObj);
+        if (accessTokenError) {
+          throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid access token' });
+        }
+        rawAccessToken = parsedAccessToken.at;
       }
+
       const payload = await this.verifyJwt(rawAccessToken);
       return { microsoftToken: rawAccessToken, payload };
     } catch (err) {
@@ -484,7 +503,7 @@ export class OAuthProvider {
 
               const secretKey = createSecretKey(service.secretKey);
 
-              const accessToken = encrypt(msalResponse.accessToken, secretKey);
+              const accessToken = encryptObject({ at: msalResponse.accessToken }, secretKey);
               const rawRefreshToken = await this.extractRefreshTokenFromCache(msalResponse);
               const refreshToken = rawRefreshToken ? encrypt(rawRefreshToken, secretKey) : null;
 
