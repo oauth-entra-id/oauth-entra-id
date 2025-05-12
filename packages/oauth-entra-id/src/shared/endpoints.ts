@@ -3,16 +3,16 @@ import { OAuthError } from '~/error';
 import type { Endpoints } from '~/types';
 import { setCookie } from './cookie-parser';
 
-export const sharedHandleAuthentication = async (req: Request, res: Response) => {
+export async function sharedHandleAuthentication(req: Request, res: Response) {
   const body = req.body as Endpoints['Authenticate'] | undefined;
   const params = body ? { loginPrompt: body.loginPrompt, email: body.email, frontendUrl: body.frontendUrl } : {};
 
   const { authUrl } = await req.oauthProvider.getAuthUrl(params);
 
   res.status(200).json({ url: authUrl });
-};
+}
 
-export const sharedHandleCallback = async (req: Request, res: Response) => {
+export async function sharedHandleCallback(req: Request, res: Response) {
   const body = req.body as Endpoints['Callback'] | undefined;
   if (!body) throw new OAuthError(400, { message: 'Invalid params', description: 'Body must contain code and state' });
 
@@ -24,9 +24,9 @@ export const sharedHandleCallback = async (req: Request, res: Response) => {
   setCookie(res, accessToken.name, accessToken.value, accessToken.options);
   if (refreshToken) setCookie(res, refreshToken.name, refreshToken.value, refreshToken.options);
   res.redirect(frontendUrl);
-};
+}
 
-export const sharedHandleLogout = (req: Request, res: Response) => {
+export async function sharedHandleLogout(req: Request, res: Response) {
   const body = req.body as Endpoints['Logout'] | undefined;
   const params = body ? { frontendUrl: body.frontendUrl } : {};
 
@@ -35,9 +35,9 @@ export const sharedHandleLogout = (req: Request, res: Response) => {
   setCookie(res, deleteAccessToken.name, deleteAccessToken.value, deleteAccessToken.options);
   setCookie(res, deleteRefreshToken.name, deleteRefreshToken.value, deleteRefreshToken.options);
   res.status(200).json({ url: logoutUrl });
-};
+}
 
-export const sharedHandleOnBehalfOf = async (req: Request, res: Response) => {
+export async function sharedHandleOnBehalfOf(req: Request, res: Response) {
   const body = req.body as Endpoints['OnBehalfOf'] | undefined;
   if (!body) throw new OAuthError(400, { message: 'Invalid params', description: 'Body must contain serviceNames' });
 
@@ -56,4 +56,4 @@ export const sharedHandleOnBehalfOf = async (req: Request, res: Response) => {
   }
 
   res.status(200).json({ tokensSet: results.length });
-};
+}

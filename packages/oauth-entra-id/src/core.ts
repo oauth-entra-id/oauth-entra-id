@@ -219,6 +219,13 @@ export class OAuthProvider {
     return userRefreshTokenKey ? (refreshTokenMap[userRefreshTokenKey].secret as string) : null;
   }
 
+  private async getTokens(msalResponse: msal.AuthenticationResult, secretKey?: KeyObject) {
+    const accessToken = encryptObject({ at: msalResponse.accessToken }, secretKey ?? this.secretKey);
+    const rawRefreshToken = await this.extractRefreshTokenFromCache(msalResponse);
+    const refreshToken = rawRefreshToken ? encrypt(rawRefreshToken, secretKey ?? this.secretKey) : null;
+    return { accessToken, refreshToken };
+  }
+
   /**
    * Handles authorization code exchange to return encrypted tokens and redirect metadata.
    *
@@ -255,9 +262,7 @@ export class OAuthProvider {
         ...state,
       });
 
-      const accessToken = encryptObject({ at: msalResponse.accessToken }, this.secretKey);
-      const rawRefreshToken = await this.extractRefreshTokenFromCache(msalResponse);
-      const refreshToken = rawRefreshToken ? encrypt(rawRefreshToken, this.secretKey) : null;
+      const { accessToken, refreshToken } = await this.getTokens(msalResponse);
 
       return {
         accessToken: { value: accessToken, ...this.defaultCookieOptions.accessToken },
@@ -426,16 +431,14 @@ export class OAuthProvider {
           description: 'Invalid Refresh Token',
         });
 
-      const newAccessToken = encrypt(msalResponse.accessToken, this.secretKey);
-      const newAccessTokenPayload = await this.verifyJwt(msalResponse.accessToken);
-      const newRawRefreshToken = await this.extractRefreshTokenFromCache(msalResponse);
-      const newRefreshToken = newRawRefreshToken ? encrypt(newRawRefreshToken, this.secretKey) : null;
+      const payload = await this.verifyJwt(msalResponse.accessToken);
+      const { accessToken, refreshToken } = await this.getTokens(msalResponse);
 
       return {
-        newAccessToken: { value: newAccessToken, ...this.defaultCookieOptions.accessToken },
-        newRefreshToken: newRefreshToken ? { value: newRefreshToken, ...this.defaultCookieOptions.refreshToken } : null,
+        newAccessToken: { value: accessToken, ...this.defaultCookieOptions.accessToken },
+        newRefreshToken: refreshToken ? { value: refreshToken, ...this.defaultCookieOptions.refreshToken } : null,
         msalResponse,
-        msal: { microsoftToken: msalResponse.accessToken, payload: newAccessTokenPayload },
+        msal: { microsoftToken: msalResponse.accessToken, payload },
       };
     } catch (err) {
       this.localDebug('getTokenByRefresh', `Error refreshing token: ${err}`);
@@ -496,16 +499,14 @@ export class OAuthProvider {
 
               const decodedAccessToken = jwt.decode(msalResponse.accessToken, { json: true });
               if (!decodedAccessToken) return null;
+
               const aud = decodedAccessToken.aud;
               if (typeof aud !== 'string') return null;
 
               this.localDebug('getTokenOnBehalfOf', `Service: ${service.serviceName}, Audience: ${aud}`);
 
               const secretKey = createSecretKey(service.secretKey);
-
-              const accessToken = encryptObject({ at: msalResponse.accessToken }, secretKey);
-              const rawRefreshToken = await this.extractRefreshTokenFromCache(msalResponse);
-              const refreshToken = rawRefreshToken ? encrypt(rawRefreshToken, secretKey) : null;
+              const { accessToken, refreshToken } = await this.getTokens(msalResponse, secretKey);
 
               const cookieOptions = getCookieOptions({
                 clientId: aud,
