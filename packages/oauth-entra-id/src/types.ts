@@ -7,7 +7,8 @@ export type ServerType = 'express' | 'nestjs';
 export type LoginPrompt = 'email' | 'select-account' | 'sso';
 export type TimeUnit = 'ms' | 'sec';
 type Primitive = string | number | boolean;
-export type InjectedData = Record<string, Primitive | Primitive[] | Record<string, Primitive | Primitive[]>>;
+// biome-ignore lint/suspicious/noExplicitAny: More choices
+export type InjectedData = Record<string, any>;
 
 /**
  * Configuration for On-Behalf-Of authentication with an external service.

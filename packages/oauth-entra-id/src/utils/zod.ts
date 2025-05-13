@@ -70,16 +70,9 @@ export const zAuthParams = z.object({
   codeVerifier: zStr.max(128),
 });
 
-const zPrimitives = z.union([z.string(), z.number(), z.boolean()]);
-
 export const zAccessTokenStructure = z.object({
   at: zJwt,
-  inj: z
-    .record(
-      zStr,
-      z.union([zPrimitives, z.array(zPrimitives), z.record(zStr, z.union([zPrimitives, z.array(zPrimitives)]))]),
-    )
-    .optional(),
+  inj: z.record(zStr, z.any()).optional(),
 });
 
 export const zMethods = {
