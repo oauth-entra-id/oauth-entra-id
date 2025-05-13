@@ -425,22 +425,20 @@ export class OAuthProvider {
     }
   }
 
-  injectData({ accessToken, data }: { accessToken: string; data: InjectedData }): Cookies['AccessToken'] {
+  injectData({ accessToken, data }: { accessToken: string; data: InjectedData }): Cookies['AccessToken'] | null {
     const { rawAccessToken, injectedData } = this.getRawAccessToken(accessToken);
     const { data: nextAccessToken, error: nextAccessTokenError } = zAccessTokenStructure.safeParse({
       at: rawAccessToken,
       inj: data,
     });
+
     if (nextAccessTokenError) {
-      throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid access token' });
+      return null;
     }
 
     const encryptedAccessToken = encryptObject(nextAccessToken, this.secretKey);
     if (encryptedAccessToken.length > 4096) {
-      throw new OAuthError(500, {
-        message: 'Internal server error',
-        description: 'Token size exceeds maximum allowed length',
-      });
+      return null;
     }
 
     return { value: encryptedAccessToken, ...this.defaultCookieOptions.accessToken };

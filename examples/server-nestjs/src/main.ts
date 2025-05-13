@@ -73,14 +73,14 @@ async function bootstrap() {
         onBehalfOfServices: [
           {
             serviceName: 'blue',
-            scope: env.BLUE_AZURE_CLIENT_SCOPE,
+            scope: env.BLUE_AZURE_CLIENT_EXPOSED_SCOPE,
             secretKey: env.BLUE_SECRET_KEY,
             isHttps: env.NODE_ENV !== 'development',
             isSameSite: env.NODE_ENV !== 'development',
           },
           {
             serviceName: 'yellow',
-            scope: env.YELLOW_AZURE_CLIENT_SCOPE,
+            scope: env.YELLOW_AZURE_CLIENT_EXPOSED_SCOPE,
             secretKey: env.YELLOW_SECRET_KEY,
             isHttps: env.NODE_ENV !== 'development',
             isSameSite: env.NODE_ENV !== 'development',
