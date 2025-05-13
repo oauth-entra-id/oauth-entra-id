@@ -418,7 +418,7 @@ export class OAuthProvider {
     }
   }
 
-  injectData({ accessToken, data }: { accessToken: string; data: InjectedData }) {
+  injectData({ accessToken, data }: { accessToken: string; data: InjectedData }): Cookies['AccessToken'] {
     const { rawAccessToken, injectedData } = this.getRawAccessToken(accessToken);
     const { data: nextAccessToken, error: nextAccessTokenError } = zAccessTokenStructure.safeParse({
       at: rawAccessToken,
@@ -436,7 +436,7 @@ export class OAuthProvider {
       });
     }
 
-    return encryptedAccessToken;
+    return { value: encryptedAccessToken, ...this.defaultCookieOptions.accessToken };
   }
 
   /**
