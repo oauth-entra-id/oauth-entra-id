@@ -1,3 +1,4 @@
+import type { AuthenticationResult } from '@azure/msal-node';
 import type { JwtPayload } from 'jsonwebtoken';
 import type { OAuthProvider } from './core';
 import type { ACCESS_TOKEN_NAME, REFRESH_TOKEN_NAME } from './utils/get-cookie-options';
@@ -103,6 +104,8 @@ export interface Endpoints {
     serviceNames: string[];
   };
 }
+
+export type MsalResponse = AuthenticationResult;
 
 declare global {
   namespace Express {

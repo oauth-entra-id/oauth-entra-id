@@ -1,10 +1,17 @@
 import type { KeyObject } from 'node:crypto';
 import * as msal from '@azure/msal-node';
-import type { AuthenticationResult, ConfidentialClientApplication, CryptoProvider } from '@azure/msal-node';
 import jwt from 'jsonwebtoken';
 import jwks from 'jwks-rsa';
 import { OAuthError } from './error';
-import type { Cookies, InjectedData, LoginPrompt, OAuthConfig, OAuthOptions, OnBehalfOfService } from './types';
+import type {
+  Cookies,
+  InjectedData,
+  LoginPrompt,
+  MsalResponse,
+  OAuthConfig,
+  OAuthOptions,
+  OnBehalfOfService,
+} from './types';
 import { createSecretKey, decrypt, decryptObject, encrypt, encryptObject } from './utils/crypto';
 import { debugLog } from './utils/debugLog';
 import { getCookieOptions } from './utils/get-cookie-options';
@@ -45,8 +52,8 @@ export class OAuthProvider {
   private readonly defaultCookieOptions: Cookies['DefaultCookieOptions'];
   private readonly onBehalfOfServices: Map<string, OnBehalfOfService> | undefined;
   readonly options: OAuthOptions;
-  private readonly cca: ConfidentialClientApplication;
-  private readonly msalCryptoProvider: CryptoProvider;
+  private readonly cca: msal.ConfidentialClientApplication;
+  private readonly msalCryptoProvider: msal.CryptoProvider;
   private readonly jwksClient: jwks.JwksClient;
 
   /**
@@ -219,7 +226,7 @@ export class OAuthProvider {
     }
   }
 
-  private async extractRefreshTokenFromCache(msalResponse: msal.AuthenticationResult) {
+  private async extractRefreshTokenFromCache(msalResponse: MsalResponse) {
     const tokenCache = this.cca.getTokenCache();
     const refreshTokenMap = JSON.parse(tokenCache.serialize()).RefreshToken;
     const userRefreshTokenKey = Object.keys(refreshTokenMap).find((key) => key.startsWith(msalResponse.uniqueId));
@@ -227,7 +234,7 @@ export class OAuthProvider {
     return userRefreshTokenKey ? (refreshTokenMap[userRefreshTokenKey].secret as string) : null;
   }
 
-  private async getTokens(msalResponse: msal.AuthenticationResult, secretKey?: KeyObject) {
+  private async getTokens(msalResponse: MsalResponse, secretKey?: KeyObject) {
     const accessToken = encryptObject({ at: msalResponse.accessToken }, secretKey ?? this.secretKey);
     const rawRefreshToken = await this.extractRefreshTokenFromCache(msalResponse);
     const refreshToken = rawRefreshToken ? encrypt(rawRefreshToken, secretKey ?? this.secretKey) : null;
@@ -251,7 +258,7 @@ export class OAuthProvider {
     accessToken: Cookies['AccessToken'];
     refreshToken: Cookies['RefreshToken'] | null;
     frontendUrl: string;
-    msalResponse: AuthenticationResult;
+    msalResponse: MsalResponse;
   }> {
     const { data: parsedParams, error: paramsError } = zMethods.getTokenByCode.safeParse(params);
     if (paramsError) {
@@ -449,7 +456,7 @@ export class OAuthProvider {
   async getTokenByRefresh(refreshToken: string): Promise<{
     newAccessToken: Cookies['AccessToken'];
     newRefreshToken: Cookies['RefreshToken'] | null;
-    msalResponse: AuthenticationResult;
+    msalResponse: MsalResponse;
     msal: { microsoftToken: string; payload: jwt.JwtPayload };
   } | null> {
     const { data: parsedRefreshToken, error: refreshTokenError } = zEncrypted.safeParse(refreshToken);
@@ -498,7 +505,7 @@ export class OAuthProvider {
     {
       accessToken: Cookies['AccessToken'];
       refreshToken: Cookies['RefreshToken'] | null;
-      msalResponse: AuthenticationResult;
+      msalResponse: MsalResponse;
     }[]
   > {
     if (!this.onBehalfOfServices) {
