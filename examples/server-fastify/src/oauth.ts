@@ -12,21 +12,21 @@ export const oauthProvider = new OAuthProvider({
   frontendUrl: env.REACT_FRONTEND_URL,
   secretKey: env.RED_SECRET_KEY,
   advanced: {
-    onBehalfOfServices: [
-      {
-        serviceName: 'blue',
-        scope: env.BLUE_AZURE_EXPOSED_SCOPE,
-        secretKey: env.BLUE_SECRET_KEY,
-        isHttps: env.NODE_ENV !== 'development',
-        isSameSite: env.NODE_ENV !== 'development',
-      },
-      {
-        serviceName: 'yellow',
-        scope: env.YELLOW_AZURE_EXPOSED_SCOPE,
-        secretKey: env.YELLOW_SECRET_KEY,
-        isHttps: env.NODE_ENV !== 'development',
-        isSameSite: env.NODE_ENV !== 'development',
-      },
-    ],
+    onBehalfOf: {
+      isHttps: env.NODE_ENV !== 'development',
+      isSameSite: env.NODE_ENV !== 'development',
+      services: [
+        {
+          serviceName: 'blue',
+          scope: env.BLUE_AZURE_EXPOSED_SCOPE,
+          secretKey: env.BLUE_SECRET_KEY,
+        },
+        {
+          serviceName: 'yellow',
+          scope: env.YELLOW_AZURE_EXPOSED_SCOPE,
+          secretKey: env.YELLOW_SECRET_KEY,
+        },
+      ],
+    },
   },
 });

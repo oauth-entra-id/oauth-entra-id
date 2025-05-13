@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import { OAuthError } from '~/error';
-import type { Endpoints } from '~/types';
 import { setCookie } from './cookie-parser';
+import type { Endpoints } from './types';
 
 export async function sharedHandleAuthentication(req: Request, res: Response) {
   const body = req.body as Endpoints['Authenticate'] | undefined;

@@ -9,7 +9,7 @@ import type {
   LoginPrompt,
   MsalResponse,
   OAuthConfig,
-  OAuthOptions,
+  OAuthSettings,
   OnBehalfOfService,
 } from './types';
 import { createSecretKey, decrypt, decryptObject, encrypt, encryptObject } from './utils/crypto';
@@ -51,7 +51,7 @@ export class OAuthProvider {
   private readonly loginPrompt: LoginPrompt;
   private readonly defaultCookieOptions: Cookies['DefaultCookieOptions'];
   private readonly onBehalfOfServices: Map<string, OnBehalfOfService> | undefined;
-  readonly options: OAuthOptions;
+  readonly settings: OAuthSettings;
   private readonly cca: msal.ConfidentialClientApplication;
   private readonly msalCryptoProvider: msal.CryptoProvider;
   private readonly jwksClient: jwks.JwksClient;
@@ -77,12 +77,21 @@ export class OAuthProvider {
     const isHttps =
       !advanced.cookies.disableHttps && [serverHost, ...frontHosts].every((url) => url.startsWith('https'));
     const isSameSite = !advanced.cookies.disableSameSite && frontHosts.size === 1 ? frontHosts.has(serverHost) : false;
-    const onBehalfOfServices = advanced.onBehalfOfServices
-      ? new Map(advanced.onBehalfOfServices.map((service) => [service.serviceName, service]))
+    const onBehalfOfServices = advanced.onBehalfOf
+      ? new Map(
+          advanced.onBehalfOf.services.map((service) => [
+            service.serviceName,
+            {
+              ...service,
+              isHttps: service.isHttps ?? (advanced.onBehalfOf?.isHttps as boolean),
+              isSameSite: service.isSameSite ?? (advanced.onBehalfOf?.isSameSite as boolean),
+            },
+          ]),
+        )
       : undefined;
     const serviceNames = onBehalfOfServices ? Array.from(onBehalfOfServices.keys()) : undefined;
 
-    if (serviceNames && advanced.onBehalfOfServices && serviceNames.length !== advanced.onBehalfOfServices.length) {
+    if (serviceNames && advanced.onBehalfOf && serviceNames.length !== advanced.onBehalfOf.services.length) {
       throw new OAuthError(500, { message: 'Invalid OAuthProvider config', description: 'Duplicate services found' });
     }
 
@@ -130,7 +139,7 @@ export class OAuthProvider {
     this.loginPrompt = advanced.loginPrompt;
     this.defaultCookieOptions = defaultCookieOptions;
     this.onBehalfOfServices = onBehalfOfServices;
-    this.options = options;
+    this.settings = options;
     this.cca = cca;
     this.msalCryptoProvider = new msal.CryptoProvider();
     this.jwksClient = jwksClient;
@@ -151,7 +160,7 @@ export class OAuthProvider {
       | 'verifyJwt',
     message: string,
   ) {
-    debugLog({ condition: this.options.debug, funcName: `OAuthProvider.${methodName}`, message });
+    debugLog({ condition: this.settings.debug, funcName: `OAuthProvider.${methodName}`, message });
   }
 
   /**
@@ -565,11 +574,11 @@ export class OAuthProvider {
 
               const cookieOptions = getCookieOptions({
                 clientId: aud,
-                isHttps: service.isHttps,
-                isSameSite: service.isSameSite,
-                cookiesTimeUnit: this.options.cookiesTimeUnit,
-                accessTokenCookieExpiry: service.accessTokenExpiry ?? this.options.accessTokenCookieExpiry,
-                refreshTokenCookieExpiry: service.refreshTokenExpiry ?? this.options.refreshTokenCookieExpiry,
+                isHttps: service.isHttps as boolean,
+                isSameSite: service.isSameSite as boolean,
+                cookiesTimeUnit: this.settings.cookiesTimeUnit,
+                accessTokenCookieExpiry: service.accessTokenExpiry ?? this.settings.accessTokenCookieExpiry,
+                refreshTokenCookieExpiry: service.refreshTokenExpiry ?? this.settings.refreshTokenCookieExpiry,
               });
 
               return {

@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import { OAuthError } from '~/error';
-import type { CookieParserOptions } from '~/types';
 import { cookieNameRegex, cookieValueRegex } from '~/utils/regex';
+import type { CookieParserOptions } from './types';
 
 export function getCookie(req: Request, name: string): string | undefined {
   const cookies = req.get('cookie');

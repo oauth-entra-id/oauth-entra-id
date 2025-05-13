@@ -32,8 +32,8 @@ const zOnBehalfOfService = z.object({
   serviceName: zStr.min(1).max(64),
   scope: zStr.min(3).max(128),
   secretKey: zStr.min(16).max(64),
-  isHttps: z.boolean(),
-  isSameSite: z.boolean(),
+  isHttps: z.boolean().optional(),
+  isSameSite: z.boolean().optional(),
   accessTokenExpiry: z.number().positive().default(3600),
   refreshTokenExpiry: z.number().min(3600).default(2592000),
 });
@@ -43,7 +43,13 @@ const zAdvanced = z.object({
   allowOtherSystems: z.boolean().default(false),
   debug: z.boolean().default(false),
   cookies: zCookieConfig.default({}),
-  onBehalfOfServices: z.array(zOnBehalfOfService).min(1).optional(),
+  onBehalfOf: z
+    .object({
+      isHttps: z.boolean(),
+      isSameSite: z.boolean(),
+      services: z.array(zOnBehalfOfService).min(1),
+    })
+    .optional(),
 });
 
 export const zConfig = z.object({

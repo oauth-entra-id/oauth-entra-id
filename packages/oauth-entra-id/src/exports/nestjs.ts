@@ -1,4 +1,4 @@
-import '~/types';
+import '~/shared/types';
 import type { NextFunction, Request, Response } from 'express';
 import { OAuthProvider } from '~/core';
 import { OAuthError } from '~/error';

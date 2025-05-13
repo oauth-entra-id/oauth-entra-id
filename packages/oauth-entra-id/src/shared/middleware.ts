@@ -57,7 +57,7 @@ async function checkAuthorizationToken({
   bearerAccessToken: string | undefined;
   oauthProvider: OAuthProvider;
 }) {
-  if (oauthProvider.options.areOtherSystemsAllowed) {
+  if (oauthProvider.settings.areOtherSystemsAllowed) {
     if (!bearerAccessToken) {
       throw new OAuthError(401, { message: 'Unauthorized', description: 'No access token' });
     }
@@ -144,7 +144,7 @@ function getUserInfo({
 function getLocalDebug(req: Request) {
   return (message: string) =>
     debugLog({
-      condition: req.oauthProvider.options.debug,
+      condition: req.oauthProvider.settings.debug,
       funcName: req.serverType === 'express' ? 'protectRoute' : 'isAuthenticated',
       message,
     });

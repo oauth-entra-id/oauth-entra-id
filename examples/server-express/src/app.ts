@@ -94,22 +94,22 @@ export default function createApp(): Application {
       serverCallbackUrl: `${env.SERVER_URL}/auth/callback`,
       secretKey: env.YELLOW_SECRET_KEY,
       advanced: {
-        onBehalfOfServices: [
-          {
-            serviceName: 'blue',
-            scope: env.BLUE_AZURE_EXPOSED_SCOPE,
-            secretKey: env.BLUE_SECRET_KEY,
-            isHttps: env.NODE_ENV !== 'development',
-            isSameSite: env.NODE_ENV !== 'development',
-          },
-          {
-            serviceName: 'red',
-            scope: env.RED_AZURE_EXPOSED_SCOPE,
-            secretKey: env.RED_SECRET_KEY,
-            isHttps: env.NODE_ENV !== 'development',
-            isSameSite: env.NODE_ENV !== 'development',
-          },
-        ],
+        onBehalfOf: {
+          isHttps: env.NODE_ENV !== 'development',
+          isSameSite: env.NODE_ENV !== 'development',
+          services: [
+            {
+              serviceName: 'blue',
+              scope: env.BLUE_AZURE_EXPOSED_SCOPE,
+              secretKey: env.BLUE_SECRET_KEY,
+            },
+            {
+              serviceName: 'red',
+              scope: env.RED_AZURE_EXPOSED_SCOPE,
+              secretKey: env.RED_SECRET_KEY,
+            },
+          ],
+        },
       },
     }),
   );
