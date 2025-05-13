@@ -6,7 +6,9 @@ import type { ACCESS_TOKEN_NAME, REFRESH_TOKEN_NAME } from './utils/get-cookie-o
 export type ServerType = 'express' | 'nestjs';
 export type LoginPrompt = 'email' | 'select-account' | 'sso';
 export type TimeUnit = 'ms' | 'sec';
-export type InjectedData = Record<string, string | number | boolean>;
+type Primitive = string | number | boolean;
+export type InjectedData = Record<string, Primitive | Primitive[] | Record<string, Primitive | Primitive[]>>;
+
 /**
  * Configuration for On-Behalf-Of authentication with an external service.
  */

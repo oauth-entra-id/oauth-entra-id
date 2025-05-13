@@ -1,4 +1,4 @@
-import { type ZodError, z } from 'zod';
+import { type ZodError, string, z } from 'zod';
 import { base64urlWithDotRegex, encryptedRegex, jwtOrEncryptedRegex, jwtRegex } from './regex';
 
 export const prettifyError = (error: ZodError) =>
@@ -70,9 +70,16 @@ export const zAuthParams = z.object({
   codeVerifier: zStr.max(128),
 });
 
+const zPrimitives = z.union([z.string(), z.number(), z.boolean()]);
+
 export const zAccessTokenStructure = z.object({
   at: zJwt,
-  inj: z.record(zStr, z.union([zStr, z.number(), z.boolean()])).optional(),
+  inj: z
+    .record(
+      zStr,
+      z.union([zPrimitives, z.array(zPrimitives), z.record(zStr, z.union([zPrimitives, z.array(zPrimitives)]))]),
+    )
+    .optional(),
 });
 
 export const zMethods = {
