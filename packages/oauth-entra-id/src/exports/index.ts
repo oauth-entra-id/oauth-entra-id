@@ -1,3 +1,3 @@
 export * from '~/core';
-export type { OAuthConfig } from '~/types';
+export type { OAuthConfig, MsalResponse } from '~/types';
 export { OAuthError } from '~/error';
