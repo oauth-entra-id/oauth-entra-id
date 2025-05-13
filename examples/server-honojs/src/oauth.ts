@@ -5,7 +5,7 @@ export const oauthProvider = new OAuthProvider({
   azure: {
     clientId: env.BLUE_AZURE_CLIENT_ID,
     tenantId: env.BLUE_AZURE_TENANT_ID,
-    scopes: [env.BLUE_AZURE_CLIENT_SCOPE],
+    scopes: [env.BLUE_AZURE_CUSTOM_SCOPE],
     clientSecret: env.BLUE_AZURE_CLIENT_SECRET,
   },
   frontendUrl: env.REACT_FRONTEND_URL,
@@ -15,14 +15,14 @@ export const oauthProvider = new OAuthProvider({
     onBehalfOfServices: [
       {
         serviceName: 'red',
-        scope: env.RED_AZURE_CLIENT_EXPOSED_SCOPE,
+        scope: env.RED_AZURE_EXPOSED_SCOPE,
         secretKey: env.RED_SECRET_KEY,
         isHttps: env.NODE_ENV !== 'development',
         isSameSite: env.NODE_ENV !== 'development',
       },
       {
         serviceName: 'yellow',
-        scope: env.YELLOW_AZURE_CLIENT_EXPOSED_SCOPE,
+        scope: env.YELLOW_AZURE_EXPOSED_SCOPE,
         secretKey: env.YELLOW_SECRET_KEY,
         isHttps: env.NODE_ENV !== 'development',
         isSameSite: env.NODE_ENV !== 'development',

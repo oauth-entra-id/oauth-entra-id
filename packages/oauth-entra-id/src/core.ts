@@ -492,6 +492,15 @@ export class OAuthProvider {
     }
   }
 
+  async getB2BToken(scope: string): Promise<MsalResponse> {
+    const msalResponse = await this.cca.acquireTokenByClientCredential({ scopes: [scope], skipCache: true });
+    if (!msalResponse) {
+      throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid B2B Token' });
+    }
+    // MSAL caches the access token
+    return msalResponse;
+  }
+
   /**
    * Acquires tokens for trusted downstream services via the On-Behalf-Of (OBO) flow.
    *

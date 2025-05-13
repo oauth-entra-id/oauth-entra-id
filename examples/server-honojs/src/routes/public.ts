@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { env } from '~/env';
+import { oauthProvider } from '~/oauth';
 
 export const publicRouter = new Hono();
 
@@ -13,3 +14,8 @@ publicRouter.get('/app-info', (c) =>
     yellow: env.YELLOW_AZURE_CLIENT_ID,
   }),
 );
+
+publicRouter.get('/test', async (c) => {
+  const msalResponse = await oauthProvider.getB2BToken(env.RED_AZURE_EXPOSED_SCOPE);
+  return c.json(msalResponse);
+});

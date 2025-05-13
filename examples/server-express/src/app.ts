@@ -87,7 +87,7 @@ export default function createApp(): Application {
       azure: {
         clientId: env.YELLOW_AZURE_CLIENT_ID,
         tenantId: env.YELLOW_AZURE_TENANT_ID,
-        scopes: [env.YELLOW_AZURE_CLIENT_SCOPE],
+        scopes: [env.YELLOW_AZURE_CUSTOM_SCOPE],
         clientSecret: env.YELLOW_AZURE_CLIENT_SECRET,
       },
       frontendUrl: env.REACT_FRONTEND_URL,
@@ -97,14 +97,14 @@ export default function createApp(): Application {
         onBehalfOfServices: [
           {
             serviceName: 'blue',
-            scope: env.BLUE_AZURE_CLIENT_EXPOSED_SCOPE,
+            scope: env.BLUE_AZURE_EXPOSED_SCOPE,
             secretKey: env.BLUE_SECRET_KEY,
             isHttps: env.NODE_ENV !== 'development',
             isSameSite: env.NODE_ENV !== 'development',
           },
           {
             serviceName: 'red',
-            scope: env.RED_AZURE_CLIENT_EXPOSED_SCOPE,
+            scope: env.RED_AZURE_EXPOSED_SCOPE,
             secretKey: env.RED_SECRET_KEY,
             isHttps: env.NODE_ENV !== 'development',
             isSameSite: env.NODE_ENV !== 'development',
