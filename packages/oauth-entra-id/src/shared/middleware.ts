@@ -4,8 +4,12 @@ import { OAuthError } from '~/error';
 import type { InjectedData } from '~/types';
 import { debugLog } from '~/utils/debugLog';
 import { getCookie, setCookie } from './cookie-parser';
+import type { InjectDataFunction, UserInfo } from './types';
 
-export async function sharedIsAuthenticated(req: Request, res: Response) {
+export async function sharedIsAuthenticated(
+  req: Request,
+  res: Response,
+): Promise<{ userInfo: UserInfo; injectData: InjectDataFunction }> {
   const localDebug = (message: string) => {
     debugLog({
       condition: req.oauthProvider.settings.debug,
@@ -30,9 +34,15 @@ export async function sharedIsAuthenticated(req: Request, res: Response) {
       throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid access token' });
     }
 
+    const userInfo = getUserInfo({ payload: bearerInfo.microsoftInfo.accessTokenPayload, isB2B: bearerInfo.isB2B });
+
     req.microsoftInfo = bearerInfo.microsoftInfo;
-    req.userInfo = getUserInfo({ payload: bearerInfo.microsoftInfo.accessTokenPayload, isB2B: bearerInfo.isB2B });
-    return true;
+    req.userInfo = userInfo;
+    return {
+      userInfo,
+      injectData: (data) =>
+        bearerInfo.isB2B ? null : oauthProvider.injectData({ accessToken: bearerAccessToken, data }),
+    };
   }
 
   const { accessTokenName, refreshTokenName } = oauthProvider.getCookieNames();
@@ -47,12 +57,17 @@ export async function sharedIsAuthenticated(req: Request, res: Response) {
   if (cookieAccessToken) {
     const tokenInfo = await oauthProvider.verifyAccessToken(cookieAccessToken);
     if (tokenInfo) {
-      req.microsoftInfo = tokenInfo.microsoftInfo;
-      req.userInfo = getUserInfo({
+      const userInfo = getUserInfo({
         payload: tokenInfo.microsoftInfo.accessTokenPayload,
         injectedData: tokenInfo.injectedData,
       });
-      return true;
+
+      req.microsoftInfo = tokenInfo.microsoftInfo;
+      req.userInfo = userInfo;
+      return {
+        userInfo,
+        injectData: (data) => oauthProvider.injectData({ accessToken: cookieAccessToken, data }),
+      };
     }
   }
 
@@ -70,9 +85,13 @@ export async function sharedIsAuthenticated(req: Request, res: Response) {
   setCookie(res, newAccessToken.name, newAccessToken.value, newAccessToken.options);
   if (newRefreshToken) setCookie(res, newRefreshToken.name, newRefreshToken.value, newRefreshToken.options);
 
+  const userInfo = getUserInfo({ payload: microsoftInfo.accessTokenPayload, isB2B: false });
   req.microsoftInfo = microsoftInfo;
-  req.userInfo = getUserInfo({ payload: microsoftInfo.accessTokenPayload, isB2B: false });
-  return true;
+  req.userInfo = userInfo;
+  return {
+    userInfo,
+    injectData: (data) => oauthProvider.injectData({ accessToken: newAccessToken.value, data }),
+  };
 }
 
 function getUserInfo({

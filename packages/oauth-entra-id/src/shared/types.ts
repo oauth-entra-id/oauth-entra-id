@@ -1,8 +1,27 @@
 import type { JwtPayload } from 'jsonwebtoken';
 import type { OAuthProvider } from '~/core';
-import type { InjectedData } from '~/types';
+import type { Cookies, InjectedData } from '~/types';
 
 export type ServerType = 'express' | 'nestjs';
+export type UserInfo =
+  | {
+      isB2B: false;
+      uniqueId: string;
+      roles: string[];
+      name: string;
+      email: string;
+      injectedData?: InjectedData;
+    }
+  | { isB2B: true; uniqueId: string; roles: string[]; appId: string };
+
+export type InjectDataFunction = <TValues, TData extends Record<string, TValues>>(
+  data: TData,
+) => { newAccessToken: Cookies['AccessToken'] } | null;
+
+export type CallbackFunction = (params: {
+  userInfo: UserInfo;
+  injectData: InjectDataFunction;
+}) => void | Promise<void>;
 
 export interface Endpoints {
   Authenticate: {
@@ -53,16 +72,7 @@ declare global {
        * - If `isB2B` is `false`, the user is authenticated locally.
        * - If `isB2B` is `true`, the token was issued by another service.
        */
-      userInfo?:
-        | {
-            isB2B: false;
-            uniqueId: string;
-            roles: string[];
-            name: string;
-            email: string;
-            injectedData?: InjectedData;
-          }
-        | { isB2B: true; uniqueId: string; roles: string[]; appId: string };
+      userInfo?: UserInfo;
     }
   }
 }

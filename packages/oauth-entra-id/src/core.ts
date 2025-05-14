@@ -106,9 +106,9 @@ export class OAuthProvider {
       refreshTokenCookieExpiry: advanced.cookies.refreshTokenExpiry,
     });
 
-    const options = {
+    const settings = {
       sessionType: advanced.sessionType,
-      isB2BEnabled: advanced.enableB2b,
+      isB2BEnabled: advanced.allowB2B,
       isHttps,
       isSameSite,
       cookiesTimeUnit: advanced.cookies.timeUnit,
@@ -142,7 +142,7 @@ export class OAuthProvider {
     this.loginPrompt = advanced.loginPrompt;
     this.defaultCookieOptions = defaultCookieOptions;
     this.onBehalfOfServices = onBehalfOfServices;
-    this.settings = options;
+    this.settings = settings;
     this.cca = cca;
     this.msalCryptoProvider = new msal.CryptoProvider();
     this.jwksClient = jwksClient;
@@ -451,8 +451,8 @@ export class OAuthProvider {
   injectData<TValues, TData extends Record<string, TValues>>({
     accessToken,
     data,
-  }: { accessToken: string; data: TData }): Cookies['AccessToken'] | null {
-    const { rawAccessToken, injectedData } = this.getRawAccessToken(accessToken);
+  }: { accessToken: string; data: TData }): { newAccessToken: Cookies['AccessToken'] } | null {
+    const { rawAccessToken, injectedData, wasEncrypted } = this.getRawAccessToken(accessToken);
     const { data: nextAccessToken, error: nextAccessTokenError } = zAccessTokenStructure.safeParse({
       at: rawAccessToken,
       inj: data,
@@ -469,7 +469,7 @@ export class OAuthProvider {
       return null;
     }
 
-    return { value: encryptedAccessToken, ...this.defaultCookieOptions.accessToken };
+    return { newAccessToken: { value: encryptedAccessToken, ...this.defaultCookieOptions.accessToken } };
   }
 
   /**
@@ -520,8 +520,7 @@ export class OAuthProvider {
     }
   }
 
-  //TODO: return only the access token
-  async getB2BToken(scope: string): Promise<MsalResponse> {
+  async getB2BToken(scope: string): Promise<{ b2bAccessToken: string; msalResponse: MsalResponse }> {
     const { data: parsedScope, error: scopeError } = zScope.safeParse(scope);
     if (scopeError) {
       throw new OAuthError(400, { message: 'Invalid params', description: prettifyError(scopeError) });
@@ -533,7 +532,7 @@ export class OAuthProvider {
     }
 
     //TODO: remove or use the cache that MSAL creates
-    return msalResponse;
+    return { b2bAccessToken: msalResponse.accessToken, msalResponse };
   }
 
   /**

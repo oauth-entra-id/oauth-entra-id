@@ -8,4 +8,4 @@ export const routesRouter: Router = express.Router();
 
 routesRouter.use('/', publicRouter);
 routesRouter.use('/auth', authRouter);
-routesRouter.use('/protected', protectRoute, protectedRouter);
+routesRouter.use('/protected', protectRoute(), protectedRouter);

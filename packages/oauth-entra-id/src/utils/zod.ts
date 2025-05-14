@@ -44,7 +44,7 @@ const zOnBehalfOfService = z.object({
 const zAdvanced = z.object({
   loginPrompt: zLoginPrompt.default('sso'),
   sessionType: zSessionType.default('cookie-session'),
-  enableB2b: z.boolean().default(false),
+  allowB2B: z.boolean().default(false),
   debug: z.boolean().default(false),
   cookies: zCookieConfig.default({}),
   onBehalfOf: z

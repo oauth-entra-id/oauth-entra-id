@@ -56,7 +56,7 @@ export interface OAuthConfig {
     /** Session type for verifying user identity. */
     sessionType?: SessionType;
     /** Allow tokens issued by other trusted systems. */
-    enableB2b?: boolean;
+    allowB2B?: boolean;
     /** Enable debug logging for internal flow. */
     debug?: boolean;
     /** Cookie behavior and expiration settings. */

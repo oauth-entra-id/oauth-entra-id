@@ -9,6 +9,7 @@ import {
   sharedHandleOnBehalfOf,
 } from '~/shared/endpoints';
 import { sharedIsAuthenticated } from '~/shared/middleware';
+import type { CallbackFunction } from '~/shared/types';
 import type { OAuthConfig } from '~/types';
 
 const ERROR_MESSAGE = 'Make sure you used NestJS export and you used authConfig';
@@ -137,10 +138,12 @@ export function handleOnBehalfOf(req: Request, res: Response) {
  * @returns `true` if authentication succeeded, otherwise throws an `OAuthError`.
  * @throws {OAuthError} If authentication fails.
  */
-export async function isAuthenticated(req: Request, res: Response) {
+export async function isAuthenticated(req: Request, res: Response, cb?: CallbackFunction) {
   try {
     if (!req.oauthProvider || req.serverType !== 'nestjs') throw new OAuthError(500, ERROR_MESSAGE);
-    return await sharedIsAuthenticated(req, res);
+    const { userInfo, injectData } = await sharedIsAuthenticated(req, res);
+    if (cb) await cb({ userInfo, injectData });
+    return true;
   } catch (err) {
     if (err instanceof OAuthError) throw err;
     if (err instanceof Error) throw new OAuthError(500, err.message);

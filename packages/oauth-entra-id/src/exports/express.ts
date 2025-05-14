@@ -9,6 +9,7 @@ import {
   sharedHandleOnBehalfOf,
 } from '~/shared/endpoints';
 import { sharedIsAuthenticated } from '~/shared/middleware';
+import type { CallbackFunction } from '~/shared/types';
 import type { OAuthConfig } from '~/types';
 
 const ERROR_MESSAGE = 'Make sure you used Express export and you used authConfig';
@@ -128,17 +129,15 @@ export function handleOnBehalfOf(req: Request, res: Response, next: NextFunction
  *
  * @throws {OAuthError} If authentication fails, an error is passed to the `next` function.
  */
-
-export async function protectRoute(req: Request, res: Response, next: NextFunction) {
-  try {
-    if (!req.oauthProvider || req.serverType !== 'express') throw new OAuthError(500, ERROR_MESSAGE);
-    const isAuth = await sharedIsAuthenticated(req, res);
-    if (isAuth) {
+export function protectRoute(cb?: CallbackFunction) {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.oauthProvider || req.serverType !== 'express') throw new OAuthError(500, ERROR_MESSAGE);
+      const { userInfo, injectData } = await sharedIsAuthenticated(req, res);
       next();
-      return;
+      if (cb) await cb({ userInfo, injectData });
+    } catch (err) {
+      next(err);
     }
-    throw new OAuthError(401, 'Unauthorized');
-  } catch (err) {
-    next(err);
-  }
+  };
 }
