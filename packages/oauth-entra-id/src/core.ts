@@ -451,8 +451,8 @@ export class OAuthProvider {
   injectData<TValues, TData extends Record<string, TValues>>({
     accessToken,
     data,
-  }: { accessToken: string; data: TData }): { newAccessToken: Cookies['AccessToken'] } | null {
-    const { rawAccessToken, injectedData, wasEncrypted } = this.getRawAccessToken(accessToken);
+  }: { accessToken: string; data: TData }): Cookies['AccessToken'] | null {
+    const { rawAccessToken } = this.getRawAccessToken(accessToken);
     const { data: nextAccessToken, error: nextAccessTokenError } = zAccessTokenStructure.safeParse({
       at: rawAccessToken,
       inj: data,
@@ -469,7 +469,7 @@ export class OAuthProvider {
       return null;
     }
 
-    return { newAccessToken: { value: encryptedAccessToken, ...this.defaultCookieOptions.accessToken } };
+    return { value: encryptedAccessToken, ...this.defaultCookieOptions.accessToken };
   }
 
   /**

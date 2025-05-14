@@ -20,6 +20,12 @@ export async function sharedIsAuthenticated(
 
   const oauthProvider = req.oauthProvider;
 
+  const InjectDataFunction = (accessToken: string, data: InjectedData) => {
+    const newAccessToken = oauthProvider.injectData({ accessToken, data });
+    if (newAccessToken) setCookie(res, newAccessToken.name, newAccessToken.value, newAccessToken.options);
+    if (req.userInfo?.isB2B === false) req.userInfo = { ...req.userInfo, injectedData: data };
+  };
+
   if (oauthProvider.settings.isB2BEnabled || oauthProvider.settings.sessionType === 'bearer-token') {
     const bearerAccessToken = req.headers.authorization?.startsWith('Bearer ')
       ? req.headers.authorization.split(' ')[1]
@@ -40,8 +46,7 @@ export async function sharedIsAuthenticated(
     req.userInfo = userInfo;
     return {
       userInfo,
-      injectData: (data) =>
-        bearerInfo.isB2B ? null : oauthProvider.injectData({ accessToken: bearerAccessToken, data }),
+      injectData: (data) => (bearerInfo.isB2B ? null : InjectDataFunction(bearerAccessToken, data)),
     };
   }
 
@@ -66,7 +71,7 @@ export async function sharedIsAuthenticated(
       req.userInfo = userInfo;
       return {
         userInfo,
-        injectData: (data) => oauthProvider.injectData({ accessToken: cookieAccessToken, data }),
+        injectData: (data) => InjectDataFunction(cookieAccessToken, data),
       };
     }
   }
@@ -90,7 +95,7 @@ export async function sharedIsAuthenticated(
   req.userInfo = userInfo;
   return {
     userInfo,
-    injectData: (data) => oauthProvider.injectData({ accessToken: newAccessToken.value, data }),
+    injectData: (data) => InjectDataFunction(newAccessToken.value, data),
   };
 }
 

@@ -1,6 +1,6 @@
 import type { JwtPayload } from 'jsonwebtoken';
 import type { OAuthProvider } from '~/core';
-import type { Cookies, InjectedData } from '~/types';
+import type { InjectedData } from '~/types';
 
 export type ServerType = 'express' | 'nestjs';
 export type UserInfo =
@@ -14,9 +14,7 @@ export type UserInfo =
     }
   | { isB2B: true; uniqueId: string; roles: string[]; appId: string };
 
-export type InjectDataFunction = <TValues, TData extends Record<string, TValues>>(
-  data: TData,
-) => { newAccessToken: Cookies['AccessToken'] } | null;
+export type InjectDataFunction = (data: InjectedData) => void;
 
 export type CallbackFunction = (params: {
   userInfo: UserInfo;
