@@ -16,13 +16,13 @@ export const protectedRouter = new Hono<ProtectRoute>();
 protectedRouter.use(protectRoute);
 
 protectedRouter.get('/user-info', (c) => {
-  return c.json({ user: c.var.userInfo });
+  return c.json({ user: c.get('userInfo') });
 });
 
 protectedRouter.post('/on-behalf-of', zValidator('json', zSchemas.onBehalfOf), async (c) => {
   const { serviceNames } = c.req.valid('json');
   const results = await oauthProvider.getTokenOnBehalfOf({
-    accessToken: c.var.msal.microsoftToken,
+    accessToken: c.get('microsoftInfo').rawAccessToken,
     serviceNames,
   });
   for (const result of results) {

@@ -41,13 +41,13 @@ export async function sharedHandleOnBehalfOf(req: Request, res: Response) {
   const body = req.body as Endpoints['OnBehalfOf'] | undefined;
   if (!body) throw new OAuthError(400, { message: 'Invalid params', description: 'Body must contain serviceNames' });
 
-  if (!req.msal?.microsoftToken) {
+  if (!req.microsoftInfo?.rawAccessToken) {
     throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid access token' });
   }
 
   const results = await req.oauthProvider.getTokenOnBehalfOf({
     serviceNames: body.serviceNames,
-    accessToken: req.msal.microsoftToken,
+    accessToken: req.microsoftInfo.rawAccessToken,
   });
 
   for (const { accessToken, refreshToken } of results) {

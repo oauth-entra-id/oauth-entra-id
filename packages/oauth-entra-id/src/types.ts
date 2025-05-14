@@ -1,8 +1,10 @@
 import type { AuthenticationResult } from '@azure/msal-node';
+import type { OAuthProvider } from './core';
 import type { ACCESS_TOKEN_NAME, REFRESH_TOKEN_NAME } from './utils/get-cookie-options';
 
 export type LoginPrompt = 'email' | 'select-account' | 'sso';
 export type TimeUnit = 'ms' | 'sec';
+export type SessionType = 'cookie-session' | 'bearer-token';
 
 // biome-ignore lint/suspicious/noExplicitAny: More choices
 export type InjectedData = Record<string, any>;
@@ -51,8 +53,10 @@ export interface OAuthConfig {
   advanced?: {
     /** Login prompt behavior during user authentication. */
     loginPrompt?: LoginPrompt;
+    /** Session type for verifying user identity. */
+    sessionType?: SessionType;
     /** Allow tokens issued by other trusted systems. */
-    allowOtherSystems?: boolean;
+    enableB2b?: boolean;
     /** Enable debug logging for internal flow. */
     debug?: boolean;
     /** Cookie behavior and expiration settings. */
@@ -84,7 +88,8 @@ export interface OAuthConfig {
  * Settings after parsing `OAuthConfig`.
  */
 export interface OAuthSettings {
-  readonly areOtherSystemsAllowed: boolean;
+  readonly sessionType: SessionType;
+  readonly isB2BEnabled: boolean;
   readonly isHttps: boolean;
   readonly isSameSite: boolean;
   readonly cookiesTimeUnit: TimeUnit;
@@ -140,3 +145,12 @@ export interface Cookies {
     readonly options: CookieOptions;
   };
 }
+
+type PrivateMethods = 'verifyJwt';
+
+export type OAuthProviderMethods =
+  | {
+      // biome-ignore lint/suspicious/noExplicitAny: The only way to get the method names of the class
+      [K in keyof OAuthProvider]: OAuthProvider[K] extends (...args: any[]) => any ? K : never;
+    }[keyof OAuthProvider]
+  | PrivateMethods;

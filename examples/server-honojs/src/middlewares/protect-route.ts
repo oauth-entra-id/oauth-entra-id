@@ -5,9 +5,9 @@ import { oauthProvider } from '~/oauth';
 
 export type ProtectRoute = {
   Variables: {
-    msal: {
-      microsoftToken: string;
-      payload: Record<string, unknown>;
+    microsoftInfo: {
+      rawAccessToken: string;
+      accessTokenPayload: Record<string, unknown>;
     };
     userInfo: {
       uniqueId: string;
@@ -25,14 +25,14 @@ export const protectRoute = createMiddleware<ProtectRoute>(async (c, next) => {
 
   if (!accessToken && !refreshToken) throw new HTTPException(401, { message: 'Unauthorized' });
   if (accessToken) {
-    const microsoftInfo = await oauthProvider.verifyAccessToken(accessToken);
-    if (microsoftInfo) {
-      c.set('msal', microsoftInfo);
+    const tokenInfo = await oauthProvider.verifyAccessToken(accessToken);
+    if (tokenInfo) {
+      c.set('microsoftInfo', tokenInfo.microsoftInfo);
       c.set('userInfo', {
-        uniqueId: microsoftInfo.payload.oid,
-        roles: microsoftInfo.payload.roles,
-        name: microsoftInfo.payload.name,
-        email: microsoftInfo.payload.preferred_username,
+        uniqueId: tokenInfo.microsoftInfo.accessTokenPayload.oid,
+        roles: tokenInfo.microsoftInfo.accessTokenPayload.roles,
+        name: tokenInfo.microsoftInfo.accessTokenPayload.name,
+        email: tokenInfo.microsoftInfo.accessTokenPayload.preferred_username,
       });
 
       await next();
@@ -40,17 +40,19 @@ export const protectRoute = createMiddleware<ProtectRoute>(async (c, next) => {
     }
   }
   if (!refreshToken) throw new HTTPException(401, { message: 'Unauthorized' });
-  const newTokens = await oauthProvider.getTokenByRefresh(refreshToken);
-  if (!newTokens) throw new HTTPException(401, { message: 'Unauthorized' });
-  const { newAccessToken, newRefreshToken, msal } = newTokens;
+  const newTokensInfo = await oauthProvider.getTokenByRefresh(refreshToken);
+  if (!newTokensInfo) throw new HTTPException(401, { message: 'Unauthorized' });
+
+  const { newAccessToken, newRefreshToken, microsoftInfo } = newTokensInfo;
   setCookie(c, newAccessToken.name, newAccessToken.value, newAccessToken.options);
   if (newRefreshToken) setCookie(c, newRefreshToken.name, newRefreshToken.value, newRefreshToken.options);
-  c.set('msal', msal);
+
+  c.set('microsoftInfo', microsoftInfo);
   c.set('userInfo', {
-    uniqueId: msal.payload.oid,
-    roles: msal.payload.roles,
-    name: msal.payload.name,
-    email: msal.payload.preferred_username,
+    uniqueId: microsoftInfo.accessTokenPayload.oid,
+    roles: microsoftInfo.accessTokenPayload.roles,
+    name: microsoftInfo.accessTokenPayload.name,
+    email: microsoftInfo.accessTokenPayload.preferred_username,
   });
 
   await next();

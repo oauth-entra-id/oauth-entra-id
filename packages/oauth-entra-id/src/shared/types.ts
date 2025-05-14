@@ -42,27 +42,27 @@ declare global {
       /**
        * Stores the raw Microsoft access token and its decoded payload.
        */
-      msal?: {
-        microsoftToken: string;
-        payload: JwtPayload;
+      microsoftInfo?: {
+        rawAccessToken: string;
+        accessTokenPayload: JwtPayload;
       };
 
       /**
        * Stores user authentication details.
        *
-       * - If `isOtherApp` is `false`, the user is authenticated locally.
-       * - If `isOtherApp` is `true`, the token was issued by another service.
+       * - If `isB2B` is `false`, the user is authenticated locally.
+       * - If `isB2B` is `true`, the token was issued by another service.
        */
       userInfo?:
         | {
-            isOtherApp: false;
+            isB2B: false;
             uniqueId: string;
             roles: string[];
             name: string;
             email: string;
             injectedData?: InjectedData;
           }
-        | { isOtherApp: true; uniqueId: string; roles: string[]; appId: string };
+        | { isB2B: true; uniqueId: string; roles: string[]; appId: string };
     }
   }
 }

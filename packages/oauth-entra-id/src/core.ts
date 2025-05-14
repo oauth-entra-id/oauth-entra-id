@@ -9,6 +9,7 @@ import type {
   LoginPrompt,
   MsalResponse,
   OAuthConfig,
+  OAuthProviderMethods,
   OAuthSettings,
   OnBehalfOfService,
 } from './types';
@@ -24,6 +25,7 @@ import {
   zJwt,
   zJwtOrEncrypted,
   zMethods,
+  zScope,
   zState,
 } from './utils/zod';
 
@@ -105,7 +107,8 @@ export class OAuthProvider {
     });
 
     const options = {
-      areOtherSystemsAllowed: advanced.allowOtherSystems,
+      sessionType: advanced.sessionType,
+      isB2BEnabled: advanced.enableB2b,
       isHttps,
       isSameSite,
       cookiesTimeUnit: advanced.cookies.timeUnit,
@@ -113,7 +116,7 @@ export class OAuthProvider {
       refreshTokenCookieExpiry: advanced.cookies.refreshTokenExpiry,
       serviceNames,
       debug: advanced.debug,
-    } as const;
+    } satisfies OAuthSettings;
 
     const cca = new msal.ConfidentialClientApplication({
       auth: {
@@ -151,15 +154,7 @@ export class OAuthProvider {
     });
   }
 
-  private localDebug(
-    methodName:
-      | {
-          // biome-ignore lint/suspicious/noExplicitAny: <explanation>
-          [K in keyof OAuthProvider]: OAuthProvider[K] extends (...args: any[]) => any ? K : never;
-        }[keyof OAuthProvider]
-      | 'verifyJwt',
-    message: string,
-  ) {
+  private localDebug(methodName: OAuthProviderMethods, message: string) {
     debugLog({ condition: this.settings.debug, funcName: `OAuthProvider.${methodName}`, message });
   }
 
@@ -394,14 +389,18 @@ export class OAuthProvider {
     }
   }
 
-  private getRawAccessToken(accessToken: string): { rawAccessToken: string; injectedData?: InjectedData } {
+  private getRawAccessToken(accessToken: string): {
+    rawAccessToken: string;
+    injectedData?: InjectedData;
+    wasEncrypted: boolean;
+  } {
     const { data: token, error: tokenError } = zJwtOrEncrypted.safeParse(accessToken);
     if (tokenError) {
       throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid access token' });
     }
 
     if (isJwt(token)) {
-      return { rawAccessToken: token };
+      return { rawAccessToken: token, wasEncrypted: false };
     }
 
     const accessTokenObj = decryptObject(token, this.secretKey);
@@ -410,7 +409,7 @@ export class OAuthProvider {
       throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid access token' });
     }
 
-    return { rawAccessToken: parsedAccessToken.at, injectedData: parsedAccessToken.inj };
+    return { rawAccessToken: parsedAccessToken.at, injectedData: parsedAccessToken.inj, wasEncrypted: true };
   }
 
   /**
@@ -420,21 +419,39 @@ export class OAuthProvider {
    * @returns The original token and decoded payload if valid; `null` otherwise. If the token has injected data, it will be returned as well.
    */
   async verifyAccessToken(accessToken: string): Promise<{
-    microsoftToken: string;
-    payload: jwt.JwtPayload;
+    microsoftInfo: {
+      rawAccessToken: string;
+      accessTokenPayload: jwt.JwtPayload;
+    };
     injectedData: InjectedData | undefined;
+    isB2B: boolean;
   } | null> {
     try {
-      const { rawAccessToken, injectedData } = this.getRawAccessToken(accessToken);
-      const payload = await this.verifyJwt(rawAccessToken);
-      return { microsoftToken: rawAccessToken, payload, injectedData };
+      const { rawAccessToken, injectedData, wasEncrypted } = this.getRawAccessToken(accessToken);
+      const accessTokenPayload = await this.verifyJwt(rawAccessToken);
+
+      const isB2B = accessTokenPayload.sub === accessTokenPayload.oid;
+      if (isB2B && (wasEncrypted || !this.settings.isB2BEnabled)) {
+        this.localDebug('verifyAccessToken', 'B2B token cannot be encrypted');
+        return null;
+      }
+
+      if (!isB2B && !wasEncrypted) {
+        this.localDebug('verifyAccessToken', 'Non-B2B token cannot be raw JWT');
+        return null;
+      }
+
+      return { microsoftInfo: { rawAccessToken, accessTokenPayload }, injectedData, isB2B };
     } catch (err) {
       this.localDebug('verifyAccessToken', `Error verifying token: ${err}`);
       return null;
     }
   }
 
-  injectData({ accessToken, data }: { accessToken: string; data: InjectedData }): Cookies['AccessToken'] | null {
+  injectData<TValues, TData extends Record<string, TValues>>({
+    accessToken,
+    data,
+  }: { accessToken: string; data: TData }): Cookies['AccessToken'] | null {
     const { rawAccessToken, injectedData } = this.getRawAccessToken(accessToken);
     const { data: nextAccessToken, error: nextAccessTokenError } = zAccessTokenStructure.safeParse({
       at: rawAccessToken,
@@ -442,11 +459,13 @@ export class OAuthProvider {
     });
 
     if (nextAccessTokenError) {
+      this.localDebug('injectData', 'Invalid access token format');
       return null;
     }
 
     const encryptedAccessToken = encryptObject(nextAccessToken, this.secretKey);
     if (encryptedAccessToken.length > 4096) {
+      this.localDebug('injectData', 'Token length exceeds 4kB');
       return null;
     }
 
@@ -464,7 +483,7 @@ export class OAuthProvider {
     newAccessToken: Cookies['AccessToken'];
     newRefreshToken: Cookies['RefreshToken'] | null;
     msalResponse: MsalResponse;
-    msal: { microsoftToken: string; payload: jwt.JwtPayload };
+    microsoftInfo: { rawAccessToken: string; accessTokenPayload: jwt.JwtPayload };
   } | null> {
     const { data: parsedRefreshToken, error: refreshTokenError } = zEncrypted.safeParse(refreshToken);
     if (refreshTokenError) {
@@ -486,14 +505,14 @@ export class OAuthProvider {
           description: 'Invalid Refresh Token',
         });
 
-      const payload = await this.verifyJwt(msalResponse.accessToken);
+      const accessTokenPayload = await this.verifyJwt(msalResponse.accessToken);
       const { accessToken, refreshToken } = await this.getTokens(msalResponse);
 
       return {
         newAccessToken: { value: accessToken, ...this.defaultCookieOptions.accessToken },
         newRefreshToken: refreshToken ? { value: refreshToken, ...this.defaultCookieOptions.refreshToken } : null,
         msalResponse,
-        msal: { microsoftToken: msalResponse.accessToken, payload },
+        microsoftInfo: { rawAccessToken: msalResponse.accessToken, accessTokenPayload },
       };
     } catch (err) {
       this.localDebug('getTokenByRefresh', `Error refreshing token: ${err}`);
@@ -501,12 +520,19 @@ export class OAuthProvider {
     }
   }
 
+  //TODO: return only the access token
   async getB2BToken(scope: string): Promise<MsalResponse> {
-    const msalResponse = await this.cca.acquireTokenByClientCredential({ scopes: [scope], skipCache: true });
+    const { data: parsedScope, error: scopeError } = zScope.safeParse(scope);
+    if (scopeError) {
+      throw new OAuthError(400, { message: 'Invalid params', description: prettifyError(scopeError) });
+    }
+
+    const msalResponse = await this.cca.acquireTokenByClientCredential({ scopes: [parsedScope], skipCache: true });
     if (!msalResponse) {
       throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid B2B Token' });
     }
-    // MSAL caches the access token
+
+    //TODO: remove or use the cache that MSAL creates
     return msalResponse;
   }
 
@@ -518,11 +544,11 @@ export class OAuthProvider {
    * @throws {OAuthError} If configuration or token validation fails.
    */
   async getTokenOnBehalfOf(params: { accessToken: string; serviceNames: string[] }): Promise<
-    {
+    Array<{
       accessToken: Cookies['AccessToken'];
       refreshToken: Cookies['RefreshToken'] | null;
       msalResponse: MsalResponse;
-    }[]
+    }>
   > {
     if (!this.onBehalfOfServices) {
       throw new OAuthError(400, { message: 'Invalid params', description: 'On Behalf Of Services not configured' });

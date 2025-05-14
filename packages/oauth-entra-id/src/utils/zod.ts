@@ -1,4 +1,4 @@
-import { type ZodError, string, z } from 'zod';
+import { type ZodError, z } from 'zod';
 import { base64urlWithDotRegex, encryptedRegex, jwtOrEncryptedRegex, jwtRegex } from './regex';
 
 export const prettifyError = (error: ZodError) =>
@@ -9,14 +9,17 @@ export const zUuid = zStr.uuid();
 export const zUrl = zStr.url().max(2048);
 export const zEmail = zStr.max(320).email();
 export const zLoginPrompt = z.enum(['email', 'select-account', 'sso']);
+export const zSessionType = z.enum(['cookie-session', 'bearer-token']);
 export const zEncrypted = zStr.max(4096).regex(encryptedRegex);
 export const zJwt = zStr.max(4096).regex(jwtRegex);
 export const zJwtOrEncrypted = zStr.max(4096).regex(jwtOrEncryptedRegex);
+export const zScope = zStr.min(3).max(128);
+export const zSecretKey = zStr.min(16).max(64);
 
 const zAzure = z.object({
   clientId: zUuid,
   tenantId: z.union([z.literal('common'), zUuid]),
-  scopes: z.array(zStr.min(3).max(128)).min(1),
+  scopes: z.array(zScope).min(1),
   clientSecret: zStr.min(32),
 });
 
@@ -30,8 +33,8 @@ const zCookieConfig = z.object({
 
 const zOnBehalfOfService = z.object({
   serviceName: zStr.min(1).max(64),
-  scope: zStr.min(3).max(128),
-  secretKey: zStr.min(16).max(64),
+  scope: zScope,
+  secretKey: zSecretKey,
   isHttps: z.boolean().optional(),
   isSameSite: z.boolean().optional(),
   accessTokenExpiry: z.number().positive().default(3600),
@@ -40,7 +43,8 @@ const zOnBehalfOfService = z.object({
 
 const zAdvanced = z.object({
   loginPrompt: zLoginPrompt.default('sso'),
-  allowOtherSystems: z.boolean().default(false),
+  sessionType: zSessionType.default('cookie-session'),
+  enableB2b: z.boolean().default(false),
   debug: z.boolean().default(false),
   cookies: zCookieConfig.default({}),
   onBehalfOf: z
@@ -56,7 +60,7 @@ export const zConfig = z.object({
   azure: zAzure,
   frontendUrl: z.union([zUrl.transform((url) => [url]), z.array(zUrl).min(1)]),
   serverCallbackUrl: zUrl,
-  secretKey: zStr.min(16).max(64),
+  secretKey: zSecretKey,
   advanced: zAdvanced.default({}),
 });
 

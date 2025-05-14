@@ -20,7 +20,7 @@ export const protectedRouter: FastifyPluginAsyncTypebox = async (app) => {
     const { serviceNames } = (req.body as { serviceNames: string[] }) || {};
 
     const results = await oauthProvider.getTokenOnBehalfOf({
-      accessToken: req.msal.microsoftToken,
+      accessToken: req.microsoftInfo.rawAccessToken,
       serviceNames,
     });
 
