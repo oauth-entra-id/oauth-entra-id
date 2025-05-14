@@ -1,17 +1,17 @@
-import { Separator } from '@radix-ui/react-dropdown-menu';
-import { ToggleGroup } from '@radix-ui/react-toggle-group';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
+import { LogOut } from 'lucide-react';
 import { useState } from 'react';
 import Confetti from 'react-confetti';
 import { toast } from 'sonner';
 import { AppInfo } from '~/components/AppInfo';
+import { GitHubLink } from '~/components/GitHubLink';
 import { ServersDropdown } from '~/components/ServersDropdown';
-import { GitHub } from '~/components/icons/GitHub';
 import { Button } from '~/components/ui/Button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '~/components/ui/Card';
+import { Separator } from '~/components/ui/Separator';
 import { MutedText, Title } from '~/components/ui/Text';
-import { ToggleGroupItem } from '~/components/ui/ToggleGroup';
+import { ToggleGroup, ToggleGroupItem } from '~/components/ui/ToggleGroup';
 import { useWindowDimensions } from '~/hooks/useWindowDimensions';
 import { getTokensOnBehalfOf, logoutAndGetLogoutUrl } from '~/services/user';
 import { type Color, useServerStore } from '~/stores/server-store';
@@ -23,7 +23,6 @@ export const Route = createFileRoute('/(protected)/')({
 
 function Home() {
   const queryClient = useQueryClient();
-  const [selectedServiceNames, setSelectedServiceNames] = useState<Color[]>([]);
   const { width, height } = useWindowDimensions();
   const { user, setUser } = useUserStore();
   const { mutate: handleLogout } = useMutation({
@@ -35,17 +34,6 @@ function Home() {
     },
     onError: () => {
       toast.error('Could not logout', { duration: 1000 });
-    },
-  });
-  const { mutate: handleOnBehalfOf } = useMutation({
-    mutationFn: () => getTokensOnBehalfOf({ serviceNames: selectedServiceNames }),
-    onSuccess: (tokensSet) => {
-      setSelectedServiceNames([]);
-      toast.success(tokensSet === 1 ? 'New token created!' : `${tokensSet} new tokens created!`, { duration: 1000 });
-    },
-    onError: () => {
-      setSelectedServiceNames([]);
-      toast.error('Could not create new tokens', { duration: 1000 });
     },
   });
 
@@ -76,35 +64,21 @@ function Home() {
               <div>
                 <span className="font-bold">Name:</span> {user.name}
               </div>
-              <div className="flex flex-col items-center justify-center px-1">
-                <SelectServiceNames
-                  selectedServiceNames={selectedServiceNames}
-                  setSelectedServiceNames={setSelectedServiceNames}
-                />
-                <div className="flex w-full space-x-2 mt-2">
-                  <Button
-                    variant="outline"
-                    className="flex-1"
-                    disabled={selectedServiceNames.length === 0}
-                    onClick={() => handleOnBehalfOf()}>
-                    New Tokens
-                  </Button>
-                  <Button variant="destructive" className="flex-1" onClick={() => handleLogout()}>
-                    Logout
-                  </Button>
-                </div>
+              <Separator className="bg-muted my-2" />
+              <div className="flex flex-col items-start justify-center px-1 text-sm font-semibold">
+                On-Behalf-Of Flow:
+                <OnBehalfOf />
               </div>
             </CardContent>
-            <CardFooter>
-              <Button className="w-full mt-1" asChild>
-                <a href="https://github.com/oauth-entra-id/oauth-entra-id" target="_blank" rel="noopener noreferrer">
-                  <GitHub /> Checkout our Repo!
-                </a>
+            <CardFooter className="flex flex-col items-center justify-center space-y-2">
+              <Button variant="destructive" className="w-full" onClick={() => handleLogout()}>
+                Logout <LogOut />
               </Button>
             </CardFooter>
           </Card>
           <ServersDropdown />
           <MutedText>React demo that shows how to integrate OAuth2.0 Flow.</MutedText>
+          <GitHubLink />
         </div>
       </div>
 
@@ -115,42 +89,48 @@ function Home() {
   );
 }
 
-function SelectServiceNames({
-  selectedServiceNames,
-  setSelectedServiceNames,
-}: { selectedServiceNames: Color[]; setSelectedServiceNames: (value: Color[]) => void }) {
+function OnBehalfOf() {
+  const [selectedServiceNames, setSelectedServiceNames] = useState<Color[]>([]);
   const appInfo = useServerStore((state) => state.appInfo);
+  const { mutate: handleOnBehalfOf } = useMutation({
+    mutationFn: () => getTokensOnBehalfOf({ serviceNames: selectedServiceNames }),
+    onSuccess: (tokensSet) => {
+      setSelectedServiceNames([]);
+      toast.success(tokensSet === 1 ? 'New token created!' : `${tokensSet} new tokens created!`, { duration: 1000 });
+    },
+    onError: () => {
+      setSelectedServiceNames([]);
+      toast.error('Could not create new tokens', { duration: 1000 });
+    },
+  });
 
   return (
-    <div className="flex w-full items-center justify-center space-x-1">
-      <div className="text-muted-foreground text-sm font-semibold">Other Services:</div>
+    <div className="flex w-full justify-start items-center px-1.5">
       <ToggleGroup
         type="multiple"
         className="space-x-1.5"
         value={selectedServiceNames}
         onValueChange={(value: Color[]) => setSelectedServiceNames(value)}>
-        <ToggleGroupItem
-          disabled={appInfo?.currentServiceName === 'blue'}
-          value="blue"
-          aria-label="blue"
-          className="font-bold">
+        <ToggleGroupItem disabled={appInfo?.currentServiceName === 'blue'} value="blue" aria-label="blue" size="sm">
           🔵 Blue
         </ToggleGroupItem>
-        <ToggleGroupItem
-          disabled={appInfo?.currentServiceName === 'red'}
-          value="red"
-          aria-label="red"
-          className="font-bold">
+        <ToggleGroupItem disabled={appInfo?.currentServiceName === 'red'} value="red" aria-label="red" size="sm">
           🔴 Red
         </ToggleGroupItem>
         <ToggleGroupItem
           disabled={appInfo?.currentServiceName === 'yellow'}
           value="yellow"
           aria-label="yellow"
-          className="font-bold">
+          size="sm">
           🟡 Yellow
         </ToggleGroupItem>
       </ToggleGroup>
+      <Button
+        className="text-sm font-semibold ml-4 flex-1"
+        disabled={selectedServiceNames.length === 0}
+        onClick={() => handleOnBehalfOf()}>
+        Get Tokens
+      </Button>
     </div>
   );
 }
