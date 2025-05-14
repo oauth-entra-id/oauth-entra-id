@@ -59,21 +59,20 @@ export async function sharedIsAuthenticated(
     throw new OAuthError(401, { message: 'Unauthorized', description: 'No access token and refresh token' });
   }
 
-  if (cookieAccessToken) {
-    const tokenInfo = await oauthProvider.verifyAccessToken(cookieAccessToken);
-    if (tokenInfo) {
-      const userInfo = getUserInfo({
-        payload: tokenInfo.microsoftInfo.accessTokenPayload,
-        injectedData: tokenInfo.injectedData,
-      });
+  const tokenInfo = cookieAccessToken ? await oauthProvider.verifyAccessToken(cookieAccessToken) : null;
 
-      req.microsoftInfo = tokenInfo.microsoftInfo;
-      req.userInfo = userInfo;
-      return {
-        userInfo,
-        injectData: (data) => InjectDataFunction(cookieAccessToken, data),
-      };
-    }
+  if (tokenInfo) {
+    const userInfo = getUserInfo({
+      payload: tokenInfo.microsoftInfo.accessTokenPayload,
+      injectedData: tokenInfo.injectedData,
+    });
+
+    req.microsoftInfo = tokenInfo.microsoftInfo;
+    req.userInfo = userInfo;
+    return {
+      userInfo,
+      injectData: (data) => InjectDataFunction(tokenInfo.microsoftInfo.rawAccessToken, data),
+    };
   }
 
   if (!cookieRefreshToken) {

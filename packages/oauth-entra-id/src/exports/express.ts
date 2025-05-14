@@ -134,8 +134,8 @@ export function protectRoute(cb?: CallbackFunction) {
     try {
       if (!req.oauthProvider || req.serverType !== 'express') throw new OAuthError(500, ERROR_MESSAGE);
       const { userInfo, injectData } = await sharedIsAuthenticated(req, res);
-      next();
       if (cb) await cb({ userInfo, injectData });
+      next();
     } catch (err) {
       next(err);
     }
