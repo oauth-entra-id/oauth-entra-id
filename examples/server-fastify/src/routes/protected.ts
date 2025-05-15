@@ -82,7 +82,7 @@ export const protectedRouter: FastifyPluginAsyncTypebox = async (app) => {
     return { tokensSet: results.length };
   });
 
-  app.post('/b2b', { schema: { body: tSchemas.b2b } }, async (req, reply) => {
+  app.post('/get-b2b-info', { schema: { body: tSchemas.b2b } }, async (req, reply) => {
     const { b2bServiceName } = req.body;
     const result = await oauthProvider.getB2BToken({ b2bServiceName });
     const serverUrl = serversMap[b2bServiceName];

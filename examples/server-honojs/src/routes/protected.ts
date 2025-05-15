@@ -83,7 +83,7 @@ protectedRouter.post('/on-behalf-of', zValidator('json', zSchemas.onBehalfOf), a
   return c.json({ tokensSet: results.length });
 });
 
-protectedRouter.post('/b2b', zValidator('json', zSchemas.b2b), async (c) => {
+protectedRouter.post('/get-b2b-info', zValidator('json', zSchemas.b2b), async (c) => {
   const { b2bServiceName } = c.req.valid('json');
   const result = await oauthProvider.getB2BToken({ b2bServiceName });
   const serverUrl = serversMap[b2bServiceName];

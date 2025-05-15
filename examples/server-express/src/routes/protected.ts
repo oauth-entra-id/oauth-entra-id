@@ -1,6 +1,5 @@
 import axios from 'axios';
-import express from 'express';
-import type { Request, Response, Router } from 'express';
+import express, { type Router } from 'express';
 import { handleOnBehalfOf } from 'oauth-entra-id/express';
 import { z } from 'zod';
 import { env } from '~/env';
@@ -54,13 +53,13 @@ const pokemon = [
 
 export const protectedRouter: Router = express.Router();
 
-protectedRouter.get('/user-info', (req: Request, res: Response) => {
+protectedRouter.get('/user-info', (req, res) => {
   res.status(200).json({ user: req.userInfo });
 });
 
 protectedRouter.post('/on-behalf-of', handleOnBehalfOf);
 
-protectedRouter.post('/b2b', async (req: Request, res: Response) => {
+protectedRouter.post('/get-b2b-info', async (req, res) => {
   const { data: body, error: bodyError } = zB2BSchemas.safeParse(req.body);
   if (bodyError) throw new HttpException('Invalid params', 400);
 
@@ -75,7 +74,7 @@ protectedRouter.post('/b2b', async (req: Request, res: Response) => {
   res.status(200).json(data);
 });
 
-protectedRouter.get('/b2b-info', (req: Request, res: Response) => {
+protectedRouter.get('/b2b-info', (req, res) => {
   if (req.userInfo?.isB2B === false) throw new HttpException('Unauthorized', 401);
   const randomPokemon = pokemon[Math.floor(Math.random() * pokemon.length)];
   res.status(200).json({ pokemon: randomPokemon, server: 'express' });

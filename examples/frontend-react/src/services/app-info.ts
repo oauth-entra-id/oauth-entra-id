@@ -26,7 +26,7 @@ const zGetB2BInfo = z.object({
 export async function getB2BInfo(b2bServiceName: Server | undefined) {
   if (!b2bServiceName) throw new Error('Invalid B2B service name');
   const serverUrl = useServerStore.getState().serverUrl;
-  const res = await axiosFetch.post(`${serverUrl}/protected/b2b`, { b2bServiceName });
+  const res = await axiosFetch.post(`${serverUrl}/protected/get-b2b-info`, { b2bServiceName });
   const parsed = zGetB2BInfo.safeParse(res?.data);
   if (parsed.error) throw new Error('Invalid on-behalf-of tokens');
   return parsed.data;
