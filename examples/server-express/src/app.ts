@@ -94,6 +94,14 @@ export default function createApp(): Application {
       serverCallbackUrl: `${env.SERVER_URL}/auth/callback`,
       secretKey: env.YELLOW_SECRET_KEY,
       advanced: {
+        b2b: {
+          allowB2B: true,
+          b2bServices: [
+            { b2bServiceName: 'nestjs', b2bScope: env.RED_AZURE_EXPOSED_SCOPE },
+            { b2bServiceName: 'fastify', b2bScope: env.RED_AZURE_EXPOSED_SCOPE },
+            { b2bServiceName: 'honojs', b2bScope: env.BLUE_AZURE_EXPOSED_SCOPE },
+          ],
+        },
         onBehalfOf: {
           isHttps: env.NODE_ENV !== 'development',
           isSameSite: env.NODE_ENV !== 'development',

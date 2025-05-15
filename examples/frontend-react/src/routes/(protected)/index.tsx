@@ -13,6 +13,7 @@ import { Separator } from '~/components/ui/Separator';
 import { Title } from '~/components/ui/Text';
 import { ToggleGroup, ToggleGroupItem } from '~/components/ui/ToggleGroup';
 import { useWindowDimensions } from '~/hooks/useWindowDimensions';
+import { getB2BInfo } from '~/services/app-info';
 import { getTokensOnBehalfOf, logoutAndGetLogoutUrl } from '~/services/user';
 import { type Color, type Server, serversMap, useServerStore } from '~/stores/server-store';
 import { useUserStore } from '~/stores/user-store';
@@ -69,15 +70,9 @@ function Home() {
                 {user.injectedData ? `${user.injectedData.randomNumber} (Random Number)` : 'None'}
               </div>
               <Separator />
-              <div className="flex flex-col items-start justify-center my-2 px-1 text-sm font-semibold">
-                On-Behalf-Of Flow:
-                <OnBehalfOf />
-              </div>
+              <OnBehalfOf />
               <Separator />
-              <div className="flex flex-col items-start justify-center my-2 px-1 text-sm font-semibold">
-                Get B2B Data:
-                <GetB2BData />
-              </div>
+              <GetB2BData />
             </CardContent>
             <CardFooter className="flex flex-col items-center justify-center space-y-2">
               <Button variant="destructive" className="w-full" onClick={() => handleLogout()}>
@@ -113,75 +108,108 @@ function OnBehalfOf() {
   });
 
   return (
-    <div className="flex w-full justify-between items-center px-1.5 mb-1">
-      <ToggleGroup
-        type="multiple"
-        className="space-x-1.5"
-        value={selectedOnBehalfOf}
-        onValueChange={(value: Color[]) => setSelectedOnBehalfOf(value)}>
-        <ToggleGroupItem
-          disabled={appInfo?.currentServiceName === 'blue'}
-          value="blue"
-          aria-label="blue"
-          size="sm"
-          className="text-[0.0.75rem]">
-          🔵 Blue
-        </ToggleGroupItem>
-        <ToggleGroupItem
-          disabled={appInfo?.currentServiceName === 'red'}
-          value="red"
-          aria-label="red"
-          size="sm"
-          className="text-[0.0.75rem]">
-          🔴 Red
-        </ToggleGroupItem>
-        <ToggleGroupItem
-          disabled={appInfo?.currentServiceName === 'yellow'}
-          value="yellow"
-          aria-label="yellow"
-          size="sm"
-          className="text-[0.0.75rem]">
-          🟡 Yellow
-        </ToggleGroupItem>
-      </ToggleGroup>
-      <div className="flex-1 ml-2 max-w-32">
-        <Button
-          size="sm"
-          variant="outline"
-          className="text-sm font-semibold w-full"
-          disabled={selectedOnBehalfOf.length === 0}
-          onClick={() => handleOnBehalfOf()}>
-          Get Tokens
-        </Button>
+    <div className="flex flex-col items-start justify-center my-2 px-1">
+      <span className="text-sm font-semibold">On-Behalf-Of Flow:</span>
+      <div className="flex w-full justify-between items-center px-1.5 mb-1">
+        <ToggleGroup
+          type="multiple"
+          className="space-x-1.5"
+          value={selectedOnBehalfOf}
+          onValueChange={(value: Color[]) => setSelectedOnBehalfOf(value)}>
+          <ToggleGroupItem
+            disabled={appInfo?.currentServiceName === 'blue'}
+            value="blue"
+            aria-label="blue"
+            size="sm"
+            className="text-[0.0.75rem]">
+            🔵 Blue
+          </ToggleGroupItem>
+          <ToggleGroupItem
+            disabled={appInfo?.currentServiceName === 'red'}
+            value="red"
+            aria-label="red"
+            size="sm"
+            className="text-[0.0.75rem]">
+            🔴 Red
+          </ToggleGroupItem>
+          <ToggleGroupItem
+            disabled={appInfo?.currentServiceName === 'yellow'}
+            value="yellow"
+            aria-label="yellow"
+            size="sm"
+            className="text-[0.0.75rem]">
+            🟡 Yellow
+          </ToggleGroupItem>
+        </ToggleGroup>
+        <div className="flex-1 ml-2 max-w-32">
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-sm font-semibold w-full"
+            disabled={selectedOnBehalfOf.length === 0}
+            onClick={() => handleOnBehalfOf()}>
+            Get Tokens
+          </Button>
+        </div>
       </div>
     </div>
   );
 }
 
 function GetB2BData() {
+  const [pokemon, setPokemon] = useState<string | undefined>();
   const [selectedService, setSelectedService] = useState<Server | undefined>();
   const server = useServerStore((state) => state.server);
+  const { mutate: handleGetUserInfo } = useMutation({
+    mutationFn: () => getB2BInfo(selectedService),
+    onSuccess: (data) => {
+      setSelectedService(undefined);
+      setPokemon(data.pokemon);
+      toast.success(`${data.pokemon} from ${data.server} service!`, { duration: 1000 });
+    },
+    onError: () => {
+      setSelectedService(undefined);
+      setPokemon(undefined);
+      toast.error('Could not get B2B data', { duration: 1000 });
+    },
+  });
+
   return (
-    <div className="flex w-full justify-between items-center px-1.5 mb-1">
-      <ToggleGroup
-        type="single"
-        className="space-x-1.5"
-        value={selectedService}
-        onValueChange={(value: Server) => setSelectedService(value)}>
-        {Object.entries(serversMap).map(
-          ([key, { Icon, label, value }]) =>
-            server !== value && (
-              <ToggleGroupItem key={key} value={value} aria-label={label} size="sm" className="text-[0.75rem]">
-                <Icon />
-                {label}
-              </ToggleGroupItem>
-            ),
+    <div className="flex flex-col items-start justify-center my-2 px-1">
+      <div>
+        <span className="text-sm font-semibold">Get B2B Data:</span>{' '}
+        {pokemon && (
+          <span className="text-sm">
+            (Pokemon: <span className="font-semibold">{pokemon}</span>)
+          </span>
         )}
-      </ToggleGroup>
-      <div className="flex-1 ml-2 max-w-32">
-        <Button variant="outline" size="sm" className="text-sm font-semibold w-full">
-          Get Data
-        </Button>
+      </div>
+      <div className="flex w-full justify-between items-center px-1.5 mb-1">
+        <ToggleGroup
+          type="single"
+          className="space-x-1.5"
+          value={selectedService}
+          onValueChange={(value: Server) => setSelectedService(value)}>
+          {Object.entries(serversMap).map(
+            ([key, { Icon, label, value }]) =>
+              server !== value && (
+                <ToggleGroupItem key={key} value={value} aria-label={label} size="sm" className="text-[0.75rem]">
+                  <Icon />
+                  {label}
+                </ToggleGroupItem>
+              ),
+          )}
+        </ToggleGroup>
+        <div className="flex-1 ml-2 max-w-32">
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-sm font-semibold w-full"
+            onClick={() => handleGetUserInfo()}
+            disabled={!selectedService}>
+            Get Data
+          </Button>
+        </div>
       </div>
     </div>
   );

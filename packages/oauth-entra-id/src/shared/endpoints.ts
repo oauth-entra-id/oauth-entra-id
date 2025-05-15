@@ -61,6 +61,10 @@ export async function sharedHandleOnBehalfOf(req: Request, res: Response) {
     throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid access token' });
   }
 
+  if (req.userInfo?.isB2B === true) {
+    throw new OAuthError(401, { message: 'Unauthorized', description: 'B2B users cannot use OBO' });
+  }
+
   const results = await req.oauthProvider.getTokenOnBehalfOf({
     oboServiceNames: body.oboServiceNames,
     accessToken: req.microsoftInfo.rawAccessToken,

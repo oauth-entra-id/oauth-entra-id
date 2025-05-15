@@ -29,21 +29,16 @@ export async function sharedIsAuthenticated(
     if (req.userInfo?.isB2B === false) req.userInfo = { ...req.userInfo, injectedData: data };
   };
 
-  if (oauthProvider.settings.isB2BEnabled) {
-    const bearerAccessToken = req.headers.authorization?.startsWith('Bearer ')
-      ? req.headers.authorization.split(' ')[1]
-      : undefined;
+  const authorizationHeader = req.headers.authorization;
 
-    if (!bearerAccessToken) {
-      throw new OAuthError(401, { message: 'Unauthorized', description: 'No access token' });
-    }
+  if (oauthProvider.settings.isB2BEnabled && authorizationHeader) {
+    const bearerAccessToken = authorizationHeader.startsWith('Bearer ') ? authorizationHeader.split(' ')[1] : undefined;
+    if (!bearerAccessToken) throw new OAuthError(401, { message: 'Unauthorized', description: 'No access token' });
 
     const bearerInfo = await oauthProvider.verifyAccessToken(bearerAccessToken);
-    if (!bearerInfo) {
-      throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid access token' });
-    }
+    if (!bearerInfo) throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid access token' });
 
-    const userInfo = getUserInfo({ payload: bearerInfo.microsoftInfo.accessTokenPayload, isB2B: bearerInfo.isB2B });
+    const userInfo = getUserInfo({ payload: bearerInfo.microsoftInfo.accessTokenPayload, isB2B: true });
 
     req.microsoftInfo = bearerInfo.microsoftInfo;
     req.userInfo = userInfo;
@@ -75,14 +70,10 @@ export async function sharedIsAuthenticated(
     };
   }
 
-  if (!cookieRefreshToken) {
-    throw new OAuthError(401, { message: 'Unauthorized', description: 'No refresh token' });
-  }
+  if (!cookieRefreshToken) throw new OAuthError(401, { message: 'Unauthorized', description: 'No refresh token' });
 
   const newTokensInfo = await oauthProvider.getTokenByRefresh(cookieRefreshToken);
-  if (!newTokensInfo) {
-    throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid refresh token' });
-  }
+  if (!newTokensInfo) throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid refresh token' });
 
   const { newAccessToken, newRefreshToken, microsoftInfo } = newTokensInfo;
 

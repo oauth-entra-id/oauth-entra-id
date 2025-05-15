@@ -27,19 +27,14 @@ export type ProtectRoute = {
 };
 
 export const protectRoute = createMiddleware<ProtectRoute>(async (c, next) => {
-  if (oauthProvider.settings.isB2BEnabled) {
-    const bearerAccessToken = c.req.header('Authorization')?.startsWith('Bearer ')
-      ? c.req.header('Authorization')?.split(' ')[1]
-      : undefined;
+  const authorizationHeader = c.req.header('Authorization');
 
-    if (!bearerAccessToken) {
-      throw new HTTPException(401, { message: 'Unauthorized' });
-    }
+  if (oauthProvider.settings.isB2BEnabled && authorizationHeader) {
+    const bearerAccessToken = authorizationHeader.startsWith('Bearer ') ? authorizationHeader.split(' ')[1] : undefined;
+    if (!bearerAccessToken) throw new HTTPException(401, { message: 'Unauthorized' });
 
     const bearerInfo = await oauthProvider.verifyAccessToken(bearerAccessToken);
-    if (!bearerInfo) {
-      throw new HTTPException(401, { message: 'Unauthorized' });
-    }
+    if (!bearerInfo) throw new HTTPException(401, { message: 'Unauthorized' });
 
     setUserInfo(c, { payload: bearerInfo.microsoftInfo.accessTokenPayload, isB2B: true });
 
