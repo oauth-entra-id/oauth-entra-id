@@ -7,7 +7,7 @@ import { oauthProvider } from '~/oauth';
 
 const zSchemas = {
   onBehalfOf: z.object({
-    serviceNames: z.array(z.string()),
+    oboServiceNames: z.array(z.string()),
   }),
 };
 
@@ -20,15 +20,15 @@ protectedRouter.get('/user-info', (c) => {
 });
 
 protectedRouter.post('/on-behalf-of', zValidator('json', zSchemas.onBehalfOf), async (c) => {
-  const { serviceNames } = c.req.valid('json');
+  const { oboServiceNames } = c.req.valid('json');
   const results = await oauthProvider.getTokenOnBehalfOf({
     accessToken: c.get('microsoftInfo').rawAccessToken,
-    serviceNames,
+    oboServiceNames,
   });
   for (const result of results) {
-    const { accessToken, refreshToken } = result;
-    setCookie(c, accessToken.name, accessToken.value, accessToken.options);
-    if (refreshToken) setCookie(c, refreshToken.name, refreshToken.value, refreshToken.options);
+    const { oboAccessToken, oboRefreshToken } = result;
+    setCookie(c, oboAccessToken.name, oboAccessToken.value, oboAccessToken.options);
+    if (oboRefreshToken) setCookie(c, oboRefreshToken.name, oboRefreshToken.value, oboRefreshToken.options);
   }
   return c.json({ tokensSet: results.length });
 });

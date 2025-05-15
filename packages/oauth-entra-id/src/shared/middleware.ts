@@ -19,6 +19,9 @@ export async function sharedIsAuthenticated(
   };
 
   const oauthProvider = req.oauthProvider;
+  if (oauthProvider.settings.sessionType !== 'cookie-session') {
+    throw new OAuthError(500, { message: 'Invalid session type', description: 'Session type must be cookie-session' });
+  }
 
   const InjectDataFunction = (accessToken: string, data: InjectedData) => {
     const newAccessToken = oauthProvider.injectData({ accessToken, data });
@@ -26,7 +29,7 @@ export async function sharedIsAuthenticated(
     if (req.userInfo?.isB2B === false) req.userInfo = { ...req.userInfo, injectedData: data };
   };
 
-  if (oauthProvider.settings.isB2BEnabled || oauthProvider.settings.sessionType === 'bearer-token') {
+  if (oauthProvider.settings.isB2BEnabled) {
     const bearerAccessToken = req.headers.authorization?.startsWith('Bearer ')
       ? req.headers.authorization.split(' ')[1]
       : undefined;
@@ -44,10 +47,7 @@ export async function sharedIsAuthenticated(
 
     req.microsoftInfo = bearerInfo.microsoftInfo;
     req.userInfo = userInfo;
-    return {
-      userInfo,
-      injectData: (data) => (bearerInfo.isB2B ? null : InjectDataFunction(bearerAccessToken, data)),
-    };
+    return { userInfo, injectData: (data) => null };
   }
 
   const { accessTokenName, refreshTokenName } = oauthProvider.getCookieNames();

@@ -54,7 +54,7 @@ const zGetTokensOnBehalfOf = z.object({
 
 export async function getTokensOnBehalfOf(onBehalfOfService: Color[]) {
   const serverUrl = useServerStore.getState().serverUrl;
-  const res = await axiosFetch.post(`${serverUrl}/protected/on-behalf-of`, { serviceNames: onBehalfOfService });
+  const res = await axiosFetch.post(`${serverUrl}/protected/on-behalf-of`, { oboServiceNames: onBehalfOfService });
   const parsed = zGetTokensOnBehalfOf.safeParse(res?.data);
   if (parsed.error) throw new Error('Invalid on-behalf-of tokens');
   return parsed.data.tokensSet;

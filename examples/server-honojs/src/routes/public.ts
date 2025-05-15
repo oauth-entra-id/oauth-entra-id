@@ -16,6 +16,13 @@ publicRouter.get('/app-info', (c) =>
 );
 
 publicRouter.get('/test', async (c) => {
-  const msalResponse = await oauthProvider.getB2BToken(env.RED_AZURE_EXPOSED_SCOPE);
-  return c.json(msalResponse);
+  const [result, results] = await Promise.all([
+    oauthProvider.getB2BToken({ b2bServiceName: 'express' }),
+    oauthProvider.getB2BToken({ b2bServiceNames: ['nestjs', 'fastify'] }),
+  ]);
+
+  return c.json({
+    result,
+    results,
+  });
 });

@@ -4,7 +4,10 @@ import jwt from 'jsonwebtoken';
 import jwks from 'jwks-rsa';
 import { OAuthError } from './error';
 import type {
+  B2BService,
   Cookies,
+  GetB2BTokenResult,
+  GetTokenOnBehalfOfResult,
   InjectedData,
   LoginPrompt,
   MsalResponse,
@@ -25,7 +28,6 @@ import {
   zJwt,
   zJwtOrEncrypted,
   zMethods,
-  zScope,
   zState,
 } from './utils/zod';
 
@@ -52,7 +54,8 @@ export class OAuthProvider {
   private readonly frontendWhitelist: Set<string>;
   private readonly loginPrompt: LoginPrompt;
   private readonly defaultCookieOptions: Cookies['DefaultCookieOptions'];
-  private readonly onBehalfOfServices: Map<string, OnBehalfOfService> | undefined;
+  private readonly b2bServicesMap: Map<string, B2BService> | undefined;
+  private readonly onBehalfOfServicesMap: Map<string, OnBehalfOfService> | undefined;
   readonly settings: OAuthSettings;
   private readonly cca: msal.ConfidentialClientApplication;
   private readonly msalCryptoProvider: msal.CryptoProvider;
@@ -79,21 +82,31 @@ export class OAuthProvider {
     const isHttps =
       !advanced.cookies.disableHttps && [serverHost, ...frontHosts].every((url) => url.startsWith('https'));
     const isSameSite = !advanced.cookies.disableSameSite && frontHosts.size === 1 ? frontHosts.has(serverHost) : false;
-    const onBehalfOfServices = advanced.onBehalfOf
+
+    const b2bServicesMap = advanced.b2b.b2bServices
+      ? new Map(advanced.b2b.b2bServices.map((b2bService) => [b2bService.b2bServiceName, b2bService]))
+      : undefined;
+    const b2bServiceNames = b2bServicesMap ? Array.from(b2bServicesMap.keys()) : undefined;
+
+    if (b2bServiceNames && advanced.b2b.b2bServices && b2bServiceNames.length !== advanced.b2b.b2bServices.length) {
+      throw new OAuthError(500, { message: 'Invalid OAuthProvider config', description: 'Duplicate services found' });
+    }
+
+    const onBehalfOfServicesMap = advanced.onBehalfOf
       ? new Map(
-          advanced.onBehalfOf.services.map((service) => [
-            service.serviceName,
+          advanced.onBehalfOf.oboServices.map((oboService) => [
+            oboService.oboServiceName,
             {
-              ...service,
-              isHttps: service.isHttps ?? (advanced.onBehalfOf?.isHttps as boolean),
-              isSameSite: service.isSameSite ?? (advanced.onBehalfOf?.isSameSite as boolean),
+              ...oboService,
+              isHttps: oboService.isHttps ?? (advanced.onBehalfOf?.isHttps as boolean),
+              isSameSite: oboService.isSameSite ?? (advanced.onBehalfOf?.isSameSite as boolean),
             },
           ]),
         )
       : undefined;
-    const serviceNames = onBehalfOfServices ? Array.from(onBehalfOfServices.keys()) : undefined;
+    const serviceNames = onBehalfOfServicesMap ? Array.from(onBehalfOfServicesMap.keys()) : undefined;
 
-    if (serviceNames && advanced.onBehalfOf && serviceNames.length !== advanced.onBehalfOf.services.length) {
+    if (serviceNames && advanced.onBehalfOf && serviceNames.length !== advanced.onBehalfOf.oboServices.length) {
       throw new OAuthError(500, { message: 'Invalid OAuthProvider config', description: 'Duplicate services found' });
     }
 
@@ -108,13 +121,14 @@ export class OAuthProvider {
 
     const settings = {
       sessionType: advanced.sessionType,
-      isB2BEnabled: advanced.allowB2B,
+      isB2BEnabled: advanced.b2b.allowB2B,
       isHttps,
       isSameSite,
       cookiesTimeUnit: advanced.cookies.timeUnit,
       accessTokenCookieExpiry: advanced.cookies.accessTokenExpiry,
       refreshTokenCookieExpiry: advanced.cookies.refreshTokenExpiry,
-      serviceNames,
+      b2bServices: b2bServiceNames,
+      oboServices: serviceNames,
       debug: advanced.debug,
     } satisfies OAuthSettings;
 
@@ -141,7 +155,8 @@ export class OAuthProvider {
     this.frontendWhitelist = frontHosts;
     this.loginPrompt = advanced.loginPrompt;
     this.defaultCookieOptions = defaultCookieOptions;
-    this.onBehalfOfServices = onBehalfOfServices;
+    this.b2bServicesMap = b2bServicesMap;
+    this.onBehalfOfServicesMap = onBehalfOfServicesMap;
     this.settings = settings;
     this.cca = cca;
     this.msalCryptoProvider = new msal.CryptoProvider();
@@ -520,19 +535,59 @@ export class OAuthProvider {
     }
   }
 
-  async getB2BToken(scope: string): Promise<{ b2bAccessToken: string; msalResponse: MsalResponse }> {
-    const { data: parsedScope, error: scopeError } = zScope.safeParse(scope);
-    if (scopeError) {
-      throw new OAuthError(400, { message: 'Invalid params', description: prettifyError(scopeError) });
+  async getB2BToken(params: { b2bServiceName: string }): Promise<GetB2BTokenResult>;
+  async getB2BToken(params: { b2bServiceNames: string[] }): Promise<GetB2BTokenResult[]>;
+  async getB2BToken(
+    params: { b2bServiceName: string } | { b2bServiceNames: string[] },
+  ): Promise<GetB2BTokenResult | GetB2BTokenResult[]> {
+    if (!this.b2bServicesMap) {
+      throw new OAuthError(400, { message: 'Invalid params', description: 'B2B Services not configured' });
     }
 
-    const msalResponse = await this.cca.acquireTokenByClientCredential({ scopes: [parsedScope], skipCache: true });
-    if (!msalResponse) {
-      throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid B2B Token' });
+    const { data: parsedParams, error: paramsError } = zMethods.getB2BToken.safeParse(params);
+    if (paramsError) {
+      throw new OAuthError(400, { message: 'Invalid params', description: prettifyError(paramsError) });
     }
 
-    //TODO: remove or use the cache that MSAL creates
-    return { b2bAccessToken: msalResponse.accessToken, msalResponse };
+    const services = parsedParams.b2bServiceNames
+      .map((serviceName) => this.b2bServicesMap?.get(serviceName))
+      .filter((service) => !!service);
+
+    if (!services) {
+      throw new OAuthError(400, { message: 'Invalid params', description: 'Service not found' });
+    }
+
+    try {
+      const results = (
+        await Promise.all(
+          services.map(async (service) => {
+            try {
+              const msalResponse = await this.cca.acquireTokenByClientCredential({
+                scopes: [service.b2bScope],
+                skipCache: true,
+              });
+              if (!msalResponse) return null;
+              return {
+                b2bServiceName: service.b2bServiceName,
+                b2bAccessToken: msalResponse.accessToken,
+                b2bMsalResponse: msalResponse,
+              } satisfies GetB2BTokenResult;
+            } catch {
+              return null;
+            }
+          }),
+        )
+      ).filter((result) => !!result);
+
+      if (!results || results.length === 0) {
+        throw new OAuthError(500, { message: 'Internal server error', description: 'Failed to get token' });
+      }
+
+      return 'b2bServiceName' in params ? (results[0] as GetB2BTokenResult) : results;
+    } catch (err) {
+      if (err instanceof OAuthError) throw err;
+      throw new OAuthError(500, { message: 'Error getting token on behalf of', description: err as string });
+    }
   }
 
   /**
@@ -542,14 +597,14 @@ export class OAuthProvider {
    * @returns Token pairs (access/refresh) and MSAL metadata for each target service.
    * @throws {OAuthError} If configuration or token validation fails.
    */
-  async getTokenOnBehalfOf(params: { accessToken: string; serviceNames: string[] }): Promise<
-    Array<{
-      accessToken: Cookies['AccessToken'];
-      refreshToken: Cookies['RefreshToken'] | null;
-      msalResponse: MsalResponse;
-    }>
-  > {
-    if (!this.onBehalfOfServices) {
+  async getTokenOnBehalfOf(params: { accessToken: string; oboServiceName: string }): Promise<GetTokenOnBehalfOfResult>;
+  async getTokenOnBehalfOf(params: { accessToken: string; oboServiceNames: string[] }): Promise<
+    GetTokenOnBehalfOfResult[]
+  >;
+  async getTokenOnBehalfOf(
+    params: { accessToken: string; oboServiceName: string } | { accessToken: string; oboServiceNames: string[] },
+  ): Promise<GetTokenOnBehalfOfResult | GetTokenOnBehalfOfResult[]> {
+    if (!this.onBehalfOfServicesMap) {
       throw new OAuthError(400, { message: 'Invalid params', description: 'On Behalf Of Services not configured' });
     }
     const { data: parsedParams, error: paramsError } = zMethods.getTokenOnBehalfOf.safeParse(params);
@@ -557,8 +612,8 @@ export class OAuthProvider {
       throw new OAuthError(400, { message: 'Invalid params', description: prettifyError(paramsError) });
     }
 
-    const services = parsedParams.serviceNames
-      .map((serviceName) => this.onBehalfOfServices?.get(serviceName))
+    const services = parsedParams.oboServiceNames
+      .map((serviceName) => this.onBehalfOfServicesMap?.get(serviceName))
       .filter((service) => !!service);
 
     if (!services || services.length === 0) {
@@ -581,7 +636,7 @@ export class OAuthProvider {
             try {
               const msalResponse = await this.cca.acquireTokenOnBehalfOf({
                 oboAssertion: rawAccessToken,
-                scopes: [service.scope],
+                scopes: [service.oboScope],
                 skipCache: false,
               });
               if (!msalResponse) return null;
@@ -592,7 +647,7 @@ export class OAuthProvider {
               const aud = decodedAccessToken.aud;
               if (typeof aud !== 'string') return null;
 
-              this.localDebug('getTokenOnBehalfOf', `Service: ${service.serviceName}, Audience: ${aud}`);
+              this.localDebug('getTokenOnBehalfOf', `Service: ${service.oboServiceName}, Audience: ${aud}`);
 
               const secretKey = createSecretKey(service.secretKey);
               const { accessToken, refreshToken } = await this.getTokens(msalResponse, secretKey);
@@ -607,22 +662,23 @@ export class OAuthProvider {
               });
 
               return {
-                accessToken: { value: accessToken, ...cookieOptions.accessToken },
-                refreshToken: refreshToken ? { value: refreshToken, ...cookieOptions.refreshToken } : null,
-                msalResponse,
-              };
+                oboServiceName: service.oboServiceName,
+                oboAccessToken: { value: accessToken, ...cookieOptions.accessToken },
+                oboRefreshToken: refreshToken ? { value: refreshToken, ...cookieOptions.refreshToken } : null,
+                oboMsalResponse: msalResponse,
+              } satisfies GetTokenOnBehalfOfResult;
             } catch {
               return null;
             }
           }),
         )
-      ).filter((response) => !!response);
+      ).filter((result) => !!result);
 
       if (!results || results.length === 0) {
         throw new OAuthError(500, { message: 'Internal server error', description: 'Failed to get token' });
       }
 
-      return results;
+      return 'oboServiceName' in params ? (results[0] as GetTokenOnBehalfOfResult) : results;
     } catch (err) {
       if (err instanceof OAuthError) throw err;
       throw new OAuthError(500, { message: 'Error getting token on behalf of', description: err as string });

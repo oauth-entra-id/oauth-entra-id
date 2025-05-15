@@ -5,7 +5,7 @@ import { oauthProvider } from '~/oauth';
 
 const tSchemas = {
   onBehalfOf: t.Object({
-    serviceNames: t.Array(t.String(), { minItems: 1 }),
+    oboServiceNames: t.Array(t.String(), { minItems: 1 }),
   }),
 };
 
@@ -17,17 +17,17 @@ export const protectedRouter: FastifyPluginAsyncTypebox = async (app) => {
   });
 
   app.post('/on-behalf-of', { schema: { body: tSchemas.onBehalfOf } }, async (req, reply) => {
-    const { serviceNames } = (req.body as { serviceNames: string[] }) || {};
+    const { oboServiceNames } = req.body || {};
 
     const results = await oauthProvider.getTokenOnBehalfOf({
       accessToken: req.microsoftInfo.rawAccessToken,
-      serviceNames,
+      oboServiceNames,
     });
 
     for (const result of results) {
-      const { accessToken, refreshToken } = result;
-      reply.setCookie(accessToken.name, accessToken.value, accessToken.options);
-      if (refreshToken) reply.setCookie(refreshToken.name, refreshToken.value, refreshToken.options);
+      const { oboAccessToken, oboRefreshToken } = result;
+      reply.setCookie(oboAccessToken.name, oboAccessToken.value, oboAccessToken.options);
+      if (oboRefreshToken) reply.setCookie(oboRefreshToken.name, oboRefreshToken.value, oboRefreshToken.options);
     }
 
     return { tokensSet: results.length };

@@ -8,8 +8,14 @@ export const zStr = z.string().trim().min(1);
 
 export const zEnv = z.object({
   NODE_ENV: z.enum(['development', 'production']).default('development'),
+  EXPRESS_URL: zStr.url().default('https://localhost:3001'),
+  EXPRESS_PORT: zStr.regex(/^\d+$/).transform(Number).default('3001'),
   NESTJS_URL: zStr.url().default('https://localhost:3002'),
-  NESTJS_PORT: z.union([z.number().nonnegative(), zStr.regex(/^\d+$/).transform(Number)]).default(3002),
+  NESTJS_PORT: zStr.regex(/^\d+$/).transform(Number).default('3002'),
+  FASTIFY_URL: zStr.url().default('https://localhost:3003'),
+  FASTIFY_PORT: zStr.regex(/^\d+$/).transform(Number).default('3003'),
+  HONOJS_URL: zStr.url().default('http://localhost:3004'),
+  HONOJS_PORT: zStr.regex(/^\d+$/).transform(Number).default('3004'),
   REACT_FRONTEND_URL: zStr.url().default('http://localhost:5000'),
   PROXIES: z.union([z.number().nonnegative(), zStr.regex(/^\d+$/).transform(Number)]).default(0),
   BLUE_SECRET_KEY: zStr,

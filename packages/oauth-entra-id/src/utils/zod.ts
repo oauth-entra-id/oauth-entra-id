@@ -15,12 +15,25 @@ export const zJwt = zStr.max(4096).regex(jwtRegex);
 export const zJwtOrEncrypted = zStr.max(4096).regex(jwtOrEncryptedRegex);
 export const zScope = zStr.min(3).max(128);
 export const zSecretKey = zStr.min(16).max(64);
+export const zServiceName = zStr.min(1).max(64);
 
 const zAzure = z.object({
   clientId: zUuid,
   tenantId: z.union([z.literal('common'), zUuid]),
   scopes: z.array(zScope).min(1),
   clientSecret: zStr.min(32),
+});
+
+const zB2BService = z.object({
+  allowB2B: z.boolean().default(false),
+  b2bServices: z
+    .array(
+      z.object({
+        b2bServiceName: zServiceName,
+        b2bScope: zScope,
+      }),
+    )
+    .optional(),
 });
 
 const zCookieConfig = z.object({
@@ -32,8 +45,8 @@ const zCookieConfig = z.object({
 });
 
 const zOnBehalfOfService = z.object({
-  serviceName: zStr.min(1).max(64),
-  scope: zScope,
+  oboServiceName: zServiceName,
+  oboScope: zScope,
   secretKey: zSecretKey,
   isHttps: z.boolean().optional(),
   isSameSite: z.boolean().optional(),
@@ -44,14 +57,14 @@ const zOnBehalfOfService = z.object({
 const zAdvanced = z.object({
   loginPrompt: zLoginPrompt.default('sso'),
   sessionType: zSessionType.default('cookie-session'),
-  allowB2B: z.boolean().default(false),
+  b2b: zB2BService.default({}),
   debug: z.boolean().default(false),
   cookies: zCookieConfig.default({}),
   onBehalfOf: z
     .object({
       isHttps: z.boolean(),
       isSameSite: z.boolean(),
-      services: z.array(zOnBehalfOfService).min(1),
+      oboServices: z.array(zOnBehalfOfService).min(1),
     })
     .optional(),
 });
@@ -102,8 +115,31 @@ export const zMethods = {
       frontendUrl: zUrl.optional(),
     })
     .default({}),
-  getTokenOnBehalfOf: z.object({
-    accessToken: zJwtOrEncrypted,
-    serviceNames: z.array(zStr.min(1).max(64)).min(1),
-  }),
+  getB2BToken: z.union([
+    z
+      .object({
+        b2bServiceName: zServiceName,
+      })
+      .transform((data) => ({
+        b2bServiceNames: [data.b2bServiceName],
+      })),
+    z.object({
+      b2bServiceNames: z.array(zServiceName).min(1),
+    }),
+  ]),
+  getTokenOnBehalfOf: z.union([
+    z
+      .object({
+        accessToken: zJwtOrEncrypted,
+        oboServiceName: zServiceName,
+      })
+      .transform((data) => ({
+        accessToken: data.accessToken,
+        oboServiceNames: [data.oboServiceName],
+      })),
+    z.object({
+      accessToken: zJwtOrEncrypted,
+      oboServiceNames: z.array(zServiceName).min(1),
+    }),
+  ]),
 };

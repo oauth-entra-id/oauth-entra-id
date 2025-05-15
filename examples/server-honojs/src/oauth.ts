@@ -12,18 +12,26 @@ export const oauthProvider = new OAuthProvider({
   serverCallbackUrl: `${env.SERVER_URL}/auth/callback`,
   secretKey: env.BLUE_SECRET_KEY,
   advanced: {
+    b2b: {
+      allowB2B: true,
+      b2bServices: [
+        { b2bServiceName: 'express', b2bScope: env.YELLOW_AZURE_EXPOSED_SCOPE },
+        { b2bServiceName: 'nestjs', b2bScope: env.RED_AZURE_EXPOSED_SCOPE },
+        { b2bServiceName: 'fastify', b2bScope: env.RED_AZURE_EXPOSED_SCOPE },
+      ],
+    },
     onBehalfOf: {
       isHttps: env.NODE_ENV !== 'development',
       isSameSite: env.NODE_ENV !== 'development',
-      services: [
+      oboServices: [
         {
-          serviceName: 'red',
-          scope: env.RED_AZURE_EXPOSED_SCOPE,
+          oboServiceName: 'red',
+          oboScope: env.RED_AZURE_EXPOSED_SCOPE,
           secretKey: env.RED_SECRET_KEY,
         },
         {
-          serviceName: 'yellow',
-          scope: env.YELLOW_AZURE_EXPOSED_SCOPE,
+          oboServiceName: 'yellow',
+          oboScope: env.YELLOW_AZURE_EXPOSED_SCOPE,
           secretKey: env.YELLOW_SECRET_KEY,
         },
       ],

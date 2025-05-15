@@ -13,24 +13,24 @@ export function getCookie(req: Request, name: string): string | undefined {
     return undefined;
   }
 
-  for (const pair of cookies.split('; ')) {
+  for (let pair of cookies.split('; ')) {
     if (pair.indexOf(name) === -1) {
       continue;
     }
 
-    const trimmed = pair.trim();
-    const valueStartPos = trimmed.indexOf('=');
+    pair = pair.trim();
+    const valueStartPos = pair.indexOf('=');
 
     if (valueStartPos === -1) {
       continue;
     }
 
-    const cookieName = trimmed.substring(0, valueStartPos).trim();
+    const cookieName = pair.substring(0, valueStartPos).trim();
     if (cookieName !== name) {
       continue;
     }
 
-    let cookieValue = trimmed.substring(valueStartPos + 1).trim();
+    let cookieValue = pair.substring(valueStartPos + 1).trim();
     if (cookieValue.startsWith('"') && cookieValue.endsWith('"')) {
       cookieValue = cookieValue.slice(1, -1);
     }

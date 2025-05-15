@@ -15,15 +15,15 @@ export const oauthProvider = new OAuthProvider({
     onBehalfOf: {
       isHttps: env.NODE_ENV !== 'development',
       isSameSite: env.NODE_ENV !== 'development',
-      services: [
+      oboServices: [
         {
-          serviceName: 'blue',
-          scope: env.BLUE_AZURE_EXPOSED_SCOPE,
+          oboServiceName: 'blue',
+          oboScope: env.BLUE_AZURE_EXPOSED_SCOPE,
           secretKey: env.BLUE_SECRET_KEY,
         },
         {
-          serviceName: 'yellow',
-          scope: env.YELLOW_AZURE_EXPOSED_SCOPE,
+          oboServiceName: 'yellow',
+          oboScope: env.YELLOW_AZURE_EXPOSED_SCOPE,
           secretKey: env.YELLOW_SECRET_KEY,
         },
       ],

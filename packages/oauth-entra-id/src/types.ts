@@ -9,14 +9,21 @@ export type SessionType = 'cookie-session' | 'bearer-token';
 // biome-ignore lint/suspicious/noExplicitAny: More choices
 export type InjectedData = Record<string, any>;
 
+export interface B2BService {
+  /** Unique identifier for the service. */
+  b2bServiceName: string;
+  /** OAuth2 scope required to access the service. */
+  b2bScope: string;
+}
+
 /**
  * Configuration for On-Behalf-Of authentication with an external service.
  */
 export interface OnBehalfOfService {
   /** Unique identifier for the service. */
-  serviceName: string;
+  oboServiceName: string;
   /** OAuth2 scope required to access the service. */
-  scope: string;
+  oboScope: string;
   /** Secret key used for decrypting/encrypting tokens. */
   secretKey: string;
   /** Whether HTTPS is enforced. */
@@ -55,8 +62,13 @@ export interface OAuthConfig {
     loginPrompt?: LoginPrompt;
     /** Session type for verifying user identity. */
     sessionType?: SessionType;
-    /** Allow tokens issued by other trusted systems. */
-    allowB2B?: boolean;
+    /** B2B authentication settings. */
+    b2b?: {
+      /** Allow tokens issued by other trusted systems to be accepted. */
+      allowB2B?: boolean;
+      /** Create B2B access tokens for external services. */
+      b2bServices?: B2BService[];
+    };
     /** Enable debug logging for internal flow. */
     debug?: boolean;
     /** Cookie behavior and expiration settings. */
@@ -79,7 +91,7 @@ export interface OAuthConfig {
       /** Whether `SameSite` cookies are enforced. */
       isSameSite: boolean;
       /** List of services for On-Behalf-Of authentication. */
-      services: OnBehalfOfService[];
+      oboServices: OnBehalfOfService[];
     };
   };
 }
@@ -93,7 +105,8 @@ export interface OAuthSettings {
   readonly isHttps: boolean;
   readonly isSameSite: boolean;
   readonly cookiesTimeUnit: TimeUnit;
-  readonly serviceNames?: string[];
+  readonly b2bServices?: string[];
+  readonly oboServices?: string[];
   readonly accessTokenCookieExpiry: number;
   readonly refreshTokenCookieExpiry: number;
   readonly debug: boolean;
@@ -154,3 +167,16 @@ export type OAuthProviderMethods =
       [K in keyof OAuthProvider]: OAuthProvider[K] extends (...args: any[]) => any ? K : never;
     }[keyof OAuthProvider]
   | PrivateMethods;
+
+export interface GetB2BTokenResult {
+  b2bServiceName: string;
+  b2bAccessToken: string;
+  b2bMsalResponse: MsalResponse;
+}
+
+export interface GetTokenOnBehalfOfResult {
+  oboServiceName: string;
+  oboAccessToken: Cookies['AccessToken'];
+  oboRefreshToken: Cookies['RefreshToken'] | null;
+  oboMsalResponse: MsalResponse;
+}

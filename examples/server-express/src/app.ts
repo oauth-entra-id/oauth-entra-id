@@ -97,15 +97,15 @@ export default function createApp(): Application {
         onBehalfOf: {
           isHttps: env.NODE_ENV !== 'development',
           isSameSite: env.NODE_ENV !== 'development',
-          services: [
+          oboServices: [
             {
-              serviceName: 'blue',
-              scope: env.BLUE_AZURE_EXPOSED_SCOPE,
+              oboServiceName: 'blue',
+              oboScope: env.BLUE_AZURE_EXPOSED_SCOPE,
               secretKey: env.BLUE_SECRET_KEY,
             },
             {
-              serviceName: 'red',
-              scope: env.RED_AZURE_EXPOSED_SCOPE,
+              oboServiceName: 'red',
+              oboScope: env.RED_AZURE_EXPOSED_SCOPE,
               secretKey: env.RED_SECRET_KEY,
             },
           ],

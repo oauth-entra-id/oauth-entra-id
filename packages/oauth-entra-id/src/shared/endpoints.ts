@@ -4,6 +4,10 @@ import { setCookie } from './cookie-parser';
 import type { Endpoints } from './types';
 
 export async function sharedHandleAuthentication(req: Request, res: Response) {
+  if (req.oauthProvider.settings.sessionType !== 'cookie-session') {
+    throw new OAuthError(500, { message: 'Invalid session type', description: 'Session type must be cookie-session' });
+  }
+
   const body = req.body as Endpoints['Authenticate'] | undefined;
   const params = body ? { loginPrompt: body.loginPrompt, email: body.email, frontendUrl: body.frontendUrl } : {};
 
@@ -13,6 +17,10 @@ export async function sharedHandleAuthentication(req: Request, res: Response) {
 }
 
 export async function sharedHandleCallback(req: Request, res: Response) {
+  if (req.oauthProvider.settings.sessionType !== 'cookie-session') {
+    throw new OAuthError(500, { message: 'Invalid session type', description: 'Session type must be cookie-session' });
+  }
+
   const body = req.body as Endpoints['Callback'] | undefined;
   if (!body) throw new OAuthError(400, { message: 'Invalid params', description: 'Body must contain code and state' });
 
@@ -27,6 +35,10 @@ export async function sharedHandleCallback(req: Request, res: Response) {
 }
 
 export async function sharedHandleLogout(req: Request, res: Response) {
+  if (req.oauthProvider.settings.sessionType !== 'cookie-session') {
+    throw new OAuthError(500, { message: 'Invalid session type', description: 'Session type must be cookie-session' });
+  }
+
   const body = req.body as Endpoints['Logout'] | undefined;
   const params = body ? { frontendUrl: body.frontendUrl } : {};
 
@@ -38,6 +50,10 @@ export async function sharedHandleLogout(req: Request, res: Response) {
 }
 
 export async function sharedHandleOnBehalfOf(req: Request, res: Response) {
+  if (req.oauthProvider.settings.sessionType !== 'cookie-session') {
+    throw new OAuthError(500, { message: 'Invalid session type', description: 'Session type must be cookie-session' });
+  }
+
   const body = req.body as Endpoints['OnBehalfOf'] | undefined;
   if (!body) throw new OAuthError(400, { message: 'Invalid params', description: 'Body must contain serviceNames' });
 
@@ -46,13 +62,13 @@ export async function sharedHandleOnBehalfOf(req: Request, res: Response) {
   }
 
   const results = await req.oauthProvider.getTokenOnBehalfOf({
-    serviceNames: body.serviceNames,
+    oboServiceNames: body.oboServiceNames,
     accessToken: req.microsoftInfo.rawAccessToken,
   });
 
-  for (const { accessToken, refreshToken } of results) {
-    setCookie(res, accessToken.name, accessToken.value, accessToken.options);
-    if (refreshToken) setCookie(res, refreshToken.name, refreshToken.value, refreshToken.options);
+  for (const { oboAccessToken, oboRefreshToken } of results) {
+    setCookie(res, oboAccessToken.name, oboAccessToken.value, oboAccessToken.options);
+    if (oboRefreshToken) setCookie(res, oboRefreshToken.name, oboRefreshToken.value, oboRefreshToken.options);
   }
 
   res.status(200).json({ tokensSet: results.length });
