@@ -101,10 +101,10 @@ export function handleLogout(req: Request, res: Response, next: NextFunction) {
  *
  * @throws {OAuthError} If token exchange fails, an error is passed to `next`.
  */
-export function handleOnBehalfOf(req: Request, res: Response, next: NextFunction) {
+export async function handleOnBehalfOf(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.oauthProvider || req.serverType !== 'express') throw new OAuthError(500, ERROR_MESSAGE);
-    sharedHandleOnBehalfOf(req, res);
+    await sharedHandleOnBehalfOf(req, res);
   } catch (err) {
     next(err);
   }

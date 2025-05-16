@@ -107,10 +107,10 @@ export function handleLogout(req: Request, res: Response) {
  *
  * @throws {OAuthError} If On-Behalf-Of setup fails, an error is thrown.
  */
-export function handleOnBehalfOf(req: Request, res: Response) {
+export async function handleOnBehalfOf(req: Request, res: Response) {
   try {
     if (!req.oauthProvider || req.serverType !== 'nestjs') throw new OAuthError(500, ERROR_MESSAGE);
-    sharedHandleOnBehalfOf(req, res);
+    await sharedHandleOnBehalfOf(req, res);
   } catch (err) {
     if (err instanceof OAuthError) throw err;
     if (err instanceof Error) throw new OAuthError(500, err.message);

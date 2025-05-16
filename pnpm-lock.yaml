@@ -309,6 +309,9 @@ importers:
       class-transformer:
         specifier: ^0.5.1
         version: 0.5.1
+      class-validator:
+        specifier: ^0.14.2
+        version: 0.14.2
       dotenv:
         specifier: ^16.5.0
         version: 16.5.0
@@ -6046,8 +6049,7 @@ snapshots:
       '@types/node': 22.15.18
       '@types/send': 0.17.4
 
-  '@types/validator@13.15.0':
-    optional: true
+  '@types/validator@13.15.0': {}
 
   '@vitejs/plugin-react@4.4.1(vite@6.3.5(@types/node@22.15.18)(jiti@2.4.2)(lightningcss@1.29.2)(terser@5.39.1)(tsx@4.19.4)(yaml@2.7.0))':
     dependencies:
@@ -6434,7 +6436,6 @@ snapshots:
       '@types/validator': 13.15.0
       libphonenumber-js: 1.12.8
       validator: 13.15.0
-    optional: true
 
   class-variance-authority@0.7.1:
     dependencies:
@@ -7181,8 +7182,7 @@ snapshots:
 
   kleur@4.1.5: {}
 
-  libphonenumber-js@1.12.8:
-    optional: true
+  libphonenumber-js@1.12.8: {}
 
   light-my-request@6.6.0:
     dependencies:
@@ -8276,8 +8276,7 @@ snapshots:
 
   v8-compile-cache-lib@3.0.1: {}
 
-  validator@13.15.0:
-    optional: true
+  validator@13.15.0: {}
 
   vary@1.1.2: {}
 

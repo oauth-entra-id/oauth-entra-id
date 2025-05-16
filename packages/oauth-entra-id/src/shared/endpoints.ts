@@ -34,7 +34,7 @@ export async function sharedHandleCallback(req: Request, res: Response) {
   res.redirect(frontendUrl);
 }
 
-export async function sharedHandleLogout(req: Request, res: Response) {
+export function sharedHandleLogout(req: Request, res: Response) {
   if (req.oauthProvider.settings.sessionType !== 'cookie-session') {
     throw new OAuthError(500, { message: 'Invalid session type', description: 'Session type must be cookie-session' });
   }
