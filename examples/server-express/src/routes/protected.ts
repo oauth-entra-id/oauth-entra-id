@@ -7,7 +7,7 @@ import { HttpException } from '~/error/HttpException';
 
 const zAvailableServers = z.enum(['nestjs', 'fastify', 'honojs']);
 
-const zB2BSchemas = z.object({
+const zGetB2BInfoBody = z.object({
   b2bServiceName: zAvailableServers,
 });
 
@@ -60,7 +60,7 @@ protectedRouter.get('/user-info', (req, res) => {
 protectedRouter.post('/on-behalf-of', handleOnBehalfOf);
 
 protectedRouter.post('/get-b2b-info', async (req, res) => {
-  const { data: body, error: bodyError } = zB2BSchemas.safeParse(req.body);
+  const { data: body, error: bodyError } = zGetB2BInfoBody.safeParse(req.body);
   if (bodyError) throw new HttpException('Invalid params', 400);
 
   const result = await req.oauthProvider.getB2BToken({ b2bServiceName: body.b2bServiceName });
