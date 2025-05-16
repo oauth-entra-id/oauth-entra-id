@@ -18,13 +18,14 @@
     "@fastify/rate-limit": "^10.2.2",
     "@fastify/type-provider-typebox": "^5.1.0",
     "@sinclair/typebox": "^0.34.33",
+    "axios": "^1.9.0",
     "dotenv": "^16.5.0",
-    "fastify": "^5.3.2",
+    "fastify": "^5.3.3",
     "oauth-entra-id": "workspace:*",
     "zod": "^3.24.4"
   },
   "devDependencies": {
-    "@types/node": "^22.15.17",
+    "@types/node": "^22.15.18",
     "tsup": "^8.4.0",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3"

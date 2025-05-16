@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { env } from '~/env';
+import { oauthProvider } from '~/oauth';
 
 export const publicRouter = new Hono();
 
@@ -13,3 +14,15 @@ publicRouter.get('/app-info', (c) =>
     yellow: env.YELLOW_AZURE_CLIENT_ID,
   }),
 );
+
+publicRouter.get('/test', async (c) => {
+  const [result, results] = await Promise.all([
+    oauthProvider.getB2BToken({ b2bServiceName: 'express' }),
+    oauthProvider.getB2BToken({ b2bServiceNames: ['nestjs', 'fastify'] }),
+  ]);
+
+  return c.json({
+    result,
+    results,
+  });
+});

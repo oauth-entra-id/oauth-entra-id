@@ -1,57 +1,120 @@
+import type { Context } from 'hono';
 import { getCookie, setCookie } from 'hono/cookie';
 import { createMiddleware } from 'hono/factory';
 import { HTTPException } from 'hono/http-exception';
+import type { JwtPayload } from 'oauth-entra-id';
 import { oauthProvider } from '~/oauth';
 
 export type ProtectRoute = {
   Variables: {
-    msal: {
-      microsoftToken: string;
-      payload: Record<string, unknown>;
+    microsoftInfo: {
+      rawAccessToken: string;
+      accessTokenPayload: Record<string, unknown>;
     };
-    userInfo: {
-      uniqueId: string;
-      roles: string[];
-      name: string;
-      email: string;
-    };
+    userInfo:
+      | {
+          isB2B: false;
+          uniqueId: string;
+          roles: string[];
+          name: string;
+          email: string;
+          injectedData?: {
+            randomNumber: number;
+          };
+        }
+      | { isB2B: true; uniqueId: string; roles: string[]; appId: string };
   };
 };
 
 export const protectRoute = createMiddleware<ProtectRoute>(async (c, next) => {
+  const authorizationHeader = c.req.header('Authorization');
+
+  if (oauthProvider.settings.isB2BEnabled && authorizationHeader) {
+    const bearerAccessToken = authorizationHeader.startsWith('Bearer ') ? authorizationHeader.split(' ')[1] : undefined;
+    if (!bearerAccessToken) throw new HTTPException(401, { message: 'Unauthorized' });
+
+    const bearerInfo = await oauthProvider.verifyAccessToken(bearerAccessToken);
+    if (!bearerInfo) throw new HTTPException(401, { message: 'Unauthorized' });
+
+    setUserInfo(c, { payload: bearerInfo.microsoftInfo.accessTokenPayload, isB2B: true });
+
+    return await next();
+  }
+
   const { accessTokenName, refreshTokenName } = oauthProvider.getCookieNames();
   const accessToken = getCookie(c, accessTokenName);
   const refreshToken = getCookie(c, refreshTokenName);
-
   if (!accessToken && !refreshToken) throw new HTTPException(401, { message: 'Unauthorized' });
-  if (accessToken) {
-    const microsoftInfo = await oauthProvider.verifyAccessToken(accessToken);
-    if (microsoftInfo) {
-      c.set('msal', microsoftInfo);
-      c.set('userInfo', {
-        uniqueId: microsoftInfo.payload.oid,
-        roles: microsoftInfo.payload.roles,
-        name: microsoftInfo.payload.name,
-        email: microsoftInfo.payload.preferred_username,
-      });
 
-      await next();
-      return;
+  const tokenInfo = accessToken ? await oauthProvider.verifyAccessToken(accessToken) : null;
+  if (tokenInfo) {
+    c.set('microsoftInfo', tokenInfo.microsoftInfo);
+    if (tokenInfo.injectedData) {
+      setUserInfo(c, {
+        payload: tokenInfo.microsoftInfo.accessTokenPayload,
+        injectedData: tokenInfo.injectedData as { randomNumber: number },
+      });
+    } else {
+      const randomNumber = getRandomNumber();
+      const newAccessToken = oauthProvider.injectData({
+        accessToken: tokenInfo.microsoftInfo.rawAccessToken,
+        data: { randomNumber },
+      });
+      if (newAccessToken) setCookie(c, newAccessToken.name, newAccessToken.value, newAccessToken.options);
+      setUserInfo(c, {
+        payload: tokenInfo.microsoftInfo.accessTokenPayload,
+        injectedData: newAccessToken ? { randomNumber } : undefined,
+      });
     }
+
+    return await next();
   }
+
   if (!refreshToken) throw new HTTPException(401, { message: 'Unauthorized' });
-  const newTokens = await oauthProvider.getTokenByRefresh(refreshToken);
-  if (!newTokens) throw new HTTPException(401, { message: 'Unauthorized' });
-  const { newAccessToken, newRefreshToken, msal } = newTokens;
-  setCookie(c, newAccessToken.name, newAccessToken.value, newAccessToken.options);
+
+  const newTokensInfo = await oauthProvider.getTokenByRefresh(refreshToken);
+  if (!newTokensInfo) throw new HTTPException(401, { message: 'Unauthorized' });
+
+  const { newAccessToken, newRefreshToken, microsoftInfo } = newTokensInfo;
+  c.set('microsoftInfo', microsoftInfo);
+
+  const randomNumber = getRandomNumber();
+  const newerAccessToken = oauthProvider.injectData({
+    accessToken: microsoftInfo.rawAccessToken,
+    data: { randomNumber },
+  });
+
+  const finalAccessToken = newerAccessToken ?? newAccessToken;
+
+  setCookie(c, finalAccessToken.name, finalAccessToken.value, finalAccessToken.options);
   if (newRefreshToken) setCookie(c, newRefreshToken.name, newRefreshToken.value, newRefreshToken.options);
-  c.set('msal', msal);
-  c.set('userInfo', {
-    uniqueId: msal.payload.oid,
-    roles: msal.payload.roles,
-    name: msal.payload.name,
-    email: msal.payload.preferred_username,
+  setUserInfo(c, {
+    payload: microsoftInfo.accessTokenPayload,
+    injectedData: newerAccessToken ? { randomNumber } : undefined,
   });
 
   await next();
 });
+
+function setUserInfo(
+  c: Context,
+  { payload, injectedData, isB2B }: { payload: JwtPayload; injectedData?: { randomNumber: number }; isB2B?: boolean },
+) {
+  c.set(
+    'userInfo',
+    isB2B
+      ? { isB2B: true, uniqueId: payload.oid, roles: payload.roles, appId: payload.appid }
+      : {
+          isB2B: false,
+          uniqueId: payload.oid,
+          roles: payload.roles,
+          name: payload.name,
+          email: payload.preferred_username,
+          injectedData,
+        },
+  );
+}
+
+function getRandomNumber() {
+  return Math.floor(Math.random() * 100);
+}

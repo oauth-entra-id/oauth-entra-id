@@ -1,1 +1,1 @@
-pnpm typecheck && pnpm check
+pnpm check && pnpm typecheck

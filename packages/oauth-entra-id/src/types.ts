@@ -1,24 +1,35 @@
-import type { JwtPayload } from 'jsonwebtoken';
+import type { AuthenticationResult } from '@azure/msal-node';
 import type { OAuthProvider } from './core';
 import type { ACCESS_TOKEN_NAME, REFRESH_TOKEN_NAME } from './utils/get-cookie-options';
 
-export type ServerType = 'express' | 'nestjs';
 export type LoginPrompt = 'email' | 'select-account' | 'sso';
 export type TimeUnit = 'ms' | 'sec';
+export type SessionType = 'cookie-session' | 'bearer-token';
+
+// biome-ignore lint/suspicious/noExplicitAny: More choices
+export type InjectedData = Record<string, any>;
+
+export interface B2BService {
+  /** Unique identifier for the service. */
+  b2bServiceName: string;
+  /** OAuth2 scope required to access the service. */
+  b2bScope: string;
+}
+
 /**
  * Configuration for On-Behalf-Of authentication with an external service.
  */
 export interface OnBehalfOfService {
   /** Unique identifier for the service. */
-  serviceName: string;
+  oboServiceName: string;
   /** OAuth2 scope required to access the service. */
-  scope: string;
+  oboScope: string;
   /** Secret key used for decrypting/encrypting tokens. */
   secretKey: string;
   /** Whether HTTPS is enforced. */
-  isHttps: boolean;
+  isHttps?: boolean;
   /** Whether `SameSite` cookies are enforced. */
-  isSameSite: boolean;
+  isSameSite?: boolean;
   /** Optional expiration time for access tokens (in seconds or ms, based on time frame). */
   accessTokenExpiry?: number;
   /** Optional expiration time for refresh tokens (in seconds or ms, based on time frame). */
@@ -49,8 +60,15 @@ export interface OAuthConfig {
   advanced?: {
     /** Login prompt behavior during user authentication. */
     loginPrompt?: LoginPrompt;
-    /** Allow tokens issued by other trusted systems. */
-    allowOtherSystems?: boolean;
+    /** Session type for verifying user identity. */
+    sessionType?: SessionType;
+    /** B2B authentication settings. */
+    b2b?: {
+      /** Allow tokens issued by other trusted systems to be accepted. */
+      allowB2B?: boolean;
+      /** Create B2B access tokens for external services. */
+      b2bServices?: B2BService[];
+    };
     /** Enable debug logging for internal flow. */
     debug?: boolean;
     /** Cookie behavior and expiration settings. */
@@ -67,70 +85,34 @@ export interface OAuthConfig {
       refreshTokenExpiry?: number;
     };
     /** Additional trusted services for On-Behalf-Of token exchange. */
-    onBehalfOfServices?: OnBehalfOfService[];
+    onBehalfOf?: {
+      /** Whether HTTPS is enforced. */
+      isHttps: boolean;
+      /** Whether `SameSite` cookies are enforced. */
+      isSameSite: boolean;
+      /** List of services for On-Behalf-Of authentication. */
+      oboServices: OnBehalfOfService[];
+    };
   };
 }
 
 /**
- * Computed options after parsing `OAuthConfig`.
+ * Settings after parsing `OAuthConfig`.
  */
-export interface OAuthOptions {
-  readonly areOtherSystemsAllowed: boolean;
+export interface OAuthSettings {
+  readonly sessionType: SessionType;
+  readonly isB2BEnabled: boolean;
   readonly isHttps: boolean;
   readonly isSameSite: boolean;
   readonly cookiesTimeUnit: TimeUnit;
-  readonly serviceNames?: string[];
+  readonly b2bServices?: string[];
+  readonly oboServices?: string[];
   readonly accessTokenCookieExpiry: number;
   readonly refreshTokenCookieExpiry: number;
   readonly debug: boolean;
 }
 
-export interface Endpoints {
-  Authenticate: {
-    loginPrompt?: 'email' | 'select-account' | 'sso';
-    email?: string;
-    frontendUrl: string;
-  };
-  Callback: {
-    code: string;
-    state: string;
-  };
-  Logout: {
-    frontendUrl?: string;
-  };
-  OnBehalfOf: {
-    serviceNames: string[];
-  };
-}
-
-declare global {
-  namespace Express {
-    export interface Request {
-      /** OAuthProvider instance bound to the request. */
-      oauthProvider: OAuthProvider;
-      /** The backend framework type. */
-      serverType: ServerType;
-
-      /**
-       * Stores the raw Microsoft access token and its decoded payload.
-       */
-      msal?: {
-        microsoftToken: string;
-        payload: JwtPayload;
-      };
-
-      /**
-       * Stores user authentication details.
-       *
-       * - If `isOtherApp` is `false`, the user is authenticated locally.
-       * - If `isOtherApp` is `true`, the token was issued by another service.
-       */
-      userInfo?:
-        | { isOtherApp: false; uniqueId: string; roles: string[]; name: string; email: string }
-        | { isOtherApp: true; uniqueId: string; roles: string[]; appId: string };
-    }
-  }
-}
+export type MsalResponse = AuthenticationResult;
 
 type AccessTokenName = `${typeof ACCESS_TOKEN_NAME}-${string}` | `__Host-${typeof ACCESS_TOKEN_NAME}-${string}`;
 type RefreshTokenName = `${typeof REFRESH_TOKEN_NAME}-${string}` | `__Host-${typeof REFRESH_TOKEN_NAME}-${string}`;
@@ -177,16 +159,24 @@ export interface Cookies {
   };
 }
 
-export interface CookieParserOptions {
-  httpOnly?: boolean;
-  secure?: boolean;
-  sameSite?: 'strict' | 'lax' | 'none';
-  maxAge?: number;
-  path?: string;
-  domain?: string;
+type PrivateMethods = 'verifyJwt';
+
+export type OAuthProviderMethods =
+  | {
+      // biome-ignore lint/suspicious/noExplicitAny: The only way to get the method names of the class
+      [K in keyof OAuthProvider]: OAuthProvider[K] extends (...args: any[]) => any ? K : never;
+    }[keyof OAuthProvider]
+  | PrivateMethods;
+
+export interface GetB2BTokenResult {
+  b2bServiceName: string;
+  b2bAccessToken: string;
+  b2bMsalResponse: MsalResponse;
 }
 
-export type MethodKeys<T> = {
-  // biome-ignore lint/suspicious/noExplicitAny: <explanation>
-  [K in keyof T]: T[K] extends (...args: any[]) => any ? K : never;
-}[keyof T];
+export interface GetTokenOnBehalfOfResult {
+  oboServiceName: string;
+  oboAccessToken: Cookies['AccessToken'];
+  oboRefreshToken: Cookies['RefreshToken'] | null;
+  oboMsalResponse: MsalResponse;
+}

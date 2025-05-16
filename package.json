@@ -8,8 +8,7 @@
     "format": "pnpm biome format --write .",
     "lint": "pnpm biome lint --write .",
     "check": "pnpm biome check --write .",
-    "typecheck": "turbo run typecheck",
-    "prepare": "husky"
+    "typecheck": "turbo run typecheck"
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",

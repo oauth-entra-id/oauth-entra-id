@@ -8,6 +8,7 @@ import { authConfig } from 'oauth-entra-id/express';
 import { env } from './env';
 import { HttpException } from './error/HttpException';
 import { notFound } from './middlewares/not-found';
+import { oauthConfig } from './oauth';
 import { routesRouter } from './routes';
 
 export default function createApp(): Application {
@@ -82,41 +83,11 @@ export default function createApp(): Application {
   }
   app.use(morgan(env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
-  app.use(
-    authConfig({
-      azure: {
-        clientId: env.YELLOW_AZURE_CLIENT_ID,
-        tenantId: env.YELLOW_AZURE_TENANT_ID,
-        scopes: [env.YELLOW_AZURE_CLIENT_SCOPE],
-        clientSecret: env.YELLOW_AZURE_CLIENT_SECRET,
-      },
-      frontendUrl: env.REACT_FRONTEND_URL,
-      serverCallbackUrl: `${env.SERVER_URL}/auth/callback`,
-      secretKey: env.YELLOW_SECRET_KEY,
-      advanced: {
-        onBehalfOfServices: [
-          {
-            serviceName: 'blue',
-            scope: env.BLUE_AZURE_CLIENT_SCOPE,
-            secretKey: env.BLUE_SECRET_KEY,
-            isHttps: env.NODE_ENV !== 'development',
-            isSameSite: env.NODE_ENV !== 'development',
-          },
-          {
-            serviceName: 'red',
-            scope: env.RED_AZURE_CLIENT_SCOPE,
-            secretKey: env.RED_SECRET_KEY,
-            isHttps: env.NODE_ENV !== 'development',
-            isSameSite: env.NODE_ENV !== 'development',
-          },
-        ],
-      },
-    }),
-  );
+  app.use(authConfig(oauthConfig));
 
   app.use(new URL(env.SERVER_URL).pathname, routesRouter);
 
-  app.use('*', notFound);
+  app.use(notFound);
 
   app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
     const { message, statusCode, description } = new HttpException(err);

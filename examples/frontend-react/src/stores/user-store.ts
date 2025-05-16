@@ -4,6 +4,9 @@ interface User {
   uniqueId: string;
   name: string;
   email: string;
+  injectedData?: {
+    randomNumber: number;
+  };
 }
 
 interface UserStore {
