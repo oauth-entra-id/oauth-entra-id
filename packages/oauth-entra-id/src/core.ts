@@ -685,7 +685,7 @@ export class OAuthProvider {
               return {
                 oboServiceName: service.oboServiceName,
                 oboAccessToken: { value: accessTokenValue, ...cookieOptions.accessToken },
-                oboRefreshToken: refreshTokenValue ? { value: refreshTokenValue, ...cookieOptions.refreshToken } : null,
+                oboRefreshToken: null, //TODO: Refresh token is not working
                 oboMsalResponse: msalResponse,
               } satisfies GetTokenOnBehalfOfResult;
             } catch {
