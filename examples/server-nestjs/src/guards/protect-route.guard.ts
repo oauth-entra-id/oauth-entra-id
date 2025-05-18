@@ -9,8 +9,7 @@ export class ProtectRouteGuard implements CanActivate {
     const res = httpContext.getResponse<Response>();
     return await isAuthenticated(req, res, ({ userInfo, injectData }) => {
       if (!userInfo.isB2B && !userInfo.injectedData) {
-        const randomNumber = getRandomNumber();
-        injectData({ randomNumber });
+        injectData({ randomNumber: getRandomNumber() });
       }
     });
   }

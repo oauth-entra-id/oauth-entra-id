@@ -12,12 +12,11 @@ npm install oauth-entra-id
 
 ## Features 📦
 
-
 - 🔐 Secure backend-driven OAuth 2.0 Authorization Code Grant flow with PKCE (Proof Key for Code Exchange).
 - 🍪 Cookie-based authentication.
 - 🔄️ Access token and refresh token management (including token rotation).
 - ✅ Built-in validation for Microsoft-issued JWTs using Entra ID public keys.
-- 📢 Supports On-Behalf-Of (OBO) flow.
+- 📢 Supports B2B authentication and OBO (On-Behalf-Of) flow.
 
 ## Architecture 🏗️
 
@@ -25,64 +24,82 @@ npm install oauth-entra-id
 
 ## Configuration ⚙️
 
-- `azure` - Azure parameters:
-  - `clientId` - The client ID of your Azure application.
-  - `tenantId` - `common` for multi-tenant applications or your tenant ID for single-tenant applications.
-  - `scopes` - The scopes you want to request from Microsoft Entra ID. For example: `["openid", "profile", "offline_access"]`.
-  - `clientSecret` - The client secret of your Azure application.
-- `frontendUrl` - The frontend URL(s) of the application for redirection. It can be a single URL or an array of URLs.
-- `serverCallbackUrl` - The URL of your server's callback endpoint. This should match the redirect URI you set in Azure. For example: `http://localhost:3000/auth/callback`.
-- `secretKey` - A 32-character long secret key for encryption. This key is used to encrypt the cookies and should be kept secret.
-- `advanced` - Advanced configuration options:
-  - `loginPrompt` - The login prompt type. It can be `"email" | "select-account" | "sso"` (default: `"sso"`).
-  - `allowOtherSystems` - Allow authentication for other systems (via Authorization header). Default: `false`.
-  - `debug` - Enable debug logs. Default: `false`.
-  - `cookies` - Cookie configuration options:
-    - `timeUnit` - The time unit for the cookie expiry. It can be `"ms" | "sec"` (default: `"sec"`).
-    - `disableHttps` - Disable Secure cookie enforcement. Default: `false`.
-    - `disableSameSite` - Disable SameSite cookie attribute. Default: `false`.
-    - `accessTokenExpiry` - The expiry time for the access token cookie in seconds (default: 1 hour).
-    - `refreshTokenExpiry` - The expiry time for the refresh token cookie in seconds (default: 1 month).
-  - `onBehalfOfServices` - An array of configurations for On-Behalf-Of services:
-    - `serviceName` - Unique name for the service.
-    - `scope` - The scope for the service. For example: `api://some-service/.default`.
-    - `secretKey` - The secret key to encrypt the tokens for the service.
-    - `isHttps` - Whether the service uses HTTPS or not.
-    - `isSameSite` - Whether to use SameSite cookie attribute or not.
-    - `accessTokenExpiry` - The expiry time for the access token in seconds (default: 1 hour).
-    - `refreshTokenExpiry` - The expiry time for the refresh token in seconds (default: 1 month).
-
 ```typescript
 export interface OAuthConfig {
+  // Microsoft Entra ID configuration
   azure: {
+    // Microsoft Entra ID client ID
     clientId: string;
-    tenantId: string;
+    // Azure tenant ID or `'common'` for multi-tenant support
+    tenantId: 'common' | string;
+    // OAuth 2.0 scopes to request during authentication e.g., ["openid", "profile", "email"]
     scopes: string[];
+    // Client secret associated with the Azure app registration
     clientSecret: string;
   };
+  // Allowed frontend redirect URL(s)
   frontendUrl: string | string[];
+  // The server-side callback URL (must match the one registered in Azure)
   serverCallbackUrl: string;
+  // 32-byte encryption key used to encrypt/decrypt tokens
   secretKey: string;
+  // Optional configuration for advanced features
   advanced?: {
-    loginPrompt?: "email" | "select-account" | "sso"; // default: "sso"
-    allowOtherSystems?: boolean; //default: false
+    // Controls login UI behavior. Defaults to `'sso'`
+    loginPrompt?: 'email' | 'select-account' | 'sso';
+    // Session persistence method. Defaults to `'cookie-session'`
+    sessionType?: 'cookie-session' | 'bearer-token';
+    // External B2B system integration configuration
+    b2b?: {
+      // Whether to accept tokens issued by other systems
+      allowB2B?: boolean;
+      // Create B2B access tokens for external services
+      b2bServices?: {
+        // Unique identifier of the external service
+        b2bServiceName: string;
+        // OAuth 2.0 scope to request for the service. Usually end with `/.default` to request all permissions
+        b2bServiceScope: string;
+      }[];
+    };
+    // Enables verbose debug logging
     debug?: boolean;
-    cookies?:{
-      timeUnit?: "ms" | "sec"; // default: "sec"
-      disableHttps?: boolean; //default: false
-      disableSameSite?: boolean; //default: false
-      accessTokenExpiry?: number; //default: 1 hour
-      refreshTokenExpiry?: number; //default: 1 month
-    }
-    onBehalfOfServices?: {
-      serviceName: string;
-      scope: string;
-      secretKey: string;
+    // Cookie behavior and expiration settings
+    cookies?: {
+      // Unit used for cookie expiration times. Defaults to `'sec'`
+      timeUnit?: 'ms' | 'sec';
+      // If true, disables HTTPS enforcement on cookies. Defaults to `false`
+      disableHttps?: boolean;
+      // If true, disables SameSite enforcement on cookies. Defaults to `false`
+      disableSameSite?: boolean;
+      // Max-age for access token cookies. Defaults to 1 hour
+      accessTokenExpiry?: number;
+      // Max-age for refresh token cookies. Defaults to 1 month
+      refreshTokenExpiry?: number;
+    };
+    // Configuration for acquiring downstream tokens via the OBO flow
+    onBehalfOf?: {
+      // Whether HTTPS is enforced
       isHttps: boolean;
+      // Whether to enforce SameSite on OBO cookies
       isSameSite: boolean;
-      accessTokenExpiry?: number; //default: 1 hour
-      refreshTokenExpiry?: number; //default: 1 month
-    }[];
+      // List of trusted services requiring On-Behalf-Of delegation
+      oboServices: {
+        // Unique identifier of the downstream service
+        oboServiceName: string;
+        // OAuth 2.0 scope to request for the service. Usually end with `/.default` to request all permissions
+        oboScope: string;
+        // Encryption key used to encrypt tokens for this service
+        secretKey: string;
+        // Whether HTTPS is required when setting cookies for this service
+        isHttps?: boolean;
+        // Whether `SameSite` cookies should be enforced for this service
+        isSameSite?: boolean;
+        // Expiration for access token cookies (default from global if not set)
+        accessTokenExpiry?: number;
+        // Expiration for refresh token cookies (default from global if not set)
+        refreshTokenExpiry?: number;
+      }[];
+    };
   };
 }
 ```
@@ -90,6 +107,7 @@ export interface OAuthConfig {
 ## Usage 🎯
 
 The package provides three main modules for different frameworks:
+
 - `oauth-entra-id` - Core package for any TS/JS framework (e.g., Express, NestJS, HonoJS, Fastify, etc.). jump to **[Core](#usage---core-)**.
 - `oauth-entra-id/express` - For Express.js applications (recommended). Jump to **[Express](#usage---express-)**.
 - `oauth-entra-id/nestjs` - For NestJS applications (recommended). Jump to **[NestJS](#usage---nestjs-)**.
@@ -99,6 +117,8 @@ The package provides three main modules for different frameworks:
 The core package provides the flexibility to integrate OAuth 2.0 with Entra ID in any Node.js framework.
 
 Let's start by creating a global instance of `OAuthProvider` in your application. This instance will be used to handle authentication, token exchange, and other OAuth-related operations.
+
+Example of creating a basic instance of `OAuthProvider`:
 
 ```typescript
 import { OAuthProvider } from 'oauth-entra-id';
@@ -120,133 +140,227 @@ const oauthProvider = new OAuthProvider({
 ### Core Methods:
 
 #### `getAuthUrl()`
-Generates a Microsoft authentication URL for the user to log in. It accepts an optional `params` object with the following properties:
-- `loginPrompt` (optional) - Login prompt type, to override the default value.
-- `email` (optional) - If email is provided, the login prompt will be set to `email` and the email will be pre-filled in the login form.
-- `frontendUrl` (optional) - The frontend URL to redirect the user after authentication.
+
+Generates a Microsoft authentication URL for the user to log in.
+
+- receives an optional object with the following properties:
+  - `loginPrompt` (optional) - Login prompt type, to override the default value.
+  - `email` (optional) - If email is provided, the login prompt will be set to `email` and the email will be pre-filled in the login form.
+  - `frontendUrl` (optional) - The frontend URL to redirect the user after authentication.
+- returns an object with the following property:
+  - `authUrl` - The URL to redirect the user for authentication.
 
 Authenticate HonoJS example:
+
 ```typescript
 app.post('/authenticate', async (c) => {
   const { loginPrompt, email, frontendUrl } = await c.req.json();
   const { authUrl } = await oauthProvider.getAuthUrl({ loginPrompt, email, frontendUrl });
-  return c.json({ url:authUrl });
+  return c.json({ url: authUrl });
 });
 ```
 
 #### `getTokenByCode()`
-Exchanges the authorization code for access and refresh tokens. It accepts an object with the following properties:
-- `code` - The authorization code received from Microsoft.
-- `state` - The state parameter received from Microsoft.
+
+Exchanges the authorization code for access and refresh tokens.
+
+- receives a required object with the following properties:
+  - `code` - The authorization code received from Microsoft.
+  - `state` - The state parameter received from Microsoft.
+- returns an object with the following properties:
+  - `accessToken` - Access token object containing the token value, suggested name, and options.
+  - `refreshToken` (optional) - Refresh token object containing the token value, suggested name, and options.
+  - `frontendUrl` - The frontend URL to redirect the user after authentication.
+  - `msalResponse` - The MSAL response object for extra information if needed.
 
 Callback HonoJS example:
+
 ```typescript
 app.post('/callback', async (c) => {
   const { code, state } = await c.req.parseBody();
   const { frontendUrl, accessToken, refreshToken } = await oauthProvider.getTokenByCode({ code, state });
   setCookie(c, accessToken.name, accessToken.value, accessToken.options);
-  if (refreshToken) {
-    setCookie(c, refreshToken.name, refreshToken.value, refreshToken.options);
-  }
+  if (refreshToken) setCookie(c, refreshToken.name, refreshToken.value, refreshToken.options);
   return c.redirect(frontendUrl);
-})
+});
 ```
 
 #### `getLogoutUrl()`
-Generates a logout URL for the user to log out from Microsoft. It accepts an optional `params` object with the following properties:
-- `frontendUrl` (optional) - The frontend URL to redirect the user after logout.
+
+Generates a logout URL for the user to log out from Microsoft.
+
+- receives an optional object with the following properties:
+  - `frontendUrl` (optional) - The frontend URL to redirect the user after logout.
+- returns an object with the following properties:
+  - `logoutUrl` - The URL to redirect the user for logout.
+  - `deleteAccessToken` - Access token cookie object containing the token name, value, and options.
+  - `deleteRefreshToken` - Refresh token cookie object containing the token name, value, and options.
 
 Logout HonoJS example:
+
 ```typescript
 app.post('/logout', async (c) => {
   const { frontendUrl } = await c.req.json();
   const { logoutUrl, deleteAccessToken, deleteRefreshToken } = oauthProvider.getLogoutUrl({ frontendUrl });
   deleteCookie(c, deleteAccessToken.name, deleteAccessToken.options);
   deleteCookie(c, deleteRefreshToken.name, deleteRefreshToken.options);
-  return c.json({ url:logoutUrl });
+  return c.json({ url: logoutUrl });
 });
 ```
 
 #### `getCookieNames()`
+
 Returns the names of the access and refresh token cookies. This is useful for deleting the cookies on logout.
 
+- returns an object with the following properties:
+  - `accessTokenName` - The name of the access token cookie.
+  - `refreshTokenName` - The name of the refresh token cookie.
+
 #### `verifyAccessToken()`
-Verifies the access token received from Microsoft either encrypted or unencrypted. It accepts an `accessToken` string and returns the decoded token payload if valid.
+
+Verifies the access token received from Microsoft either encrypted or unencrypted.
+
+- receives a `accessToken` string either encrypted or in JWT format.
+- returns an object if the token is valid or `null` if invalid. The object contains the following properties:
+  - `jwtAccessToken` - The access token in JWT format.
+  - `payload` - The payload of the access token.
+  - `injectedData` - If the token has been injected with extra data, it will be returned here.
+  - `isB2B` - If the token is a B2B token, it will be `true`, otherwise `false`.
+
+#### `injectData()`
+
+Injects extra data into the access token. This is useful for embedding non-sensitive metadata into the token.
+
+- receives an object with the following properties:
+  - `accessToken` - The access token string either encrypted or in JWT format.
+  - `data` - The data to inject into the token. This can be any object.
+- returns an object of access token with suggested name and cookie options if valid, otherwise `null`.
 
 #### `getTokenByRefresh()`
-Verifies and uses the refresh token to get new set of access and refresh tokens. It accepts an `refreshToken` string and returns a set of new tokens.
+
+Verifies and uses the refresh token to get new set of access and refresh tokens.
+
+- receives a `refreshToken` string.
+- returns an object with the following properties:
+  - `jwtAccessToken` - The access token in JWT format.
+  - `payload` - The payload of the access token.
+  - `newAccessToken` - New access token object containing the token value, suggested name, and options.
+  - `newRefreshToken` (optional) - New refresh token object containing the token value, suggested name, and options.
+  - `msalResponse` - The MSAL response object for extra information if needed.
 
 Protect Middleware HonoJS example:
+(implements getCookieNames, verifyAccessToken, injectData and getTokenByRefresh)
+
 ```typescript
 export const protectRoute = createMiddleware(async (c, next) => {
   const { accessTokenName, refreshTokenName } = oauthProvider.getCookieNames();
   const accessToken = getCookie(c, accessTokenName);
   const refreshToken = getCookie(c, refreshTokenName);
+  if (!accessToken && !refreshToken) throw new HTTPException(401, { message: 'Unauthorized' });
 
-  if (!accessToken && !refreshToken) {
-    throw new HTTPException(401, { message: 'Unauthorized' });
-  }
+  const tokenInfo = await oauthProvider.verifyAccessToken(accessToken);
+  if (tokenInfo) {
+    const injectedData = tokenInfo.injectedData ? tokenInfo.injectedData : { randomNumber: getRandomNumber() };
 
-  if (accessToken) {
-    const microsoftInfo = await oauthProvider.verifyAccessToken(accessToken);
-    if (microsoftInfo) {
-      c.set('userInfo', {
-        accessToken: msal.microsoftToken,
-        uniqueId: microsoftInfo.payload.oid,
-        roles: microsoftInfo.payload.roles,
-        name: microsoftInfo.payload.name,
-        email: microsoftInfo.payload.preferred_username,
-      });
-
-      await next();
-      return;
+    if (!tokenInfo.injectedData) {
+      const newAccessToken = oauthProvider.injectData({ accessToken: tokenInfo.jwtAccessToken, data: injectedData });
+      if (!newAccessToken) {
+        c.set('userInfo', {
+          uniqueId: tokenInfo.payload.oid,
+          email: tokenInfo.payload.preferred_username,
+          name: tokenInfo.payload.name,
+        });
+        return await next();
+      }
+      setCookie(c, newAccessToken.name, newAccessToken.value, newAccessToken.options);
     }
+
+    c.set('userInfo', {
+      uniqueId: tokenInfo.payload.oid,
+      email: tokenInfo.payload.preferred_username,
+      name: tokenInfo.payload.name,
+      injectedData,
+    });
+    return await next();
   }
 
-  if (!refreshToken) {
-    throw new HTTPException(401, { message: 'Unauthorized' });
-  }
+  const newTokensInfo = await oauthProvider.getTokenByRefresh(refreshToken);
+  if (!newTokensInfo) throw new HTTPException(401, { message: 'Unauthorized' });
 
-  const newTokens = await oauthProvider.getTokenByRefresh(refreshToken);
-  if (!newTokens) {
-    throw new HTTPException(401, { message: 'Unauthorized' });
-  }
+  const { jwtAccessToken, payload, newAccessToken, newRefreshToken } = newTokensInfo;
 
-  const { newAccessToken, newRefreshToken, msal } = newTokens;
-  setCookie(c, newAccessToken.name, newAccessToken.value, newAccessToken.options);
-  if (newRefreshToken) {
-    setCookie(c, newRefreshToken.name, newRefreshToken.value, newRefreshToken.options);
-  }
+  const injectedData = { randomNumber: getRandomNumber() };
+  const newerAccessToken = oauthProvider.injectData({ accessToken: jwtAccessToken, data: injectedData });
+
+  const finalAccessToken = newerAccessToken ?? newAccessToken;
+
+  setCookie(c, finalAccessToken.name, finalAccessToken.value, finalAccessToken.options);
+  if (newRefreshToken) setCookie(c, newRefreshToken.name, newRefreshToken.value, newRefreshToken.options);
   c.set('userInfo', {
-    accessToken: msal.microsoftToken,
-    uniqueId: msal.payload.oid,
-    roles: msal.payload.roles,
-    name: msal.payload.name,
-    email: msal.payload.preferred_username,
+    uniqueId: tokenInfo.payload.oid,
+    email: tokenInfo.payload.preferred_username,
+    name: tokenInfo.payload.name,
+    injectedData: newerAccessToken ? injectedData : undefined,
   });
 
-  await next();
+  return await next();
 });
 ```
 
-#### `getOnBehalfOfToken()`
-Generates an On Behalf Of (OBO) tokens for a specific services. It accepts an object with the following properties:
-- `accessToken` - The access token received from Microsoft.
-- `serviceNames` - an array of service names that were configured in the `onBehalfOfServices` array in the `advanced` configuration.
+#### `getB2BToken()`
+
+Generates a B2B token for a specific service.
+
+- receives an object with the following properties:
+  - `b2bServiceName` or `b2bServiceName` - The name of the B2B service to generate the token for.
+- returns an object or an array of objects with the following properties:
+  - `b2bServiceName` - The name of the B2B service.
+  - `b2bAccessToken` - The B2B access token string.
+  - `b2bMsalResponse` - The MSAL response object for extra information if needed.
+
+B2B HonoJS example:
+
+```typescript
+protectedRouter.post('/get-b2b-info', async (c) => {
+  const { b2bServiceName } = await c.req.json();
+  const { b2bAccessToken } = await oauthProvider.getB2BToken({ b2bServiceName });
+  const axiosResponse = await axios.get(env.OTHER_SERVER, {
+    headers: { Authorization: `Bearer ${b2bAccessToken}` },
+  });
+  const { data, error } = zSchema.safeParse(axiosResponse.data);
+  if (error) throw new HTTPException(500, { message: 'Invalid response from the other server' });
+  return c.json(data);
+});
+```
+
+#### `getTokenOnBehalfOf()`
+
+Acquires tokens for trusted downstream services via the On-Behalf-Of (OBO) flow.
+
+- receives an object with the following properties:
+  - `accessToken` - access token string either encrypted or in JWT format.
+  - `serviceName` or `serviceNames` - The name of the downstream service or an array of service names to acquire tokens for.
+- returns an object or an array of objects with the following properties:
+  - `oboServiceName` - The name of the OBO service.
+  - `oboAccessToken` - The OBO access token string.
+  - `oboRefreshToken` (optional) - The OBO refresh token string.
+  - `oboMsalResponse` - The MSAL response object for extra information if needed.
 
 On Behalf Of HonoJS example:
+
 ```typescript
 app.post('/on-behalf-of', protectRoute, async (c) => {
   const { serviceNames } = await c.req.json();
   const accessToken = c.get('userInfo').accessToken;
-  const results = await oauthProvider.getOnBehalfOfToken({ accessToken, serviceNames });
+  const results = await oauthProvider.getOnBehalfOfToken({
+    accessToken,
+    serviceNames,
+  });
 
   for (const result of results) {
-    const { accessToken, refreshToken } = result;
-    setCookie(c, accessToken.name, accessToken.value, accessToken.options);
-    if (refreshToken) {
-      setCookie(c, refreshToken.name, refreshToken.value, refreshToken.options);
-    }
+    const { oboAccessToken, oboRefreshToken } = result;
+    setCookie(c, oboAccessToken.name, oboAccessToken.value, oboAccessToken.options);
+    if (refreshToken) setCookie(c, oboRefreshToken.name, oboRefreshToken.value, oboRefreshToken.options);
   }
 
   return c.json({ message: 'On Behalf Of tokens generated successfully' });
@@ -326,7 +440,7 @@ authRouter.post('/callback', handleCallback); // Set tokens in cookies and redir
 authRouter.post('/logout', handleLogout); // Delete cookies and returns {url: logoutUrl}
 ```
 
-To secure your routes, you can use the `protectRoute` middleware and access the user information from the request object.
+To secure your routes, you can use the `protectRoute()` middleware and access the user information from the request object.
 
 ```typescript
 import express from 'express';
@@ -335,12 +449,13 @@ import { protectRoute } from 'oauth-entra-id/express';
 
 const protectedRouter: Router = express.Router();
 
-protectedRouter.get('/user-info', protectRoute, (req: Request, res: Response) => {
+protectedRouter.get('/user-info', protectRoute(), (req: Request, res: Response) => {
   res.status(200).json({ message: 'Protected route :)', user: req.userInfo });
 });
 ```
 
 ## Usage - NestJS 🪺
+
 When using the package with NestJS, you should import from `oauth-entra-id/nestjs` to easily integrate OAuth2.0.
 
 Then in the root of your NestJS app, import `authConfig` and configure it:
@@ -449,7 +564,9 @@ export class ProtectedController {
 ## Notes❗
 
 - **CORS**: Make sure to set the `credentials` option to `true` in your CORS configuration. This allows cookies to be sent with cross-origin requests.
+- **Express and NestJS Exports**: The package exports handleX functions for Express and NestJS. They work on a cookie-based session only. If you want to use bearer tokens, you need to implement your own logic using the core package.
 - **TSConfig**: Make sure you set the `module` is not `commonjs` in your `tsconfig.json`. Our recommendation is to set `module` to `node16` and `target` to `es6`.
+- **NestJS**: The package uses the `express` instance of NestJS, so make sure to use the `express` instance for the package to work, or use the core utilities.
 - **Frontend Cookies** - Make sure to include credentials with every request from the frontend to the backend.
 
 ```typescript
@@ -466,5 +583,3 @@ const axiosInstance = axios.create({
 
 axiosInstance.get('http://localhost:3000/protected/user-info');
 ```
-
-- **NestJS**: The package uses the `express` instance of NestJS, so make sure to use the `express` instance for the package to work, or use the core utilities.

@@ -7,9 +7,9 @@ import { oauthProvider } from '~/oauth';
 
 export type ProtectRoute = {
   Variables: {
-    microsoftInfo: {
-      rawAccessToken: string;
-      accessTokenPayload: Record<string, unknown>;
+    accessTokenInfo: {
+      jwt: string;
+      payload: Record<string, unknown>;
     };
     userInfo:
       | {
@@ -31,12 +31,10 @@ export const protectRoute = createMiddleware<ProtectRoute>(async (c, next) => {
 
   if (oauthProvider.settings.isB2BEnabled && authorizationHeader) {
     const bearerAccessToken = authorizationHeader.startsWith('Bearer ') ? authorizationHeader.split(' ')[1] : undefined;
-    if (!bearerAccessToken) throw new HTTPException(401, { message: 'Unauthorized' });
-
     const bearerInfo = await oauthProvider.verifyAccessToken(bearerAccessToken);
     if (!bearerInfo) throw new HTTPException(401, { message: 'Unauthorized' });
 
-    setUserInfo(c, { payload: bearerInfo.microsoftInfo.accessTokenPayload, isB2B: true });
+    setUserInfo(c, { payload: bearerInfo.payload, isB2B: true });
 
     return await next();
   }
@@ -46,54 +44,42 @@ export const protectRoute = createMiddleware<ProtectRoute>(async (c, next) => {
   const refreshToken = getCookie(c, refreshTokenName);
   if (!accessToken && !refreshToken) throw new HTTPException(401, { message: 'Unauthorized' });
 
-  const tokenInfo = accessToken ? await oauthProvider.verifyAccessToken(accessToken) : null;
+  const tokenInfo = await oauthProvider.verifyAccessToken(accessToken);
   if (tokenInfo) {
-    c.set('microsoftInfo', tokenInfo.microsoftInfo);
-    if (tokenInfo.injectedData) {
-      setUserInfo(c, {
-        payload: tokenInfo.microsoftInfo.accessTokenPayload,
-        injectedData: tokenInfo.injectedData as { randomNumber: number },
-      });
-    } else {
-      const randomNumber = getRandomNumber();
-      const newAccessToken = oauthProvider.injectData({
-        accessToken: tokenInfo.microsoftInfo.rawAccessToken,
-        data: { randomNumber },
-      });
-      if (newAccessToken) setCookie(c, newAccessToken.name, newAccessToken.value, newAccessToken.options);
-      setUserInfo(c, {
-        payload: tokenInfo.microsoftInfo.accessTokenPayload,
-        injectedData: newAccessToken ? { randomNumber } : undefined,
-      });
+    c.set('accessTokenInfo', { jwt: tokenInfo.jwtAccessToken, payload: tokenInfo.payload });
+    const injectedData = tokenInfo.injectedData
+      ? (tokenInfo.injectedData as { randomNumber: number })
+      : { randomNumber: getRandomNumber() };
+
+    if (!tokenInfo.injectedData) {
+      const newAccessToken = oauthProvider.injectData({ accessToken: tokenInfo.jwtAccessToken, data: injectedData });
+      if (!newAccessToken) {
+        setUserInfo(c, { payload: tokenInfo.payload });
+        return await next();
+      }
+      setCookie(c, newAccessToken.name, newAccessToken.value, newAccessToken.options);
     }
 
+    setUserInfo(c, { payload: tokenInfo.payload, injectedData });
     return await next();
   }
-
-  if (!refreshToken) throw new HTTPException(401, { message: 'Unauthorized' });
 
   const newTokensInfo = await oauthProvider.getTokenByRefresh(refreshToken);
   if (!newTokensInfo) throw new HTTPException(401, { message: 'Unauthorized' });
 
-  const { newAccessToken, newRefreshToken, microsoftInfo } = newTokensInfo;
-  c.set('microsoftInfo', microsoftInfo);
+  const { jwtAccessToken, payload, newAccessToken, newRefreshToken } = newTokensInfo;
+  c.set('accessTokenInfo', { jwt: jwtAccessToken, payload });
 
-  const randomNumber = getRandomNumber();
-  const newerAccessToken = oauthProvider.injectData({
-    accessToken: microsoftInfo.rawAccessToken,
-    data: { randomNumber },
-  });
+  const injectedData = { randomNumber: getRandomNumber() };
+  const newerAccessToken = oauthProvider.injectData({ accessToken: jwtAccessToken, data: injectedData });
 
   const finalAccessToken = newerAccessToken ?? newAccessToken;
 
   setCookie(c, finalAccessToken.name, finalAccessToken.value, finalAccessToken.options);
   if (newRefreshToken) setCookie(c, newRefreshToken.name, newRefreshToken.value, newRefreshToken.options);
-  setUserInfo(c, {
-    payload: microsoftInfo.accessTokenPayload,
-    injectedData: newerAccessToken ? { randomNumber } : undefined,
-  });
 
-  await next();
+  setUserInfo(c, { payload, injectedData: newerAccessToken ? injectedData : undefined });
+  return await next();
 });
 
 function setUserInfo(

@@ -69,7 +69,7 @@ export const protectedRouter: FastifyPluginAsyncTypebox = async (app) => {
     const { oboServiceNames } = req.body;
 
     const results = await oauthProvider.getTokenOnBehalfOf({
-      accessToken: req.microsoftInfo.rawAccessToken,
+      accessToken: req.accessTokenInfo.jwt,
       oboServiceNames,
     });
 

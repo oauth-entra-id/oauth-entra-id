@@ -6,101 +6,121 @@ export type LoginPrompt = 'email' | 'select-account' | 'sso';
 export type TimeUnit = 'ms' | 'sec';
 export type SessionType = 'cookie-session' | 'bearer-token';
 
-// biome-ignore lint/suspicious/noExplicitAny: More choices
+/**
+ * Optional custom data to embed in access tokens.
+ * Should not contain sensitive information.
+ */
+// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 export type InjectedData = Record<string, any>;
 
+/**
+ * Configuration for acquiring client credentials for a B2B service.
+ */
 export interface B2BService {
-  /** Unique identifier for the service. */
+  /** Unique identifier of the external service. */
   b2bServiceName: string;
-  /** OAuth2 scope required to access the service. */
+
+  /** OAuth 2.0 scope to request for the service.
+   * Usually end with `/.default` to request all permissions.
+   */
   b2bScope: string;
 }
 
 /**
- * Configuration for On-Behalf-Of authentication with an external service.
+ * Configuration for acquiring On-Behalf-Of (OBO) tokens for downstream services.
  */
 export interface OnBehalfOfService {
-  /** Unique identifier for the service. */
+  /** Unique identifier of the downstream service. */
   oboServiceName: string;
-  /** OAuth2 scope required to access the service. */
+
+  /** OAuth 2.0 scope to request for the downstream service.
+   * Usually end with `/.default` to request all permissions.
+   */
   oboScope: string;
-  /** Secret key used for decrypting/encrypting tokens. */
+
+  /** Encryption key used to encrypt tokens for this service. */
   secretKey: string;
-  /** Whether HTTPS is enforced. */
+
+  /** Whether HTTPS is required when setting cookies for this service. */
   isHttps?: boolean;
-  /** Whether `SameSite` cookies are enforced. */
+
+  /** Whether `SameSite` cookies should be enforced for this service. */
   isSameSite?: boolean;
-  /** Optional expiration time for access tokens (in seconds or ms, based on time frame). */
+
+  /** Expiration for access token cookies (default from global if not set). */
   accessTokenExpiry?: number;
-  /** Optional expiration time for refresh tokens (in seconds or ms, based on time frame). */
+
+  /** Expiration for refresh token cookies (default from global if not set). */
   refreshTokenExpiry?: number;
 }
 
 /**
- * Configuration object for initializing the OAuth provider.
+ * Configuration object for initializing the OAuthProvider.
  */
 export interface OAuthConfig {
+  /** Microsoft Entra ID configuration. */
   azure: {
-    /** Azure client ID. */
+    /** Microsoft Entra ID client ID. */
     clientId: string;
-    /** Azure tenant ID or `'common'`. */
+    /** Azure tenant ID or `'common'` for multi-tenant support. */
     tenantId: 'common' | string;
-    /** Scopes requested for authentication. */
+    /** OAuth 2.0 scopes to request during authentication. */
     scopes: string[];
-    /** Azure client secret. */
+    /** Client secret associated with the Azure app registration. */
     clientSecret: string;
   };
   /** Allowed frontend redirect URL(s). */
   frontendUrl: string | string[];
-  /** Backend callback URL configured in Azure. */
+  /** The server-side callback URL (must match the one registered in Azure). */
   serverCallbackUrl: string;
   /** 32-byte encryption key used to encrypt/decrypt tokens. */
   secretKey: string;
-  /** Optional advanced settings. */
+  /** Optional advanced configuration for cookies, logging, B2B, and OBO. */
   advanced?: {
-    /** Login prompt behavior during user authentication. */
+    /** Controls login UI behavior. Defaults to `'sso'`. */
     loginPrompt?: LoginPrompt;
-    /** Session type for verifying user identity. */
+    /** Session persistence method. Defaults to `'cookie-session'`. */
     sessionType?: SessionType;
-    /** B2B authentication settings. */
+    /** External B2B system integration configuration. */
     b2b?: {
-      /** Allow tokens issued by other trusted systems to be accepted. */
+      /** Whether to accept tokens issued by other systems. */
       allowB2B?: boolean;
       /** Create B2B access tokens for external services. */
       b2bServices?: B2BService[];
     };
-    /** Enable debug logging for internal flow. */
+    /** Enables verbose debug logging. */
     debug?: boolean;
     /** Cookie behavior and expiration settings. */
     cookies?: {
-      /** Unit of time used for cookie max-age (e.g. `"ms"` or `"sec"`). */
+      /** Unit used for cookie expiration times. */
       timeUnit?: TimeUnit;
-      /** Disable Secure cookie enforcement. */
+      /** If true, disables HTTPS enforcement on cookies. */
       disableHttps?: boolean;
-      /** Disable SameSite enforcement (e.g., for cross-domain). */
+      /** If true, disables SameSite enforcement on cookies. */
       disableSameSite?: boolean;
       /** Max-age for access token cookies. */
       accessTokenExpiry?: number;
       /** Max-age for refresh token cookies. */
       refreshTokenExpiry?: number;
     };
-    /** Additional trusted services for On-Behalf-Of token exchange. */
+    /** Configuration for acquiring downstream tokens via the OBO flow. */
     onBehalfOf?: {
       /** Whether HTTPS is enforced. */
       isHttps: boolean;
-      /** Whether `SameSite` cookies are enforced. */
+      /** Whether to enforce SameSite on OBO cookies. */
       isSameSite: boolean;
-      /** List of services for On-Behalf-Of authentication. */
+      /** List of trusted services requiring On-Behalf-Of delegation. */
       oboServices: OnBehalfOfService[];
     };
   };
 }
 
 /**
- * Settings after parsing `OAuthConfig`.
+ * Parsed and resolved configuration used internally by the OAuthProvider.
  */
 export interface OAuthSettings {
   readonly sessionType: SessionType;
+  readonly loginPrompt: LoginPrompt;
   readonly isB2BEnabled: boolean;
   readonly isHttps: boolean;
   readonly isSameSite: boolean;
@@ -159,7 +179,7 @@ export interface Cookies {
   };
 }
 
-type PrivateMethods = 'verifyJwt';
+type PrivateMethods = 'verifyJwt' | 'getBothTokens';
 
 export type OAuthProviderMethods =
   | {

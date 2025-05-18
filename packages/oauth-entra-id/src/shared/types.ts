@@ -59,9 +59,9 @@ declare global {
       /**
        * Stores the raw Microsoft access token and its decoded payload.
        */
-      microsoftInfo?: {
-        rawAccessToken: string;
-        accessTokenPayload: JwtPayload;
+      accessTokenInfo?: {
+        jwt: string;
+        payload: JwtPayload;
       };
 
       /**

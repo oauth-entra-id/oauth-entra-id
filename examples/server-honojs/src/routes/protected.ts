@@ -72,7 +72,7 @@ protectedRouter.post('/on-behalf-of', zValidator('json', zSchemas.onBehalfOf), a
 
   const { oboServiceNames } = c.req.valid('json');
   const results = await oauthProvider.getTokenOnBehalfOf({
-    accessToken: c.get('microsoftInfo').rawAccessToken,
+    accessToken: c.get('accessTokenInfo').jwt,
     oboServiceNames,
   });
   for (const result of results) {

@@ -12,8 +12,7 @@ routesRouter.use(
   '/protected',
   protectRoute(({ userInfo, injectData }) => {
     if (!userInfo.isB2B && !userInfo.injectedData) {
-      const randomNumber = getRandomNumber();
-      injectData({ randomNumber });
+      injectData({ randomNumber: getRandomNumber() });
     }
   }),
   protectedRouter,

@@ -2,7 +2,7 @@ import type { Request, Response } from 'express';
 import type { JwtPayload } from 'jsonwebtoken';
 import { OAuthError } from '~/error';
 import type { InjectedData } from '~/types';
-import { debugLog } from '~/utils/debugLog';
+import { debugLog } from '~/utils/misc';
 import { getCookie, setCookie } from './cookie-parser';
 import type { InjectDataFunction, UserInfo } from './types';
 
@@ -33,15 +33,14 @@ export async function sharedIsAuthenticated(
 
   if (oauthProvider.settings.isB2BEnabled && authorizationHeader) {
     const bearerAccessToken = authorizationHeader.startsWith('Bearer ') ? authorizationHeader.split(' ')[1] : undefined;
-    if (!bearerAccessToken) throw new OAuthError(401, { message: 'Unauthorized', description: 'No access token' });
-
     const bearerInfo = await oauthProvider.verifyAccessToken(bearerAccessToken);
     if (!bearerInfo) throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid access token' });
 
-    const userInfo = getUserInfo({ payload: bearerInfo.microsoftInfo.accessTokenPayload, isB2B: true });
+    const userInfo = getUserInfo({ payload: bearerInfo.payload, isB2B: true });
 
-    req.microsoftInfo = bearerInfo.microsoftInfo;
+    req.accessTokenInfo = { jwt: bearerInfo.jwtAccessToken, payload: bearerInfo.payload };
     req.userInfo = userInfo;
+
     return { userInfo, injectData: (data) => null };
   }
 
@@ -54,39 +53,29 @@ export async function sharedIsAuthenticated(
     throw new OAuthError(401, { message: 'Unauthorized', description: 'No access token and refresh token' });
   }
 
-  const tokenInfo = cookieAccessToken ? await oauthProvider.verifyAccessToken(cookieAccessToken) : null;
+  const tokenInfo = await oauthProvider.verifyAccessToken(cookieAccessToken);
 
   if (tokenInfo) {
-    const userInfo = getUserInfo({
-      payload: tokenInfo.microsoftInfo.accessTokenPayload,
-      injectedData: tokenInfo.injectedData,
-    });
+    const userInfo = getUserInfo({ payload: tokenInfo.payload, injectedData: tokenInfo.injectedData });
 
-    req.microsoftInfo = tokenInfo.microsoftInfo;
+    req.accessTokenInfo = { jwt: tokenInfo.jwtAccessToken, payload: tokenInfo.payload };
     req.userInfo = userInfo;
-    return {
-      userInfo,
-      injectData: (data) => InjectDataFunction(tokenInfo.microsoftInfo.rawAccessToken, data),
-    };
-  }
 
-  if (!cookieRefreshToken) throw new OAuthError(401, { message: 'Unauthorized', description: 'No refresh token' });
+    return { userInfo, injectData: (data) => InjectDataFunction(tokenInfo.jwtAccessToken, data) };
+  }
 
   const newTokensInfo = await oauthProvider.getTokenByRefresh(cookieRefreshToken);
   if (!newTokensInfo) throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid refresh token' });
-
-  const { newAccessToken, newRefreshToken, microsoftInfo } = newTokensInfo;
+  const { jwtAccessToken, payload, newAccessToken, newRefreshToken } = newTokensInfo;
 
   setCookie(res, newAccessToken.name, newAccessToken.value, newAccessToken.options);
   if (newRefreshToken) setCookie(res, newRefreshToken.name, newRefreshToken.value, newRefreshToken.options);
 
-  const userInfo = getUserInfo({ payload: microsoftInfo.accessTokenPayload, isB2B: false });
-  req.microsoftInfo = microsoftInfo;
+  const userInfo = getUserInfo({ payload, isB2B: false });
+  req.accessTokenInfo = { jwt: jwtAccessToken, payload };
   req.userInfo = userInfo;
-  return {
-    userInfo,
-    injectData: (data) => InjectDataFunction(newAccessToken.value, data),
-  };
+
+  return { userInfo, injectData: (data) => InjectDataFunction(newAccessToken.value, data) };
 }
 
 function getUserInfo({
