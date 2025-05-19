@@ -6,6 +6,7 @@ import { authConfig } from 'oauth-entra-id/nestjs';
 import { AppModule } from './app.module';
 import { env } from './env';
 import { ErrorCatcher } from './error/error-catcher.filter';
+import { oauthConfig } from './oauth';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -58,44 +59,13 @@ async function bootstrap() {
 
   app.setGlobalPrefix(new URL(env.SERVER_URL).pathname);
 
-  app.use(
-    authConfig({
-      azure: {
-        clientId: env.RED_AZURE_CLIENT_ID,
-        tenantId: env.RED_AZURE_TENANT_ID,
-        scopes: [env.RED_AZURE_CLIENT_SCOPE],
-        clientSecret: env.RED_AZURE_CLIENT_SECRET,
-      },
-      frontendUrl: env.REACT_FRONTEND_URL,
-      serverCallbackUrl: `${env.SERVER_URL}/auth/callback`,
-      secretKey: env.RED_SECRET_KEY,
-      advanced: {
-        onBehalfOfServices: [
-          {
-            serviceName: 'blue',
-            scope: env.BLUE_AZURE_CLIENT_SCOPE,
-            secretKey: env.BLUE_SECRET_KEY,
-            isHttps: env.NODE_ENV !== 'development',
-            isSameSite: env.NODE_ENV !== 'development',
-          },
-          {
-            serviceName: 'yellow',
-            scope: env.YELLOW_AZURE_CLIENT_SCOPE,
-            secretKey: env.YELLOW_SECRET_KEY,
-            isHttps: env.NODE_ENV !== 'development',
-            isSameSite: env.NODE_ENV !== 'development',
-          },
-        ],
-      },
-    }),
-  );
+  app.use(authConfig(oauthConfig));
 
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
       forbidNonWhitelisted: false,
       transform: true,
-      validateCustomDecorators: true,
     }),
   );
 

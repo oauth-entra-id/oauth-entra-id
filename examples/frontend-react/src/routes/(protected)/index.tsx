@@ -1,20 +1,21 @@
-import { Separator } from '@radix-ui/react-dropdown-menu';
-import { ToggleGroup } from '@radix-ui/react-toggle-group';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
+import { LogOut } from 'lucide-react';
 import { useState } from 'react';
 import Confetti from 'react-confetti';
 import { toast } from 'sonner';
 import { AppInfo } from '~/components/AppInfo';
+import { GitHubLink } from '~/components/GitHubLink';
 import { ServersDropdown } from '~/components/ServersDropdown';
-import { GitHub } from '~/components/icons/GitHub';
 import { Button } from '~/components/ui/Button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '~/components/ui/Card';
-import { MutedText, Title } from '~/components/ui/Text';
-import { ToggleGroupItem } from '~/components/ui/ToggleGroup';
+import { Separator } from '~/components/ui/Separator';
+import { Title } from '~/components/ui/Text';
+import { ToggleGroup, ToggleGroupItem } from '~/components/ui/ToggleGroup';
 import { useWindowDimensions } from '~/hooks/useWindowDimensions';
+import { getB2BInfo } from '~/services/app-info';
 import { getTokensOnBehalfOf, logoutAndGetLogoutUrl } from '~/services/user';
-import { type Color, useServerStore } from '~/stores/server-store';
+import { type Color, type Server, serversMap, useServerStore } from '~/stores/server-store';
 import { useUserStore } from '~/stores/user-store';
 
 export const Route = createFileRoute('/(protected)/')({
@@ -23,7 +24,6 @@ export const Route = createFileRoute('/(protected)/')({
 
 function Home() {
   const queryClient = useQueryClient();
-  const [selectedServiceNames, setSelectedServiceNames] = useState<Color[]>([]);
   const { width, height } = useWindowDimensions();
   const { user, setUser } = useUserStore();
   const { mutate: handleLogout } = useMutation({
@@ -35,17 +35,6 @@ function Home() {
     },
     onError: () => {
       toast.error('Could not logout', { duration: 1000 });
-    },
-  });
-  const { mutate: handleOnBehalfOf } = useMutation({
-    mutationFn: () => getTokensOnBehalfOf({ serviceNames: selectedServiceNames }),
-    onSuccess: (tokensSet) => {
-      setSelectedServiceNames([]);
-      toast.success(tokensSet === 1 ? 'New token created!' : `${tokensSet} new tokens created!`, { duration: 1000 });
-    },
-    onError: () => {
-      setSelectedServiceNames([]);
-      toast.error('Could not create new tokens', { duration: 1000 });
     },
   });
 
@@ -76,35 +65,23 @@ function Home() {
               <div>
                 <span className="font-bold">Name:</span> {user.name}
               </div>
-              <div className="flex flex-col items-center justify-center px-1">
-                <SelectServiceNames
-                  selectedServiceNames={selectedServiceNames}
-                  setSelectedServiceNames={setSelectedServiceNames}
-                />
-                <div className="flex w-full space-x-2 mt-2">
-                  <Button
-                    variant="outline"
-                    className="flex-1"
-                    disabled={selectedServiceNames.length === 0}
-                    onClick={() => handleOnBehalfOf()}>
-                    New Tokens
-                  </Button>
-                  <Button variant="destructive" className="flex-1" onClick={() => handleLogout()}>
-                    Logout
-                  </Button>
-                </div>
+              <div>
+                <span className="font-bold">Injected Data:</span>{' '}
+                {user.injectedData ? `${user.injectedData.randomNumber} (Random Number)` : 'None'}
               </div>
+              <Separator />
+              <DownstreamServices />
+              <Separator />
+              <GetB2BData />
             </CardContent>
-            <CardFooter>
-              <Button className="w-full mt-1" asChild>
-                <a href="https://github.com/oauth-entra-id/oauth-entra-id" target="_blank" rel="noopener noreferrer">
-                  <GitHub /> Checkout our Repo!
-                </a>
+            <CardFooter className="flex flex-col items-center justify-center space-y-2">
+              <Button variant="destructive" className="w-full" onClick={() => handleLogout()}>
+                Logout <LogOut />
               </Button>
             </CardFooter>
           </Card>
           <ServersDropdown />
-          <MutedText>React demo that shows how to integrate OAuth2.0 Flow.</MutedText>
+          <GitHubLink />
         </div>
       </div>
 
@@ -115,42 +92,125 @@ function Home() {
   );
 }
 
-function SelectServiceNames({
-  selectedServiceNames,
-  setSelectedServiceNames,
-}: { selectedServiceNames: Color[]; setSelectedServiceNames: (value: Color[]) => void }) {
+function DownstreamServices() {
+  const [selectedServices, setSelectedServices] = useState<Color[]>([]);
   const appInfo = useServerStore((state) => state.appInfo);
+  const { mutate: handleOnBehalfOf } = useMutation({
+    mutationFn: () => getTokensOnBehalfOf(selectedServices),
+    onSuccess: (tokensSet) => {
+      setSelectedServices([]);
+      toast.success(tokensSet === 1 ? 'New token created!' : `${tokensSet} new tokens created!`, { duration: 1000 });
+    },
+    onError: () => {
+      setSelectedServices([]);
+      toast.error('Could not create new tokens', { duration: 1000 });
+    },
+  });
 
   return (
-    <div className="flex w-full items-center justify-center space-x-1">
-      <div className="text-muted-foreground text-sm font-semibold">Other Services:</div>
-      <ToggleGroup
-        type="multiple"
-        className="space-x-1.5"
-        value={selectedServiceNames}
-        onValueChange={(value: Color[]) => setSelectedServiceNames(value)}>
-        <ToggleGroupItem
-          disabled={appInfo?.currentServiceName === 'blue'}
-          value="blue"
-          aria-label="blue"
-          className="font-bold">
-          🔵 Blue
-        </ToggleGroupItem>
-        <ToggleGroupItem
-          disabled={appInfo?.currentServiceName === 'red'}
-          value="red"
-          aria-label="red"
-          className="font-bold">
-          🔴 Red
-        </ToggleGroupItem>
-        <ToggleGroupItem
-          disabled={appInfo?.currentServiceName === 'yellow'}
-          value="yellow"
-          aria-label="yellow"
-          className="font-bold">
-          🟡 Yellow
-        </ToggleGroupItem>
-      </ToggleGroup>
+    <div className="flex flex-col items-start justify-center my-2 px-1">
+      <span className="text-sm font-semibold">Downstream Services:</span>
+      <div className="flex w-full justify-between items-center px-1.5 mb-1">
+        <ToggleGroup
+          type="multiple"
+          className="space-x-1.5"
+          value={selectedServices}
+          onValueChange={(value: Color[]) => setSelectedServices(value)}>
+          <ToggleGroupItem
+            disabled={appInfo?.currentServiceName === 'blue'}
+            value="blue"
+            aria-label="blue"
+            size="sm"
+            className="text-[0.0.75rem]">
+            🔵 Blue
+          </ToggleGroupItem>
+          <ToggleGroupItem
+            disabled={appInfo?.currentServiceName === 'red'}
+            value="red"
+            aria-label="red"
+            size="sm"
+            className="text-[0.0.75rem]">
+            🔴 Red
+          </ToggleGroupItem>
+          <ToggleGroupItem
+            disabled={appInfo?.currentServiceName === 'yellow'}
+            value="yellow"
+            aria-label="yellow"
+            size="sm"
+            className="text-[0.0.75rem]">
+            🟡 Yellow
+          </ToggleGroupItem>
+        </ToggleGroup>
+        <div className="flex-1 ml-2 max-w-32">
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-sm font-semibold w-full"
+            disabled={selectedServices.length === 0}
+            onClick={() => handleOnBehalfOf()}>
+            Get Tokens
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function GetB2BData() {
+  const [pokemon, setPokemon] = useState<string | undefined>();
+  const [selectedApp, setSelectedApp] = useState<Server | undefined>();
+  const server = useServerStore((state) => state.server);
+  const { mutate: handleGetUserInfo } = useMutation({
+    mutationFn: () => getB2BInfo(selectedApp),
+    onSuccess: (data) => {
+      setSelectedApp(undefined);
+      setPokemon(data.pokemon);
+      toast.success(`${data.pokemon} from ${data.server} app!`, { duration: 1000 });
+    },
+    onError: () => {
+      setSelectedApp(undefined);
+      setPokemon(undefined);
+      toast.error('Could not get B2B data', { duration: 1000 });
+    },
+  });
+
+  return (
+    <div className="flex flex-col items-start justify-center my-2 px-1">
+      <div>
+        <span className="text-sm font-semibold">Get B2B Data:</span>{' '}
+        {pokemon && (
+          <span className="text-sm">
+            (Pokemon: <span className="font-semibold">{pokemon}</span>)
+          </span>
+        )}
+      </div>
+      <div className="flex w-full justify-between items-center px-1.5 mb-1">
+        <ToggleGroup
+          type="single"
+          className="space-x-1.5"
+          value={selectedApp}
+          onValueChange={(value: Server) => setSelectedApp(value)}>
+          {Object.entries(serversMap).map(
+            ([key, { Icon, label, value }]) =>
+              server !== value && (
+                <ToggleGroupItem key={key} value={value} aria-label={label} size="sm" className="text-[0.75rem]">
+                  <Icon />
+                  {label}
+                </ToggleGroupItem>
+              ),
+          )}
+        </ToggleGroup>
+        <div className="flex-1 ml-2 max-w-32">
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-sm font-semibold w-full"
+            onClick={() => handleGetUserInfo()}
+            disabled={!selectedApp}>
+            Get Data
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

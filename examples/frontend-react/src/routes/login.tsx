@@ -4,6 +4,7 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { AppInfo } from '~/components/AppInfo';
+import { GitHubLink } from '~/components/GitHubLink';
 import { ServersDropdown } from '~/components/ServersDropdown';
 import { Microsoft } from '~/components/icons/Microsoft';
 import { Button } from '~/components/ui/Button';
@@ -107,6 +108,7 @@ function Login() {
         </Card>
         <ServersDropdown />
         <MutedText>React demo that shows how to integrate OAuth2.0 Flow.</MutedText>
+        <GitHubLink />
       </div>
     </div>
   );

@@ -13,7 +13,7 @@ export function createApp() {
 
   app.use(
     cors({
-      origin: [env.SERVER_URL, env.REACT_FRONTEND_URL],
+      origin: [env.SERVER_URL, env.REACT_FRONTEND_URL, env.FASTIFY_URL],
       allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
       allowHeaders: ['Content-Type', 'Authorization'],
       credentials: true,

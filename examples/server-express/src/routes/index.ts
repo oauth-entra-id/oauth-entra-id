@@ -8,4 +8,16 @@ export const routesRouter: Router = express.Router();
 
 routesRouter.use('/', publicRouter);
 routesRouter.use('/auth', authRouter);
-routesRouter.use('/protected', protectRoute, protectedRouter);
+routesRouter.use(
+  '/protected',
+  protectRoute(({ userInfo, injectData }) => {
+    if (!userInfo.isB2B && !userInfo.injectedData) {
+      injectData({ randomNumber: getRandomNumber() });
+    }
+  }),
+  protectedRouter,
+);
+
+function getRandomNumber() {
+  return Math.floor(Math.random() * 100);
+}

@@ -1,22 +1,21 @@
-import express from 'express';
-import type { Request, Response, Router } from 'express';
+import express, { type Router } from 'express';
 import { env } from '~/env';
 
 export const publicRouter: Router = express.Router();
 
-publicRouter.get('/', (req: Request, res: Response) => {
-  res.status(200).json({ message: 'Hello World!' });
+publicRouter.get('/', (req, res) => {
+  res.status(200).json({ message: 'Hello World' });
 });
 
-publicRouter.get('/health', (req: Request, res: Response) => {
+publicRouter.get('/health', (req, res) => {
   res.status(200).send('OK');
 });
 
-publicRouter.get('/app-info', (req: Request, res: Response) => {
+publicRouter.get('/app-info', (req, res) => {
   res.status(200).send({
     current: 'yellow',
-    blue: env.BLUE_AZURE_CLIENT_ID,
-    red: env.RED_AZURE_CLIENT_ID,
-    yellow: env.YELLOW_AZURE_CLIENT_ID,
+    blue: env.AZURE_BLUE_CLIENT_ID,
+    red: env.AZURE_RED_CLIENT_ID,
+    yellow: env.AZURE_YELLOW_CLIENT_ID,
   });
 });

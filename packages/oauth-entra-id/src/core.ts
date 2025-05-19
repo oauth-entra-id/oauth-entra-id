@@ -1,25 +1,34 @@
 import type { KeyObject } from 'node:crypto';
 import * as msal from '@azure/msal-node';
-import type { AuthenticationResult, ConfidentialClientApplication, CryptoProvider } from '@azure/msal-node';
 import jwt from 'jsonwebtoken';
 import jwks from 'jwks-rsa';
 import { OAuthError } from './error';
-import type { Cookies, LoginPrompt, MethodKeys, OAuthConfig, OAuthOptions, OnBehalfOfService } from './types';
+import type {
+  B2BApp,
+  Cookies,
+  DownstreamService,
+  GetB2BTokenResult,
+  GetTokenOnBehalfOfResult,
+  InjectedData,
+  LoginPrompt,
+  MsalResponse,
+  OAuthConfig,
+  OAuthProviderMethods,
+  OAuthSettings,
+} from './types';
 import { createSecretKey, decrypt, decryptObject, encrypt, encryptObject } from './utils/crypto';
-import { debugLog } from './utils/debugLog';
 import { getCookieOptions } from './utils/get-cookie-options';
+import { debugLog, getB2BAppsInfo, getDownstreamServicesInfo } from './utils/misc';
 import { isJwt } from './utils/regex';
 import {
   prettifyError,
+  zAccessTokenStructure,
   zConfig,
   zEncrypted,
-  zGetAuthUrl,
-  zGetLogoutUrl,
-  zGetTokenByCode,
-  zGetTokenOnBehalfOf,
   zJwt,
+  zJwtOrEncrypted,
+  zMethods,
   zState,
-  zToken,
 } from './utils/zod';
 
 /**
@@ -43,19 +52,18 @@ export class OAuthProvider {
   private readonly serverCallbackUrl: string;
   private readonly secretKey: KeyObject;
   private readonly frontendWhitelist: Set<string>;
-  private readonly loginPrompt: LoginPrompt;
   private readonly defaultCookieOptions: Cookies['DefaultCookieOptions'];
-  private readonly onBehalfOfServices: Map<string, OnBehalfOfService> | undefined;
-  readonly options: OAuthOptions;
-  private readonly cca: ConfidentialClientApplication;
-  private readonly msalCryptoProvider: CryptoProvider;
+  private readonly b2bAppsMap: Map<string, B2BApp> | undefined;
+  private readonly downstreamServicesMap: Map<string, DownstreamService> | undefined;
+  readonly settings: OAuthSettings;
+  private readonly cca: msal.ConfidentialClientApplication;
+  private readonly msalCryptoProvider: msal.CryptoProvider;
   private readonly jwksClient: jwks.JwksClient;
 
   /**
    * Creates a new OAuthProvider instance.
    *
    * @param configuration - The full OAuth configuration including Azure client credentials, frontend redirect URIs, server callback URL, secret keys, and advanced options.
-   *
    * @throws {OAuthError} If the configuration is invalid or contains duplicate service definitions.
    */
   constructor(configuration: OAuthConfig) {
@@ -65,41 +73,44 @@ export class OAuthProvider {
       throw new OAuthError(500, { message: 'Invalid OAuthProvider config', description: prettifyError(configError) });
     }
 
-    const { azure, frontendUrl, serverCallbackUrl, secretKey, advanced } = config;
+    const {
+      azure,
+      frontendUrl,
+      serverCallbackUrl,
+      secretKey,
+      advanced: { loginPrompt, sessionType, acceptB2BRequests, b2bTargetedApps, debug, cookies, downstreamServices },
+    } = config;
 
     const frontHosts = new Set(frontendUrl.map((url) => new URL(url).host));
     const serverHost = new URL(serverCallbackUrl).host;
-    const isHttps =
-      !advanced.cookies.disableHttps && [serverHost, ...frontHosts].every((url) => url.startsWith('https'));
-    const isSameSite = !advanced.cookies.disableSameSite && frontHosts.size === 1 ? frontHosts.has(serverHost) : false;
-    const onBehalfOfServices = advanced.onBehalfOfServices
-      ? new Map(advanced.onBehalfOfServices.map((service) => [service.serviceName, service]))
-      : undefined;
-    const serviceNames = onBehalfOfServices ? Array.from(onBehalfOfServices.keys()) : undefined;
+    const isHttps = !cookies.disableHttps && [serverHost, ...frontHosts].every((url) => url.startsWith('https'));
+    const isSameSite = !cookies.disableSameSite && frontHosts.size === 1 ? frontHosts.has(serverHost) : false;
 
-    if (serviceNames && advanced.onBehalfOfServices && serviceNames.length !== advanced.onBehalfOfServices.length) {
-      throw new OAuthError(500, { message: 'Invalid OAuthProvider config', description: 'Duplicate services found' });
-    }
+    const { b2bAppsMap, b2bAppsNames } = getB2BAppsInfo(b2bTargetedApps);
+    const { downstreamServicesMap, downstreamServicesNames } = getDownstreamServicesInfo(downstreamServices);
 
     const defaultCookieOptions = getCookieOptions({
       clientId: azure.clientId,
       isHttps,
       isSameSite,
-      cookiesTimeUnit: advanced.cookies.timeUnit,
-      accessTokenCookieExpiry: advanced.cookies.accessTokenExpiry,
-      refreshTokenCookieExpiry: advanced.cookies.refreshTokenExpiry,
+      cookiesTimeUnit: cookies.timeUnit,
+      accessTokenCookieExpiry: cookies.accessTokenExpiry,
+      refreshTokenCookieExpiry: cookies.refreshTokenExpiry,
     });
 
-    const options = {
-      areOtherSystemsAllowed: advanced.allowOtherSystems,
+    const settings: OAuthSettings = {
+      sessionType,
+      loginPrompt,
+      acceptB2BRequests,
       isHttps,
       isSameSite,
-      cookiesTimeUnit: advanced.cookies.timeUnit,
-      accessTokenCookieExpiry: advanced.cookies.accessTokenExpiry,
-      refreshTokenCookieExpiry: advanced.cookies.refreshTokenExpiry,
-      serviceNames,
-      debug: advanced.debug,
-    } as const;
+      cookiesTimeUnit: cookies.timeUnit,
+      accessTokenCookieExpiry: cookies.accessTokenExpiry,
+      refreshTokenCookieExpiry: cookies.refreshTokenExpiry,
+      b2bApps: b2bAppsNames,
+      downstreamServices: downstreamServicesNames,
+      debug,
+    };
 
     const cca = new msal.ConfidentialClientApplication({
       auth: {
@@ -122,23 +133,29 @@ export class OAuthProvider {
     this.serverCallbackUrl = serverCallbackUrl;
     this.secretKey = createSecretKey(secretKey);
     this.frontendWhitelist = frontHosts;
-    this.loginPrompt = advanced.loginPrompt;
     this.defaultCookieOptions = defaultCookieOptions;
-    this.onBehalfOfServices = onBehalfOfServices;
-    this.options = options;
+    this.b2bAppsMap = b2bAppsMap;
+    this.downstreamServicesMap = downstreamServicesMap;
+    this.settings = settings;
     this.cca = cca;
     this.msalCryptoProvider = new msal.CryptoProvider();
     this.jwksClient = jwksClient;
 
     debugLog({
-      condition: advanced.debug,
+      condition: debug,
       funcName: 'OAuthProvider.constructor',
       message: `OAuthProvider is created with config: ${JSON.stringify(config)}`,
     });
   }
 
-  private localDebug(methodName: MethodKeys<OAuthProvider> | 'verifyJwt', message: string) {
-    debugLog({ condition: this.options.debug, funcName: `OAuthProvider.${methodName}`, message });
+  /**
+   * Logs debug messages if the debug mode is enabled.
+   *
+   * @param methodName - The name of the method where the debug message is logged.
+   * @param message - The debug message to log.
+   */
+  private localDebug(methodName: OAuthProviderMethods, message: string) {
+    debugLog({ condition: this.settings.debug, funcName: `OAuthProvider.${methodName}`, message });
   }
 
   /**
@@ -163,10 +180,9 @@ export class OAuthProvider {
   async getAuthUrl(params: { loginPrompt?: LoginPrompt; email?: string; frontendUrl?: string }): Promise<{
     authUrl: string;
   }> {
-    const { data: parsedParams, error: paramsError } = zGetAuthUrl.safeParse(params);
-    if (paramsError) {
-      throw new OAuthError(400, { message: 'Invalid params', description: prettifyError(paramsError) });
-    }
+    const { data: parsedParams, error: paramsError } = zMethods.getAuthUrl.safeParse(params);
+    if (paramsError) throw new OAuthError(400, { message: 'Invalid params', description: prettifyError(paramsError) });
+
     if (parsedParams.loginPrompt === 'email' && !parsedParams.email) {
       throw new OAuthError(400, 'Invalid params: Email is required');
     }
@@ -177,7 +193,7 @@ export class OAuthProvider {
     try {
       const { verifier, challenge } = await this.msalCryptoProvider.generatePkceCodes();
       const frontendUrl = parsedParams.frontendUrl ?? this.frontendUrls[0];
-      const configuredPrompt = parsedParams.loginPrompt ?? this.loginPrompt;
+      const configuredPrompt = parsedParams.loginPrompt ?? this.settings.loginPrompt;
       const prompt =
         parsedParams.email || configuredPrompt === 'email'
           ? 'login'
@@ -206,19 +222,69 @@ export class OAuthProvider {
       return { authUrl: microsoftUrl };
     } catch (err) {
       if (err instanceof OAuthError) throw err;
-      throw new OAuthError(500, {
-        message: 'Error generating auth code URL',
-        description: err as string,
-      });
+      throw new OAuthError(500, { message: 'Error generating auth code URL', description: err as string });
     }
   }
 
-  private async extractRefreshTokenFromCache(msalResponse: msal.AuthenticationResult) {
+  /**
+   * Extracts the refresh token from the cache that msal created, and removes the account from the cache.
+   *
+   * @param msalResponse - The response from MSAL after acquiring a token.
+   * @returns The refresh token if found, otherwise null.
+   */
+  private async extractRefreshTokenFromCache(msalResponse: MsalResponse): Promise<string | null> {
     const tokenCache = this.cca.getTokenCache();
     const refreshTokenMap = JSON.parse(tokenCache.serialize()).RefreshToken;
     const userRefreshTokenKey = Object.keys(refreshTokenMap).find((key) => key.startsWith(msalResponse.uniqueId));
     if (msalResponse.account) await tokenCache.removeAccount(msalResponse.account);
     return userRefreshTokenKey ? (refreshTokenMap[userRefreshTokenKey].secret as string) : null;
+  }
+
+  /**
+   * Encrypts and returns both the access and refresh tokens.
+   *
+   * @param msalResponse - The response from MSAL after acquiring a token.
+   * @param secretKey - Override the default secret key for encryption.
+   * @returns An object containing the encrypted access and refresh tokens.
+   * @throws {OAuthError} If the token size exceeds 4096 bytes.
+   */
+  private async encryptTokens(msalResponse: MsalResponse, secretKey?: KeyObject) {
+    const accessTokenValue = encryptObject({ at: msalResponse.accessToken }, secretKey ?? this.secretKey);
+    const rawRefreshToken = await this.extractRefreshTokenFromCache(msalResponse);
+    const refreshTokenValue = rawRefreshToken ? encrypt(rawRefreshToken, secretKey ?? this.secretKey) : null;
+    this.localDebug(
+      'getBothTokens',
+      `access token length: ${accessTokenValue.length}, refresh token length: ${refreshTokenValue?.length}`,
+    );
+    if (accessTokenValue.length > 4096 || (refreshTokenValue && refreshTokenValue.length > 4096)) {
+      throw new OAuthError(500, 'Token size exceeds maximum allowed length');
+    }
+    return { accessTokenValue, refreshTokenValue };
+  }
+
+  /**
+   * Decrypts the access token and returns its raw value.
+   *
+   * @param accessToken - The encrypted or raw access token.
+   * @returns An object containing the access token in JWT format, injected data (if any), and whether it was encrypted.
+   */
+  private decryptAccessToken(accessToken: string): {
+    jwtAccessToken: string;
+    injectedData?: InjectedData;
+    wasEncrypted: boolean;
+  } {
+    const { data: token, error: tokenError } = zJwtOrEncrypted.safeParse(accessToken);
+    if (tokenError) throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid access token' });
+
+    if (isJwt(token)) {
+      return { jwtAccessToken: token, wasEncrypted: false };
+    }
+
+    const accessTokenObj = decryptObject(token, this.secretKey);
+    const { data: parsedAccessToken, error: accessTokenError } = zAccessTokenStructure.safeParse(accessTokenObj);
+    if (accessTokenError) throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid access token' });
+
+    return { jwtAccessToken: parsedAccessToken.at, injectedData: parsedAccessToken.inj, wasEncrypted: true };
   }
 
   /**
@@ -232,18 +298,17 @@ export class OAuthProvider {
     accessToken: Cookies['AccessToken'];
     refreshToken: Cookies['RefreshToken'] | null;
     frontendUrl: string;
-    msalResponse: AuthenticationResult;
+    msalResponse: MsalResponse;
   }> {
-    const { data: parsedParams, error: paramsError } = zGetTokenByCode.safeParse(params);
-    if (paramsError) {
-      throw new OAuthError(400, { message: 'Invalid params', description: prettifyError(paramsError) });
-    }
+    const { data: parsedParams, error: paramsError } = zMethods.getTokenByCode.safeParse(params);
+    if (paramsError) throw new OAuthError(400, { message: 'Invalid params', description: prettifyError(paramsError) });
 
     const { data: state, error: stateError } = zState.safeParse(decryptObject(parsedParams.state, this.secretKey));
     if (stateError) {
       throw new OAuthError(400, { message: 'Invalid params: Invalid state', description: prettifyError(stateError) });
     }
-    this.localDebug('getTokenByCode', `State is decrypted: ${JSON.stringify(state)}`);
+
+    this.localDebug('getTokenByCode', `Decrypted state: ${JSON.stringify(state)}`);
 
     if (!this.frontendWhitelist.has(new URL(state.frontendUrl).host)) {
       throw new OAuthError(403, 'Invalid params: Unlisted host frontend URL');
@@ -257,13 +322,13 @@ export class OAuthProvider {
         ...state,
       });
 
-      const accessToken = encrypt(msalResponse.accessToken, this.secretKey);
-      const rawRefreshToken = await this.extractRefreshTokenFromCache(msalResponse);
-      const refreshToken = rawRefreshToken ? encrypt(rawRefreshToken, this.secretKey) : null;
+      const { accessTokenValue, refreshTokenValue } = await this.encryptTokens(msalResponse);
 
       return {
-        accessToken: { value: accessToken, ...this.defaultCookieOptions.accessToken },
-        refreshToken: refreshToken ? { value: refreshToken, ...this.defaultCookieOptions.refreshToken } : null,
+        accessToken: { value: accessTokenValue, ...this.defaultCookieOptions.accessToken },
+        refreshToken: refreshTokenValue
+          ? { value: refreshTokenValue, ...this.defaultCookieOptions.refreshToken }
+          : null,
         frontendUrl: state.frontendUrl,
         msalResponse,
       };
@@ -284,10 +349,9 @@ export class OAuthProvider {
     deleteAccessToken: Cookies['DeleteAccessToken'];
     deleteRefreshToken: Cookies['DeleteRefreshToken'];
   } {
-    const { data: parsedParams, error: urlError } = zGetLogoutUrl.safeParse(params);
-    if (urlError) {
-      throw new OAuthError(400, { message: 'Invalid params: Invalid URL', description: prettifyError(urlError) });
-    }
+    const { data: parsedParams, error: paramsError } = zMethods.getLogoutUrl.safeParse(params);
+    if (paramsError) throw new OAuthError(400, { message: 'Invalid params', description: prettifyError(paramsError) });
+
     if (parsedParams.frontendUrl && !this.frontendWhitelist.has(new URL(parsedParams.frontendUrl).host)) {
       throw new OAuthError(403, 'Invalid params: Unlisted host frontend URL');
     }
@@ -310,7 +374,14 @@ export class OAuthProvider {
     };
   }
 
-  private getSigningKey(keyId: string): Promise<string> {
+  /**
+   * Retrieves and caches the public key for a given key ID (kid) from the JWKS endpoint.
+   *
+   * @param keyId - The key ID (kid) from the JWT header.
+   * @returns The public key in a PEM format.
+   */
+
+  private getPublicKey(keyId: string): Promise<string> {
     return new Promise((resolve, reject) => {
       this.jwksClient.getSigningKey(keyId, (err, key) => {
         if (err || !key) {
@@ -327,19 +398,26 @@ export class OAuthProvider {
     });
   }
 
-  private async verifyJwt(token: string): Promise<jwt.JwtPayload> {
+  /**
+   * Verifies the JWT token and returns its payload.
+   *
+   * @param jwtToken - The JWT token to verify.
+   * @returns The decoded JWT payload.
+   * @throws {OAuthError} If the token is invalid or verification fails.
+   */
+  private async verifyJwt(jwtToken: string): Promise<jwt.JwtPayload> {
     try {
-      const { data: jwtToken, error: jwtTokenError } = zJwt.safeParse(token);
+      const { data: parsedJwtToken, error: jwtTokenError } = zJwt.safeParse(jwtToken);
       if (jwtTokenError) {
         throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid JWT Token' });
       }
-      const decodedJwt = jwt.decode(jwtToken, { complete: true });
+      const decodedJwt = jwt.decode(parsedJwtToken, { complete: true });
       if (!decodedJwt || !decodedJwt.header.kid) {
         throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid JWT Key ID' });
       }
-      const publicKey = await this.getSigningKey(decodedJwt.header.kid);
+      const publicKey = await this.getPublicKey(decodedJwt.header.kid);
 
-      const fullJwt = jwt.verify(jwtToken, publicKey, {
+      const fullJwt = jwt.verify(parsedJwtToken, publicKey, {
         algorithms: ['RS256'],
         audience: this.azure.clientId,
         issuer: `https://login.microsoftonline.com/${this.azure.tenantId}/v2.0`,
@@ -356,7 +434,7 @@ export class OAuthProvider {
       if (err instanceof OAuthError) throw err;
       throw new OAuthError(401, {
         message: 'Unauthorized',
-        description: `In Entra ID Portal, 'Manifest' area, the 'accessTokenAcceptedVersion' must be set to '2'`,
+        description: `Check your Entra ID Portal, make sure the 'accessTokenAcceptedVersion' is set to '2' in the 'Manifest' area`,
       });
     }
   }
@@ -365,24 +443,66 @@ export class OAuthProvider {
    * Verifies an access token, either as a raw JWT or encrypted string.
    *
    * @param accessToken - A JWT or encrypted access token.
-   * @returns The original token and decoded payload if valid; `null` otherwise.
+   * @returns The original token and decoded payload if valid; `null` otherwise. If the token has injected data, it will be returned as well.
+   * @throws {OAuthError} If the token is invalid or verification fails or if the tokens is B2B token and it's encrypted.
    */
-  async verifyAccessToken(accessToken: string): Promise<{ microsoftToken: string; payload: jwt.JwtPayload } | null> {
+  async verifyAccessToken(accessToken: string | undefined): Promise<{
+    jwtAccessToken: string;
+    payload: jwt.JwtPayload;
+    injectedData: InjectedData | undefined;
+    isB2B: boolean;
+  } | null> {
+    if (!accessToken) {
+      this.localDebug('verifyAccessToken', 'No access token provided');
+      return null;
+    }
+
     try {
-      const { data: token, error: tokenError } = zToken.safeParse(accessToken);
-      if (tokenError) {
-        throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid access token' });
+      const { jwtAccessToken, injectedData, wasEncrypted } = this.decryptAccessToken(accessToken);
+      const payload = await this.verifyJwt(jwtAccessToken);
+
+      const isB2B = payload.sub === payload.oid;
+
+      if (isB2B && (wasEncrypted || !this.settings.acceptB2BRequests)) {
+        this.localDebug('verifyAccessToken', 'B2B token cannot be encrypted');
+        return null;
       }
-      const rawAccessToken = isJwt(token) ? token : decrypt(token, this.secretKey);
-      if (!rawAccessToken) {
-        throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid JWT Token' });
-      }
-      const payload = await this.verifyJwt(rawAccessToken);
-      return { microsoftToken: rawAccessToken, payload };
+
+      return { jwtAccessToken, payload, injectedData, isB2B };
     } catch (err) {
       this.localDebug('verifyAccessToken', `Error verifying token: ${err}`);
       return null;
     }
+  }
+
+  /**
+   * Injects data into the access token
+   * Useful for embedding non-sensitive metadata into token structure.
+   *
+   * @param params - The parameters containing the access token value and data to inject.
+   * @returns The new access token cookie with injected data, or null if the token is invalid.
+   */
+  injectData<TValues, TData extends Record<string, TValues>>(params: { accessToken: string; data: TData }):
+    | Cookies['AccessToken']
+    | null {
+    const { jwtAccessToken } = this.decryptAccessToken(params.accessToken);
+    const { data: nextAccessToken, error: nextAccessTokenError } = zAccessTokenStructure.safeParse({
+      at: jwtAccessToken,
+      inj: params.data,
+    });
+
+    if (nextAccessTokenError) {
+      this.localDebug('injectData', 'Invalid access token format');
+      return null;
+    }
+
+    const encryptedAccessToken = encryptObject(nextAccessToken, this.secretKey);
+    if (encryptedAccessToken.length > 4096) {
+      this.localDebug('injectData', 'Token length exceeds 4kB');
+      return null;
+    }
+
+    return { value: encryptedAccessToken, ...this.defaultCookieOptions.accessToken };
   }
 
   /**
@@ -392,12 +512,18 @@ export class OAuthProvider {
    * @returns New access and refresh token cookies, raw MSAL response, and payload.
    * @throws {OAuthError} If the refresh token is invalid or decryption fails.
    */
-  async getTokenByRefresh(refreshToken: string): Promise<{
+  async getTokenByRefresh(refreshToken: string | undefined): Promise<{
+    jwtAccessToken: string;
+    payload: jwt.JwtPayload;
     newAccessToken: Cookies['AccessToken'];
     newRefreshToken: Cookies['RefreshToken'] | null;
-    msalResponse: AuthenticationResult;
-    msal: { microsoftToken: string; payload: jwt.JwtPayload };
+    msalResponse: MsalResponse;
   } | null> {
+    if (!refreshToken) {
+      this.localDebug('getTokenByRefresh', 'No refresh token provided');
+      return null;
+    }
+
     const { data: parsedRefreshToken, error: refreshTokenError } = zEncrypted.safeParse(refreshToken);
     if (refreshTokenError) {
       throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid Refresh Token' });
@@ -412,22 +538,20 @@ export class OAuthProvider {
         scopes: this.azure.scopes,
         forceCache: true,
       });
-      if (!msalResponse)
-        throw new OAuthError(401, {
-          message: 'Unauthorized',
-          description: 'Invalid Refresh Token',
-        });
 
-      const newAccessToken = encrypt(msalResponse.accessToken, this.secretKey);
-      const newAccessTokenPayload = await this.verifyJwt(msalResponse.accessToken);
-      const newRawRefreshToken = await this.extractRefreshTokenFromCache(msalResponse);
-      const newRefreshToken = newRawRefreshToken ? encrypt(newRawRefreshToken, this.secretKey) : null;
+      if (!msalResponse) throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid Refresh Token' });
+
+      const payload = await this.verifyJwt(msalResponse.accessToken);
+      const { accessTokenValue, refreshTokenValue } = await this.encryptTokens(msalResponse);
 
       return {
-        newAccessToken: { value: newAccessToken, ...this.defaultCookieOptions.accessToken },
-        newRefreshToken: newRefreshToken ? { value: newRefreshToken, ...this.defaultCookieOptions.refreshToken } : null,
+        jwtAccessToken: msalResponse.accessToken,
+        payload,
+        newAccessToken: { value: accessTokenValue, ...this.defaultCookieOptions.accessToken },
+        newRefreshToken: refreshTokenValue
+          ? { value: refreshTokenValue, ...this.defaultCookieOptions.refreshToken }
+          : null,
         msalResponse,
-        msal: { microsoftToken: msalResponse.accessToken, payload: newAccessTokenPayload },
       };
     } catch (err) {
       this.localDebug('getTokenByRefresh', `Error refreshing token: ${err}`);
@@ -436,43 +560,102 @@ export class OAuthProvider {
   }
 
   /**
-   * Acquires tokens for trusted downstream services via the On-Behalf-Of (OBO) flow.
-   *
-   * @param params - Includes original access token and array of service names to act on behalf of.
-   * @returns Token pairs (access/refresh) and MSAL metadata for each target service.
-   * @throws {OAuthError} If configuration or token validation fails.
+   * Acquires tokens for B2B apps using client credentials.
+   * @param params - The parameters containing the B2B app name(s).
+   * @returns The B2B access token and MSAL response for the specified app(s).
+   * @throws {OAuthError} If the B2B apps are not configured or if the token is invalid.
    */
-  async getTokenOnBehalfOf(params: { accessToken: string; serviceNames: string[] }): Promise<
-    {
-      accessToken: Cookies['AccessToken'];
-      refreshToken: Cookies['RefreshToken'] | null;
-      msalResponse: AuthenticationResult;
-    }[]
-  > {
-    if (!this.onBehalfOfServices) {
-      throw new OAuthError(400, { message: 'Invalid params', description: 'On Behalf Of Services not configured' });
-    }
-    const { data: parsedParams, error: paramsError } = zGetTokenOnBehalfOf.safeParse(params);
-    if (paramsError) {
-      throw new OAuthError(400, { message: 'Invalid params', description: prettifyError(paramsError) });
+  async getB2BToken(params: { appName: string }): Promise<GetB2BTokenResult>;
+  async getB2BToken(params: { appsNames: string[] }): Promise<GetB2BTokenResult[]>;
+  async getB2BToken(
+    params: { appName: string } | { appsNames: string[] },
+  ): Promise<GetB2BTokenResult | GetB2BTokenResult[]> {
+    if (!this.b2bAppsMap) {
+      throw new OAuthError(400, { message: 'Invalid params', description: 'B2B apps not configured' });
     }
 
-    const services = parsedParams.serviceNames
-      .map((serviceName) => this.onBehalfOfServices?.get(serviceName))
+    const { data: parsedParams, error: paramsError } = zMethods.getB2BToken.safeParse(params);
+    if (paramsError) throw new OAuthError(400, { message: 'Invalid params', description: prettifyError(paramsError) });
+
+    const apps = parsedParams.appsNames.map((appName) => this.b2bAppsMap?.get(appName)).filter((client) => !!client);
+
+    if (!apps || apps.length === 0) {
+      throw new OAuthError(400, { message: 'Invalid params', description: 'App not found' });
+    }
+
+    try {
+      const results = (
+        await Promise.all(
+          apps.map(async (app) => {
+            try {
+              const msalResponse = await this.cca.acquireTokenByClientCredential({
+                scopes: [app.scope],
+                skipCache: true,
+              });
+              if (!msalResponse) return null;
+
+              const decodedAccessToken = jwt.decode(msalResponse.accessToken, { json: true });
+              if (!decodedAccessToken) return null;
+
+              const clientId = decodedAccessToken.aud;
+              if (typeof clientId !== 'string') return null;
+
+              return {
+                appName: app.appName,
+                appClientId: clientId,
+                accessToken: msalResponse.accessToken,
+                msalResponse,
+              } satisfies GetB2BTokenResult;
+            } catch {
+              return null;
+            }
+          }),
+        )
+      ).filter((result) => !!result);
+
+      if (!results || results.length === 0) {
+        throw new OAuthError(500, { message: 'Internal server error', description: 'Failed to get token' });
+      }
+
+      return 'appName' in params ? (results[0] as GetB2BTokenResult) : results;
+    } catch (err) {
+      if (err instanceof OAuthError) throw err;
+      throw new OAuthError(500, { message: 'Error getting b2b token', description: err as string });
+    }
+  }
+
+  /**
+   * Acquires tokens for trusted downstream services via the On-Behalf-Of (OBO) flow.
+   *
+   * @param params - The parameters containing the access token and service name(s).
+   * @returns The OBO access token and MSAL response for the specified service(s).
+   * @throws {OAuthError} If the OBO services are not configured or if the token is invalid.
+   */
+  async getTokenOnBehalfOf(params: { accessToken: string; serviceName: string }): Promise<GetTokenOnBehalfOfResult>;
+  async getTokenOnBehalfOf(params: { accessToken: string; servicesNames: string[] }): Promise<
+    GetTokenOnBehalfOfResult[]
+  >;
+  async getTokenOnBehalfOf(
+    params: { accessToken: string; serviceName: string } | { accessToken: string; servicesNames: string[] },
+  ): Promise<GetTokenOnBehalfOfResult | GetTokenOnBehalfOfResult[]> {
+    if (!this.downstreamServicesMap) {
+      throw new OAuthError(500, { message: 'Invalid params', description: 'On-Behalf-Of Services not configured' });
+    }
+
+    const { data: parsedParams, error: paramsError } = zMethods.getTokenOnBehalfOf.safeParse(params);
+    if (paramsError) throw new OAuthError(400, { message: 'Invalid params', description: prettifyError(paramsError) });
+
+    const services = parsedParams.servicesNames
+      .map((serviceName) => this.downstreamServicesMap?.get(serviceName))
       .filter((service) => !!service);
 
     if (!services || services.length === 0) {
       throw new OAuthError(400, { message: 'Invalid params', description: 'Service not Found' });
     }
+
     this.localDebug('getTokenOnBehalfOf', `Services names: ${JSON.stringify(services)}`);
 
-    const rawAccessToken = isJwt(parsedParams.accessToken)
-      ? parsedParams.accessToken
-      : decrypt(parsedParams.accessToken, this.secretKey);
-
-    if (!rawAccessToken) {
-      throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid JWT Token' });
-    }
+    const { jwtAccessToken } = this.decryptAccessToken(parsedParams.accessToken);
 
     try {
       const results = (
@@ -480,7 +663,7 @@ export class OAuthProvider {
           services.map(async (service) => {
             try {
               const msalResponse = await this.cca.acquireTokenOnBehalfOf({
-                oboAssertion: rawAccessToken,
+                oboAssertion: jwtAccessToken,
                 scopes: [service.scope],
                 skipCache: false,
               });
@@ -488,43 +671,41 @@ export class OAuthProvider {
 
               const decodedAccessToken = jwt.decode(msalResponse.accessToken, { json: true });
               if (!decodedAccessToken) return null;
-              const aud = decodedAccessToken.aud;
-              if (typeof aud !== 'string') return null;
 
-              this.localDebug('getTokenOnBehalfOf', `Service: ${service.serviceName}, Audience: ${aud}`);
+              const clientId = decodedAccessToken.aud;
+              if (typeof clientId !== 'string') return null;
 
               const secretKey = createSecretKey(service.secretKey);
-
-              const accessToken = encrypt(msalResponse.accessToken, secretKey);
-              const rawRefreshToken = await this.extractRefreshTokenFromCache(msalResponse);
-              const refreshToken = rawRefreshToken ? encrypt(rawRefreshToken, secretKey) : null;
+              const { accessTokenValue, refreshTokenValue } = await this.encryptTokens(msalResponse, secretKey);
+              //TODO: find a way to create refresh token for downstream services
 
               const cookieOptions = getCookieOptions({
-                clientId: aud,
-                isHttps: service.isHttps,
-                isSameSite: service.isSameSite,
-                cookiesTimeUnit: this.options.cookiesTimeUnit,
-                accessTokenCookieExpiry: service.accessTokenExpiry ?? this.options.accessTokenCookieExpiry,
-                refreshTokenCookieExpiry: service.refreshTokenExpiry ?? this.options.refreshTokenCookieExpiry,
+                clientId,
+                isHttps: service.isHttps as boolean,
+                isSameSite: service.isHttps as boolean,
+                cookiesTimeUnit: this.settings.cookiesTimeUnit,
+                accessTokenCookieExpiry: service.accessTokenExpiry ?? this.settings.accessTokenCookieExpiry,
+                refreshTokenCookieExpiry: service.refreshTokenExpiry ?? this.settings.refreshTokenCookieExpiry,
               });
 
               return {
-                accessToken: { value: accessToken, ...cookieOptions.accessToken },
-                refreshToken: refreshToken ? { value: refreshToken, ...cookieOptions.refreshToken } : null,
+                serviceName: service.serviceName,
+                serviceClientId: clientId,
+                accessToken: { value: accessTokenValue, ...cookieOptions.accessToken },
                 msalResponse,
-              };
+              } satisfies GetTokenOnBehalfOfResult;
             } catch {
               return null;
             }
           }),
         )
-      ).filter((response) => !!response);
+      ).filter((result) => !!result);
 
       if (!results || results.length === 0) {
         throw new OAuthError(500, { message: 'Internal server error', description: 'Failed to get token' });
       }
 
-      return results;
+      return 'serviceName' in params ? (results[0] as GetTokenOnBehalfOfResult) : results;
     } catch (err) {
       if (err instanceof OAuthError) throw err;
       throw new OAuthError(500, { message: 'Error getting token on behalf of', description: err as string });

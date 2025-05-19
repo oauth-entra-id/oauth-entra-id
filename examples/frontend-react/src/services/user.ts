@@ -8,6 +8,11 @@ const zGetUserData = z.object({
     uniqueId: zStr.uuid(),
     name: zStr,
     email: zStr.email(),
+    injectedData: z
+      .object({
+        randomNumber: z.number(),
+      })
+      .optional(),
   }),
 });
 
@@ -47,9 +52,9 @@ const zGetTokensOnBehalfOf = z.object({
   tokensSet: z.number(),
 });
 
-export async function getTokensOnBehalfOf({ serviceNames }: { serviceNames: Color[] }) {
+export async function getTokensOnBehalfOf(servicesNames: Color[]) {
   const serverUrl = useServerStore.getState().serverUrl;
-  const res = await axiosFetch.post(`${serverUrl}/protected/on-behalf-of`, { serviceNames });
+  const res = await axiosFetch.post(`${serverUrl}/protected/on-behalf-of`, { servicesNames });
   const parsed = zGetTokensOnBehalfOf.safeParse(res?.data);
   if (parsed.error) throw new Error('Invalid on-behalf-of tokens');
   return parsed.data.tokensSet;
