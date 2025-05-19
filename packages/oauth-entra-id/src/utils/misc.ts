@@ -1,5 +1,5 @@
 import { OAuthError } from '~/error';
-import type { B2BService, OAuthConfig } from '~/types';
+import type { B2BApp, OAuthConfig } from '~/types';
 
 export function debugLog({ condition, funcName, message }: { condition: boolean; funcName: string; message: string }) {
   if (condition) {
@@ -7,41 +7,43 @@ export function debugLog({ condition, funcName, message }: { condition: boolean;
   }
 }
 
-export function getB2BInfo(b2bServices: B2BService[] | undefined) {
-  if (!b2bServices) {
-    return { b2bServicesMap: undefined, b2bServicesNames: undefined };
+export function getB2BAppsInfo(b2bClient: B2BApp[] | undefined) {
+  if (!b2bClient) {
+    return { b2bAppsMap: undefined, b2bAppsNames: undefined };
   }
 
-  const b2bServicesMap = new Map(b2bServices.map((service) => [service.b2bServiceName, service]));
-  const b2bServicesNames = Array.from(b2bServicesMap?.keys());
+  const b2bAppsMap = new Map(b2bClient.map((app) => [app.appName, app]));
+  const b2bAppsNames = Array.from(b2bAppsMap?.keys());
 
-  if (b2bServicesNames.length !== b2bServices.length) {
+  if (b2bAppsNames.length !== b2bClient.length) {
     throw new OAuthError(500, { message: 'Invalid OAuthProvider config', description: 'Duplicate services found' });
   }
 
-  return { b2bServicesMap, b2bServicesNames };
+  return { b2bAppsMap, b2bAppsNames };
 }
 
-export function getOnBehalfOfInfo(onBehalfOfConfig: NonNullable<OAuthConfig['advanced']>['onBehalfOf'] | undefined) {
+export function getDownstreamServicesInfo(
+  onBehalfOfConfig: NonNullable<OAuthConfig['advanced']>['downstreamServices'] | undefined,
+) {
   if (!onBehalfOfConfig) {
-    return { oboServicesMap: undefined, oboServicesNames: undefined };
+    return { downstreamServicesMap: undefined, downstreamServicesNames: undefined };
   }
 
-  const oboServicesMap = new Map(
-    onBehalfOfConfig.oboServices.map((service) => [
-      service.oboServiceName,
+  const downstreamServicesMap = new Map(
+    onBehalfOfConfig.services.map((service) => [
+      service.serviceName,
       {
         ...service,
-        isHttps: service.isHttps ?? onBehalfOfConfig.isHttps,
-        isSameSite: service.isSameSite ?? onBehalfOfConfig.isSameSite,
+        isHttps: service.isHttps ?? onBehalfOfConfig.areHttps,
+        isSameSite: service.isSameOrigin ?? onBehalfOfConfig.areSameOrigin,
       },
     ]),
   );
-  const oboServicesNames = Array.from(oboServicesMap.keys());
+  const downstreamServicesNames = Array.from(downstreamServicesMap.keys());
 
-  if (oboServicesNames.length !== onBehalfOfConfig.oboServices.length) {
+  if (downstreamServicesNames.length !== onBehalfOfConfig.services.length) {
     throw new OAuthError(500, { message: 'Invalid OAuthProvider config', description: 'Duplicate services found' });
   }
 
-  return { oboServicesMap, oboServicesNames };
+  return { downstreamServicesMap, downstreamServicesNames };
 }

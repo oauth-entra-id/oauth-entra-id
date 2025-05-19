@@ -9,10 +9,10 @@ import { oauthProvider } from '~/oauth';
 
 const tSchemas = {
   onBehalfOf: t.Object({
-    oboServiceNames: t.Array(t.String(), { minItems: 1 }),
+    servicesNames: t.Array(t.String(), { minItems: 1 }),
   }),
-  b2b: t.Object({
-    b2bServiceName: t.Union([t.Literal('express'), t.Literal('nestjs'), t.Literal('honojs')]),
+  getB2BInfo: t.Object({
+    appName: t.Union([t.Literal('express'), t.Literal('nestjs'), t.Literal('honojs')]),
   }),
 };
 
@@ -66,28 +66,26 @@ export const protectedRouter: FastifyPluginAsyncTypebox = async (app) => {
   app.post('/on-behalf-of', { schema: { body: tSchemas.onBehalfOf } }, async (req, reply) => {
     if (req.userInfo?.isB2B === true) throw new HttpException('B2B users cannot use OBO', 401);
 
-    const { oboServiceNames } = req.body;
+    const { servicesNames } = req.body;
 
     const results = await oauthProvider.getTokenOnBehalfOf({
       accessToken: req.accessTokenInfo.jwt,
-      oboServiceNames,
+      servicesNames,
     });
 
-    for (const result of results) {
-      const { oboAccessToken, oboRefreshToken } = result;
-      reply.setCookie(oboAccessToken.name, oboAccessToken.value, oboAccessToken.options);
-      if (oboRefreshToken) reply.setCookie(oboRefreshToken.name, oboRefreshToken.value, oboRefreshToken.options);
+    for (const { accessToken } of results) {
+      reply.setCookie(accessToken.name, accessToken.value, accessToken.options);
     }
 
     return { tokensSet: results.length };
   });
 
-  app.post('/get-b2b-info', { schema: { body: tSchemas.b2b } }, async (req, reply) => {
-    const { b2bServiceName } = req.body;
-    const result = await oauthProvider.getB2BToken({ b2bServiceName });
-    const serverUrl = serversMap[b2bServiceName];
+  app.post('/get-b2b-info', { schema: { body: tSchemas.getB2BInfo } }, async (req, reply) => {
+    const { appName } = req.body;
+    const { accessToken } = await oauthProvider.getB2BToken({ appName });
+    const serverUrl = serversMap[appName];
     const axiosResponse = await axios.get(`${serverUrl}/protected/b2b-info`, {
-      headers: { Authorization: `Bearer ${result.b2bAccessToken}` },
+      headers: { Authorization: `Bearer ${accessToken}` },
     });
     const { data, error } = zB2BResponse.safeParse(axiosResponse.data);
     if (error) throw new HttpException('Invalid response from B2B service', 500);

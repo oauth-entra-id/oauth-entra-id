@@ -16,27 +16,27 @@ export type InjectedData = Record<string, any>;
 /**
  * Configuration for acquiring client credentials for a B2B service.
  */
-export interface B2BService {
-  /** Unique identifier of the external service. */
-  b2bServiceName: string;
+export interface B2BApp {
+  /** Unique identifier of the external client service. */
+  appName: string;
 
   /** OAuth 2.0 scope to request for the service.
    * Usually end with `/.default` to request all permissions.
    */
-  b2bScope: string;
+  scope: string;
 }
 
 /**
  * Configuration for acquiring On-Behalf-Of (OBO) tokens for downstream services.
  */
-export interface OnBehalfOfService {
+export interface DownstreamService {
   /** Unique identifier of the downstream service. */
-  oboServiceName: string;
+  serviceName: string;
 
   /** OAuth 2.0 scope to request for the downstream service.
    * Usually end with `/.default` to request all permissions.
    */
-  oboScope: string;
+  scope: string;
 
   /** Encryption key used to encrypt tokens for this service. */
   secretKey: string;
@@ -45,7 +45,7 @@ export interface OnBehalfOfService {
   isHttps?: boolean;
 
   /** Whether `SameSite` cookies should be enforced for this service. */
-  isSameSite?: boolean;
+  isSameOrigin?: boolean;
 
   /** Expiration for access token cookies (default from global if not set). */
   accessTokenExpiry?: number;
@@ -63,7 +63,7 @@ export interface OAuthConfig {
     /** Microsoft Entra ID client ID. */
     clientId: string;
     /** Azure tenant ID or `'common'` for multi-tenant support. */
-    tenantId: 'common' | string;
+    tenantId: 'common' | (string & {});
     /** OAuth 2.0 scopes to request during authentication. */
     scopes: string[];
     /** Client secret associated with the Azure app registration. */
@@ -81,13 +81,10 @@ export interface OAuthConfig {
     loginPrompt?: LoginPrompt;
     /** Session persistence method. Defaults to `'cookie-session'`. */
     sessionType?: SessionType;
-    /** External B2B system integration configuration. */
-    b2b?: {
-      /** Whether to accept tokens issued by other systems. */
-      allowB2B?: boolean;
-      /** Create B2B access tokens for external services. */
-      b2bServices?: B2BService[];
-    };
+    /** Whether to accept tokens issued by other systems. */
+    acceptB2BRequests?: boolean;
+    /** List of external B2B services to acquire tokens for. */
+    b2bTargetedApps?: B2BApp[];
     /** Enables verbose debug logging. */
     debug?: boolean;
     /** Cookie behavior and expiration settings. */
@@ -103,14 +100,14 @@ export interface OAuthConfig {
       /** Max-age for refresh token cookies. */
       refreshTokenExpiry?: number;
     };
-    /** Configuration for acquiring downstream tokens via the OBO flow. */
-    onBehalfOf?: {
+    /** Configuration for acquiring downstream tokens via the on-behalf-of flow. */
+    downstreamServices?: {
       /** Whether HTTPS is enforced. */
-      isHttps: boolean;
+      areHttps: boolean;
       /** Whether to enforce SameSite on OBO cookies. */
-      isSameSite: boolean;
+      areSameOrigin: boolean;
       /** List of trusted services requiring On-Behalf-Of delegation. */
-      oboServices: OnBehalfOfService[];
+      services: DownstreamService[];
     };
   };
 }
@@ -121,12 +118,12 @@ export interface OAuthConfig {
 export interface OAuthSettings {
   readonly sessionType: SessionType;
   readonly loginPrompt: LoginPrompt;
-  readonly isB2BEnabled: boolean;
+  readonly acceptB2BRequests: boolean;
   readonly isHttps: boolean;
   readonly isSameSite: boolean;
   readonly cookiesTimeUnit: TimeUnit;
-  readonly b2bServices?: string[];
-  readonly oboServices?: string[];
+  readonly b2bApps?: string[];
+  readonly downstreamServices?: string[];
   readonly accessTokenCookieExpiry: number;
   readonly refreshTokenCookieExpiry: number;
   readonly debug: boolean;
@@ -189,14 +186,16 @@ export type OAuthProviderMethods =
   | PrivateMethods;
 
 export interface GetB2BTokenResult {
-  b2bServiceName: string;
-  b2bAccessToken: string;
-  b2bMsalResponse: MsalResponse;
+  appName: string;
+  appClientId: string;
+  accessToken: string;
+  msalResponse: MsalResponse;
 }
 
 export interface GetTokenOnBehalfOfResult {
-  oboServiceName: string;
-  oboAccessToken: Cookies['AccessToken'];
-  oboRefreshToken: Cookies['RefreshToken'] | null;
-  oboMsalResponse: MsalResponse;
+  serviceName: string;
+  serviceClientId: string;
+  accessToken: Cookies['AccessToken'];
+  // TODO: add refresh token
+  msalResponse: MsalResponse;
 }

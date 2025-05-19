@@ -4,8 +4,9 @@ import jwt from 'jsonwebtoken';
 import jwks from 'jwks-rsa';
 import { OAuthError } from './error';
 import type {
-  B2BService,
+  B2BApp,
   Cookies,
+  DownstreamService,
   GetB2BTokenResult,
   GetTokenOnBehalfOfResult,
   InjectedData,
@@ -14,11 +15,10 @@ import type {
   OAuthConfig,
   OAuthProviderMethods,
   OAuthSettings,
-  OnBehalfOfService,
 } from './types';
 import { createSecretKey, decrypt, decryptObject, encrypt, encryptObject } from './utils/crypto';
 import { getCookieOptions } from './utils/get-cookie-options';
-import { debugLog, getB2BInfo, getOnBehalfOfInfo } from './utils/misc';
+import { debugLog, getB2BAppsInfo, getDownstreamServicesInfo } from './utils/misc';
 import { isJwt } from './utils/regex';
 import {
   prettifyError,
@@ -53,8 +53,8 @@ export class OAuthProvider {
   private readonly secretKey: KeyObject;
   private readonly frontendWhitelist: Set<string>;
   private readonly defaultCookieOptions: Cookies['DefaultCookieOptions'];
-  private readonly b2bServicesMap: Map<string, B2BService> | undefined;
-  private readonly oboServicesMap: Map<string, OnBehalfOfService> | undefined;
+  private readonly b2bAppsMap: Map<string, B2BApp> | undefined;
+  private readonly downstreamServicesMap: Map<string, DownstreamService> | undefined;
   readonly settings: OAuthSettings;
   private readonly cca: msal.ConfidentialClientApplication;
   private readonly msalCryptoProvider: msal.CryptoProvider;
@@ -78,7 +78,7 @@ export class OAuthProvider {
       frontendUrl,
       serverCallbackUrl,
       secretKey,
-      advanced: { cookies, b2b, onBehalfOf, sessionType, debug, loginPrompt },
+      advanced: { loginPrompt, sessionType, acceptB2BRequests, b2bTargetedApps, debug, cookies, downstreamServices },
     } = config;
 
     const frontHosts = new Set(frontendUrl.map((url) => new URL(url).host));
@@ -86,8 +86,8 @@ export class OAuthProvider {
     const isHttps = !cookies.disableHttps && [serverHost, ...frontHosts].every((url) => url.startsWith('https'));
     const isSameSite = !cookies.disableSameSite && frontHosts.size === 1 ? frontHosts.has(serverHost) : false;
 
-    const { b2bServicesMap, b2bServicesNames } = getB2BInfo(b2b.b2bServices);
-    const { oboServicesMap, oboServicesNames } = getOnBehalfOfInfo(onBehalfOf);
+    const { b2bAppsMap, b2bAppsNames } = getB2BAppsInfo(b2bTargetedApps);
+    const { downstreamServicesMap, downstreamServicesNames } = getDownstreamServicesInfo(downstreamServices);
 
     const defaultCookieOptions = getCookieOptions({
       clientId: azure.clientId,
@@ -101,14 +101,14 @@ export class OAuthProvider {
     const settings: OAuthSettings = {
       sessionType,
       loginPrompt,
-      isB2BEnabled: b2b.allowB2B,
+      acceptB2BRequests,
       isHttps,
       isSameSite,
       cookiesTimeUnit: cookies.timeUnit,
       accessTokenCookieExpiry: cookies.accessTokenExpiry,
       refreshTokenCookieExpiry: cookies.refreshTokenExpiry,
-      b2bServices: b2bServicesNames,
-      oboServices: oboServicesNames,
+      b2bApps: b2bAppsNames,
+      downstreamServices: downstreamServicesNames,
       debug,
     };
 
@@ -134,8 +134,8 @@ export class OAuthProvider {
     this.secretKey = createSecretKey(secretKey);
     this.frontendWhitelist = frontHosts;
     this.defaultCookieOptions = defaultCookieOptions;
-    this.b2bServicesMap = b2bServicesMap;
-    this.oboServicesMap = oboServicesMap;
+    this.b2bAppsMap = b2bAppsMap;
+    this.downstreamServicesMap = downstreamServicesMap;
     this.settings = settings;
     this.cca = cca;
     this.msalCryptoProvider = new msal.CryptoProvider();
@@ -462,7 +462,8 @@ export class OAuthProvider {
       const payload = await this.verifyJwt(jwtAccessToken);
 
       const isB2B = payload.sub === payload.oid;
-      if (isB2B && (wasEncrypted || !this.settings.isB2BEnabled)) {
+
+      if (isB2B && (wasEncrypted || !this.settings.acceptB2BRequests)) {
         this.localDebug('verifyAccessToken', 'B2B token cannot be encrypted');
         return null;
       }
@@ -559,42 +560,51 @@ export class OAuthProvider {
   }
 
   /**
-   * Acquires tokens for B2B services using client credentials.
-   * @param params - The parameters containing the B2B service name(s).
-   * @returns The B2B access token and MSAL response for the specified service(s).
-   * @throws {OAuthError} If the B2B services are not configured or if the token is invalid.
+   * Acquires tokens for B2B apps using client credentials.
+   * @param params - The parameters containing the B2B app name(s).
+   * @returns The B2B access token and MSAL response for the specified app(s).
+   * @throws {OAuthError} If the B2B apps are not configured or if the token is invalid.
    */
-  async getB2BToken(params: { b2bServiceName: string }): Promise<GetB2BTokenResult>;
-  async getB2BToken(params: { b2bServiceNames: string[] }): Promise<GetB2BTokenResult[]>;
+  async getB2BToken(params: { appName: string }): Promise<GetB2BTokenResult>;
+  async getB2BToken(params: { appsNames: string[] }): Promise<GetB2BTokenResult[]>;
   async getB2BToken(
-    params: { b2bServiceName: string } | { b2bServiceNames: string[] },
+    params: { appName: string } | { appsNames: string[] },
   ): Promise<GetB2BTokenResult | GetB2BTokenResult[]> {
-    if (!this.b2bServicesMap)
-      throw new OAuthError(400, { message: 'Invalid params', description: 'B2B Services not configured' });
+    if (!this.b2bAppsMap) {
+      throw new OAuthError(400, { message: 'Invalid params', description: 'B2B apps not configured' });
+    }
 
     const { data: parsedParams, error: paramsError } = zMethods.getB2BToken.safeParse(params);
     if (paramsError) throw new OAuthError(400, { message: 'Invalid params', description: prettifyError(paramsError) });
 
-    const services = parsedParams.b2bServiceNames
-      .map((serviceName) => this.b2bServicesMap?.get(serviceName))
-      .filter((service) => !!service);
+    const apps = parsedParams.appsNames.map((appName) => this.b2bAppsMap?.get(appName)).filter((client) => !!client);
 
-    if (!services) throw new OAuthError(400, { message: 'Invalid params', description: 'Service not found' });
+    if (!apps || apps.length === 0) {
+      throw new OAuthError(400, { message: 'Invalid params', description: 'App not found' });
+    }
 
     try {
       const results = (
         await Promise.all(
-          services.map(async (service) => {
+          apps.map(async (app) => {
             try {
               const msalResponse = await this.cca.acquireTokenByClientCredential({
-                scopes: [service.b2bScope],
+                scopes: [app.scope],
                 skipCache: true,
               });
               if (!msalResponse) return null;
+
+              const decodedAccessToken = jwt.decode(msalResponse.accessToken, { json: true });
+              if (!decodedAccessToken) return null;
+
+              const clientId = decodedAccessToken.aud;
+              if (typeof clientId !== 'string') return null;
+
               return {
-                b2bServiceName: service.b2bServiceName,
-                b2bAccessToken: msalResponse.accessToken,
-                b2bMsalResponse: msalResponse,
+                appName: app.appName,
+                appClientId: clientId,
+                accessToken: msalResponse.accessToken,
+                msalResponse,
               } satisfies GetB2BTokenResult;
             } catch {
               return null;
@@ -607,10 +617,10 @@ export class OAuthProvider {
         throw new OAuthError(500, { message: 'Internal server error', description: 'Failed to get token' });
       }
 
-      return 'b2bServiceName' in params ? (results[0] as GetB2BTokenResult) : results;
+      return 'appName' in params ? (results[0] as GetB2BTokenResult) : results;
     } catch (err) {
       if (err instanceof OAuthError) throw err;
-      throw new OAuthError(500, { message: 'Error getting token on behalf of', description: err as string });
+      throw new OAuthError(500, { message: 'Error getting b2b token', description: err as string });
     }
   }
 
@@ -621,34 +631,31 @@ export class OAuthProvider {
    * @returns The OBO access token and MSAL response for the specified service(s).
    * @throws {OAuthError} If the OBO services are not configured or if the token is invalid.
    */
-  async getTokenOnBehalfOf(params: { accessToken: string; oboServiceName: string }): Promise<GetTokenOnBehalfOfResult>;
-  async getTokenOnBehalfOf(params: { accessToken: string; oboServiceNames: string[] }): Promise<
+  async getTokenOnBehalfOf(params: { accessToken: string; serviceName: string }): Promise<GetTokenOnBehalfOfResult>;
+  async getTokenOnBehalfOf(params: { accessToken: string; servicesNames: string[] }): Promise<
     GetTokenOnBehalfOfResult[]
   >;
   async getTokenOnBehalfOf(
-    params: { accessToken: string; oboServiceName: string } | { accessToken: string; oboServiceNames: string[] },
+    params: { accessToken: string; serviceName: string } | { accessToken: string; servicesNames: string[] },
   ): Promise<GetTokenOnBehalfOfResult | GetTokenOnBehalfOfResult[]> {
-    if (!this.oboServicesMap) {
+    if (!this.downstreamServicesMap) {
       throw new OAuthError(500, { message: 'Invalid params', description: 'On-Behalf-Of Services not configured' });
     }
 
     const { data: parsedParams, error: paramsError } = zMethods.getTokenOnBehalfOf.safeParse(params);
     if (paramsError) throw new OAuthError(400, { message: 'Invalid params', description: prettifyError(paramsError) });
 
-    const services = parsedParams.oboServiceNames
-      .map((serviceName) => this.oboServicesMap?.get(serviceName))
+    const services = parsedParams.servicesNames
+      .map((serviceName) => this.downstreamServicesMap?.get(serviceName))
       .filter((service) => !!service);
 
     if (!services || services.length === 0) {
       throw new OAuthError(400, { message: 'Invalid params', description: 'Service not Found' });
     }
+
     this.localDebug('getTokenOnBehalfOf', `Services names: ${JSON.stringify(services)}`);
 
-    const rawAccessToken = isJwt(parsedParams.accessToken)
-      ? parsedParams.accessToken
-      : decrypt(parsedParams.accessToken, this.secretKey);
-
-    if (!rawAccessToken) throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid JWT Token' });
+    const { jwtAccessToken } = this.decryptAccessToken(parsedParams.accessToken);
 
     try {
       const results = (
@@ -656,8 +663,8 @@ export class OAuthProvider {
           services.map(async (service) => {
             try {
               const msalResponse = await this.cca.acquireTokenOnBehalfOf({
-                oboAssertion: rawAccessToken,
-                scopes: [service.oboScope],
+                oboAssertion: jwtAccessToken,
+                scopes: [service.scope],
                 skipCache: false,
               });
               if (!msalResponse) return null;
@@ -665,28 +672,27 @@ export class OAuthProvider {
               const decodedAccessToken = jwt.decode(msalResponse.accessToken, { json: true });
               if (!decodedAccessToken) return null;
 
-              const aud = decodedAccessToken.aud;
-              if (typeof aud !== 'string') return null;
-
-              this.localDebug('getTokenOnBehalfOf', `Service: ${service.oboServiceName}, Audience: ${aud}`);
+              const clientId = decodedAccessToken.aud;
+              if (typeof clientId !== 'string') return null;
 
               const secretKey = createSecretKey(service.secretKey);
               const { accessTokenValue, refreshTokenValue } = await this.encryptTokens(msalResponse, secretKey);
+              //TODO: find a way to create refresh token for downstream services
 
               const cookieOptions = getCookieOptions({
-                clientId: aud,
+                clientId,
                 isHttps: service.isHttps as boolean,
-                isSameSite: service.isSameSite as boolean,
+                isSameSite: service.isHttps as boolean,
                 cookiesTimeUnit: this.settings.cookiesTimeUnit,
                 accessTokenCookieExpiry: service.accessTokenExpiry ?? this.settings.accessTokenCookieExpiry,
                 refreshTokenCookieExpiry: service.refreshTokenExpiry ?? this.settings.refreshTokenCookieExpiry,
               });
 
               return {
-                oboServiceName: service.oboServiceName,
-                oboAccessToken: { value: accessTokenValue, ...cookieOptions.accessToken },
-                oboRefreshToken: null, //TODO: Refresh token is not working
-                oboMsalResponse: msalResponse,
+                serviceName: service.serviceName,
+                serviceClientId: clientId,
+                accessToken: { value: accessTokenValue, ...cookieOptions.accessToken },
+                msalResponse,
               } satisfies GetTokenOnBehalfOfResult;
             } catch {
               return null;
@@ -699,7 +705,7 @@ export class OAuthProvider {
         throw new OAuthError(500, { message: 'Internal server error', description: 'Failed to get token' });
       }
 
-      return 'oboServiceName' in params ? (results[0] as GetTokenOnBehalfOfResult) : results;
+      return 'serviceName' in params ? (results[0] as GetTokenOnBehalfOfResult) : results;
     } catch (err) {
       if (err instanceof OAuthError) throw err;
       throw new OAuthError(500, { message: 'Error getting token on behalf of', description: err as string });

@@ -25,7 +25,7 @@ npm install oauth-entra-id
 ## Configuration ⚙️
 
 ```typescript
-export interface OAuthConfig {
+interface OAuthConfig {
   // Microsoft Entra ID configuration
   azure: {
     // Microsoft Entra ID client ID
@@ -49,18 +49,15 @@ export interface OAuthConfig {
     loginPrompt?: 'email' | 'select-account' | 'sso';
     // Session persistence method. Defaults to `'cookie-session'`
     sessionType?: 'cookie-session' | 'bearer-token';
-    // External B2B system integration configuration
-    b2b?: {
-      // Whether to accept tokens issued by other systems
-      allowB2B?: boolean;
-      // Create B2B access tokens for external services
-      b2bServices?: {
-        // Unique identifier of the external service
-        b2bServiceName: string;
-        // OAuth 2.0 scope to request for the service. Usually end with `/.default` to request all permissions
-        b2bServiceScope: string;
-      }[];
-    };
+    // Whether to accept tokens issued by other systems
+    acceptB2BRequests?: boolean;
+    // List of external B2B services to acquire tokens for
+    b2bTargetedApps?: {
+      // Unique identifier of the B2B app
+      appName: string;
+      // OAuth 2.0 scope to request for the app. Usually end with `/.default` to request all permissions
+      scope: string;
+    }[];
     // Enables verbose debug logging
     debug?: boolean;
     // Cookie behavior and expiration settings
@@ -77,23 +74,23 @@ export interface OAuthConfig {
       refreshTokenExpiry?: number;
     };
     // Configuration for acquiring downstream tokens via the OBO flow
-    onBehalfOf?: {
+    downstreamServices?: {
       // Whether HTTPS is enforced
-      isHttps: boolean;
+      areHttps: boolean;
       // Whether to enforce SameSite on OBO cookies
-      isSameSite: boolean;
+      areSameOrigin: boolean;
       // List of trusted services requiring On-Behalf-Of delegation
-      oboServices: {
+      services: {
         // Unique identifier of the downstream service
-        oboServiceName: string;
+        serviceName: string;
         // OAuth 2.0 scope to request for the service. Usually end with `/.default` to request all permissions
-        oboScope: string;
+        scope: string;
         // Encryption key used to encrypt tokens for this service
         secretKey: string;
         // Whether HTTPS is required when setting cookies for this service
         isHttps?: boolean;
         // Whether `SameSite` cookies should be enforced for this service
-        isSameSite?: boolean;
+        isSameOrigin?: boolean;
         // Expiration for access token cookies (default from global if not set)
         accessTokenExpiry?: number;
         // Expiration for refresh token cookies (default from global if not set)
@@ -309,23 +306,25 @@ export const protectRoute = createMiddleware(async (c, next) => {
 
 #### `getB2BToken()`
 
-Generates a B2B token for a specific service.
+Generates a B2B token for a specific app.
+Note: This method is only available if `b2bTargetedApps` is configured in the `advanced` section of the `OAuthConfig`.
 
 - receives an object with the following properties:
-  - `b2bServiceName` or `b2bServiceName` - The name of the B2B service to generate the token for.
+  - `appName` or `appsNames` - The name of the B2B app to generate the token for.
 - returns an object or an array of objects with the following properties:
-  - `b2bServiceName` - The name of the B2B service.
-  - `b2bAccessToken` - The B2B access token string.
-  - `b2bMsalResponse` - The MSAL response object for extra information if needed.
+  - `appName` - The name of the B2B app.
+  - `appClientId` - The client ID of the B2B app.
+  - `accessToken` - The B2B access token string.
+  - `msalResponse` - The MSAL response object for extra information if needed.
 
 B2B HonoJS example:
 
 ```typescript
 protectedRouter.post('/get-b2b-info', async (c) => {
-  const { b2bServiceName } = await c.req.json();
-  const { b2bAccessToken } = await oauthProvider.getB2BToken({ b2bServiceName });
+  const { appName } = await c.req.json();
+  const { accessToken } = await oauthProvider.getB2BToken({ appName });
   const axiosResponse = await axios.get(env.OTHER_SERVER, {
-    headers: { Authorization: `Bearer ${b2bAccessToken}` },
+    headers: { Authorization: `Bearer ${accessToken}` },
   });
   const { data, error } = zSchema.safeParse(axiosResponse.data);
   if (error) throw new HTTPException(500, { message: 'Invalid response from the other server' });
@@ -341,10 +340,10 @@ Acquires tokens for trusted downstream services via the On-Behalf-Of (OBO) flow.
   - `accessToken` - access token string either encrypted or in JWT format.
   - `serviceName` or `serviceNames` - The name of the downstream service or an array of service names to acquire tokens for.
 - returns an object or an array of objects with the following properties:
-  - `oboServiceName` - The name of the OBO service.
-  - `oboAccessToken` - The OBO access token string.
-  - `oboRefreshToken` (optional) - The OBO refresh token string.
-  - `oboMsalResponse` - The MSAL response object for extra information if needed.
+  - `serviceName` - The name of the OBO service.
+  - `serviceClientId` - The client ID of the OBO service.
+  - `accessToken` - The OBO access token string.
+  - `msalResponse` - The MSAL response object for extra information if needed.
 
 On Behalf Of HonoJS example:
 
@@ -352,24 +351,43 @@ On Behalf Of HonoJS example:
 app.post('/on-behalf-of', protectRoute, async (c) => {
   const { serviceNames } = await c.req.json();
   const accessToken = c.get('userInfo').accessToken;
-  const results = await oauthProvider.getOnBehalfOfToken({
-    accessToken,
-    serviceNames,
-  });
+  const results = await oauthProvider.getOnBehalfOfToken({ accessToken, serviceNames });
 
-  for (const result of results) {
-    const { oboAccessToken, oboRefreshToken } = result;
-    setCookie(c, oboAccessToken.name, oboAccessToken.value, oboAccessToken.options);
-    if (refreshToken) setCookie(c, oboRefreshToken.name, oboRefreshToken.value, oboRefreshToken.options);
+  for (const { accessToken } of results) {
+    setCookie(c, accessToken.name, accessToken.value, accessToken.options);
   }
 
   return c.json({ message: 'On Behalf Of tokens generated successfully' });
 });
 ```
 
+#### `settings`
+
+You can access the settings of the `OAuthProvider` instance using the `settings` property. This is useful for debugging and logging purposes.
+
+```typescript
+interface OAuthSettings {
+  sessionType: 'cookie-session' | 'bearer-token';
+  loginPrompt: 'email' | 'select-account' | 'sso';
+  acceptB2BRequests: boolean;
+  isHttps: boolean;
+  isSameSite: boolean;
+  cookiesTimeUnit: 'ms' | 'sec';
+  b2bApps?: string[];
+  downstreamServices?: string[];
+  accessTokenCookieExpiry: number;
+  refreshTokenCookieExpiry: number;
+  debug: boolean;
+}
+```
+
 ## Usage - Express 📫
 
 When using the package with Express, you should import from `oauth-entra-id/express` to easily integrate OAuth2.0.
+
+Note: you can use the core package with Express, but you will need to implement your own logic for handling authentication, token exchange, and other OAuth-related operations.
+
+Also the oauthProvider instance is injected in the request object, so you can access it using `req.oauthProvider`.
 
 Also, you need to install `cors` package:
 
@@ -458,7 +476,11 @@ protectedRouter.get('/user-info', protectRoute(), (req: Request, res: Response) 
 
 When using the package with NestJS, you should import from `oauth-entra-id/nestjs` to easily integrate OAuth2.0.
 
-Then in the root of your NestJS app, import `authConfig` and configure it:
+Note: you can use the core package with NestJS, but you will need to implement your own logic for handling authentication, token exchange, and other OAuth-related operations.
+
+Also the oauthProvider instance is injected in the request object, so you can access it using `req.oauthProvider`.
+
+Start at the root of your NestJS app, import `authConfig` and configure it:
 
 ```typescript
 import { NestFactory } from '@nestjs/core';

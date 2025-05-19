@@ -1,29 +1,25 @@
 import { Controller, Get } from '@nestjs/common';
 import { env } from '~/env';
-// biome-ignore lint/style/useImportType: NestJS
-import { PublicService } from './public.service';
 
 @Controller('')
 export class PublicController {
-  constructor(private readonly publicService: PublicService) {}
-
   @Get('')
   getHello(): { message: string } {
-    return { message: this.publicService.getHello() };
+    return { message: 'Hello World' };
   }
 
   @Get('health')
   getHealth(): string {
-    return this.publicService.getHealth();
+    return 'OK';
   }
 
   @Get('app-info')
   getAppId() {
     return {
       current: 'red',
-      blue: env.BLUE_AZURE_CLIENT_ID,
-      red: env.RED_AZURE_CLIENT_ID,
-      yellow: env.YELLOW_AZURE_CLIENT_ID,
+      blue: env.AZURE_BLUE_CLIENT_ID,
+      red: env.AZURE_RED_CLIENT_ID,
+      yellow: env.AZURE_YELLOW_CLIENT_ID,
     };
   }
 }

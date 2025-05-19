@@ -31,7 +31,7 @@ export async function sharedIsAuthenticated(
 
   const authorizationHeader = req.headers.authorization;
 
-  if (oauthProvider.settings.isB2BEnabled && authorizationHeader) {
+  if (oauthProvider.settings.acceptB2BRequests && authorizationHeader) {
     const bearerAccessToken = authorizationHeader.startsWith('Bearer ') ? authorizationHeader.split(' ')[1] : undefined;
     const bearerInfo = await oauthProvider.verifyAccessToken(bearerAccessToken);
     if (!bearerInfo) throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid access token' });

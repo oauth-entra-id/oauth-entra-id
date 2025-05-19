@@ -8,7 +8,7 @@ import { HttpException } from '~/error/HttpException';
 const zAvailableServers = z.enum(['nestjs', 'fastify', 'honojs']);
 
 const zGetB2BInfoBody = z.object({
-  b2bServiceName: zAvailableServers,
+  appName: zAvailableServers,
 });
 
 const zB2BResponse = z.object({
@@ -63,10 +63,10 @@ protectedRouter.post('/get-b2b-info', async (req, res) => {
   const { data: body, error: bodyError } = zGetB2BInfoBody.safeParse(req.body);
   if (bodyError) throw new HttpException('Invalid params', 400);
 
-  const result = await req.oauthProvider.getB2BToken({ b2bServiceName: body.b2bServiceName });
-  const serverUrl = serversMap[body.b2bServiceName];
+  const { accessToken } = await req.oauthProvider.getB2BToken({ appName: body.appName });
+  const serverUrl = serversMap[body.appName];
   const axiosResponse = await axios.get(`${serverUrl}/protected/b2b-info`, {
-    headers: { Authorization: `Bearer ${result.b2bAccessToken}` },
+    headers: { Authorization: `Bearer ${accessToken}` },
   });
 
   const { data, error } = zB2BResponse.safeParse(axiosResponse.data);

@@ -24,19 +24,12 @@ const zAzure = z.object({
   clientSecret: zStr.min(32),
 });
 
-const zB2BService = z.object({
-  allowB2B: z.boolean().default(false),
-  b2bServices: z
-    .array(
-      z.object({
-        b2bServiceName: zServiceName,
-        b2bScope: zScope,
-      }),
-    )
-    .optional(),
+const zB2BApp = z.object({
+  appName: zServiceName,
+  scope: zScope,
 });
 
-const zCookieConfig = z.object({
+const zCookiesConfig = z.object({
   timeUnit: z.enum(['ms', 'sec']).default('sec'),
   disableHttps: z.boolean().default(false),
   disableSameSite: z.boolean().default(false),
@@ -44,29 +37,30 @@ const zCookieConfig = z.object({
   refreshTokenExpiry: z.number().min(3600).default(2592000),
 });
 
-const zOnBehalfOfService = z.object({
-  oboServiceName: zServiceName,
-  oboScope: zScope,
+const zDownstreamService = z.object({
+  serviceName: zServiceName,
+  scope: zScope,
   secretKey: zSecretKey,
   isHttps: z.boolean().optional(),
-  isSameSite: z.boolean().optional(),
+  isSameOrigin: z.boolean().optional(),
   accessTokenExpiry: z.number().positive().default(3600),
   refreshTokenExpiry: z.number().min(3600).default(2592000),
+});
+
+const zDownstreamConfig = z.object({
+  areHttps: z.boolean(),
+  areSameOrigin: z.boolean(),
+  services: z.array(zDownstreamService).min(1),
 });
 
 const zAdvanced = z.object({
   loginPrompt: zLoginPrompt.default('sso'),
   sessionType: zSessionType.default('cookie-session'),
-  b2b: zB2BService.default({}),
+  acceptB2BRequests: z.boolean().default(false),
+  b2bTargetedApps: z.array(zB2BApp).min(1).optional(),
   debug: z.boolean().default(false),
-  cookies: zCookieConfig.default({}),
-  onBehalfOf: z
-    .object({
-      isHttps: z.boolean(),
-      isSameSite: z.boolean(),
-      oboServices: z.array(zOnBehalfOfService).min(1),
-    })
-    .optional(),
+  cookies: zCookiesConfig.default({}),
+  downstreamServices: zDownstreamConfig.optional(),
 });
 
 export const zConfig = z.object({
@@ -118,28 +112,28 @@ export const zMethods = {
   getB2BToken: z.union([
     z
       .object({
-        b2bServiceName: zServiceName,
+        appName: zServiceName,
       })
       .transform((data) => ({
-        b2bServiceNames: [data.b2bServiceName],
+        appsNames: [data.appName],
       })),
     z.object({
-      b2bServiceNames: z.array(zServiceName).min(1),
+      appsNames: z.array(zServiceName).min(1),
     }),
   ]),
   getTokenOnBehalfOf: z.union([
     z
       .object({
         accessToken: zJwtOrEncrypted,
-        oboServiceName: zServiceName,
+        serviceName: zServiceName,
       })
       .transform((data) => ({
         accessToken: data.accessToken,
-        oboServiceNames: [data.oboServiceName],
+        servicesNames: [data.serviceName],
       })),
     z.object({
       accessToken: zJwtOrEncrypted,
-      oboServiceNames: z.array(zServiceName).min(1),
+      servicesNames: z.array(zServiceName).min(1),
     }),
   ]),
 };

@@ -27,7 +27,7 @@ export class ProtectedController {
 
   @Post('get-b2b-info')
   async getB2BInfo(@Body() body: GetB2BInfoDto, @OAuthProvider() oauthProvider: OAuthProviderType) {
-    const data = await this.protectedService.fetchB2BInfo(oauthProvider, body.b2bServiceName);
+    const data = await this.protectedService.fetchB2BInfo(oauthProvider, body.appName);
     return data;
   }
 

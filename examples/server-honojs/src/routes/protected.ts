@@ -12,10 +12,10 @@ const zAvailableServers = z.enum(['express', 'nestjs', 'fastify']);
 
 const zSchemas = {
   onBehalfOf: z.object({
-    oboServiceNames: z.array(z.string()),
+    servicesNames: z.array(z.string()),
   }),
-  b2b: z.object({
-    b2bServiceName: zAvailableServers,
+  getB2BInfo: z.object({
+    appName: zAvailableServers,
   }),
 };
 
@@ -70,25 +70,23 @@ protectedRouter.get('/user-info', (c) => {
 protectedRouter.post('/on-behalf-of', zValidator('json', zSchemas.onBehalfOf), async (c) => {
   if (c.get('userInfo')?.isB2B === true) throw new HTTPException(401, { message: 'B2B users cannot use OBO' });
 
-  const { oboServiceNames } = c.req.valid('json');
+  const { servicesNames } = c.req.valid('json');
   const results = await oauthProvider.getTokenOnBehalfOf({
     accessToken: c.get('accessTokenInfo').jwt,
-    oboServiceNames,
+    servicesNames,
   });
-  for (const result of results) {
-    const { oboAccessToken, oboRefreshToken } = result;
-    setCookie(c, oboAccessToken.name, oboAccessToken.value, oboAccessToken.options);
-    if (oboRefreshToken) setCookie(c, oboRefreshToken.name, oboRefreshToken.value, oboRefreshToken.options);
+  for (const { accessToken } of results) {
+    setCookie(c, accessToken.name, accessToken.value, accessToken.options);
   }
   return c.json({ tokensSet: results.length });
 });
 
-protectedRouter.post('/get-b2b-info', zValidator('json', zSchemas.b2b), async (c) => {
-  const { b2bServiceName } = c.req.valid('json');
-  const result = await oauthProvider.getB2BToken({ b2bServiceName });
-  const serverUrl = serversMap[b2bServiceName];
+protectedRouter.post('/get-b2b-info', zValidator('json', zSchemas.getB2BInfo), async (c) => {
+  const { appName } = c.req.valid('json');
+  const { accessToken } = await oauthProvider.getB2BToken({ appName });
+  const serverUrl = serversMap[appName];
   const axiosResponse = await axios.get(`${serverUrl}/protected/b2b-info`, {
-    headers: { Authorization: `Bearer ${result.b2bAccessToken}` },
+    headers: { Authorization: `Bearer ${accessToken}` },
   });
   const { data, error } = zB2BResponse.safeParse(axiosResponse.data);
   if (error) throw new HTTPException(500, { message: 'Invalid response from B2B server' });

@@ -23,10 +23,10 @@ const zGetB2BInfo = z.object({
   server: z.enum(['express', 'nestjs', 'fastify', 'honojs']),
 });
 
-export async function getB2BInfo(b2bServiceName: Server | undefined) {
-  if (!b2bServiceName) throw new Error('Invalid B2B service name');
+export async function getB2BInfo(appName: Server | undefined) {
+  if (!appName) throw new Error('Invalid B2B service name');
   const serverUrl = useServerStore.getState().serverUrl;
-  const res = await axiosFetch.post(`${serverUrl}/protected/get-b2b-info`, { b2bServiceName });
+  const res = await axiosFetch.post(`${serverUrl}/protected/get-b2b-info`, { appName });
   const parsed = zGetB2BInfo.safeParse(res?.data);
   if (parsed.error) throw new Error('Invalid on-behalf-of tokens');
   return parsed.data;

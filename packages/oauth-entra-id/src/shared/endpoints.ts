@@ -66,13 +66,12 @@ export async function sharedHandleOnBehalfOf(req: Request, res: Response) {
   }
 
   const results = await req.oauthProvider.getTokenOnBehalfOf({
-    oboServiceNames: body.oboServiceNames,
+    servicesNames: body.servicesNames,
     accessToken: req.accessTokenInfo.jwt,
   });
 
-  for (const { oboAccessToken, oboRefreshToken } of results) {
-    setCookie(res, oboAccessToken.name, oboAccessToken.value, oboAccessToken.options);
-    if (oboRefreshToken) setCookie(res, oboRefreshToken.name, oboRefreshToken.value, oboRefreshToken.options);
+  for (const { accessToken } of results) {
+    setCookie(res, accessToken.name, accessToken.value, accessToken.options);
   }
 
   res.status(200).json({ tokensSet: results.length });

@@ -46,11 +46,11 @@ const pokemon = [
 
 @Injectable()
 export class ProtectedService {
-  async fetchB2BInfo(oauthProvider: OAuthProvider, b2bServiceName: string) {
-    const result = await oauthProvider.getB2BToken({ b2bServiceName: b2bServiceName });
-    const serverUrl = serversMap[b2bServiceName];
+  async fetchB2BInfo(oauthProvider: OAuthProvider, appName: string) {
+    const { accessToken } = await oauthProvider.getB2BToken({ appName });
+    const serverUrl = serversMap[appName];
     const axiosResponse = await axios.get(`${serverUrl}/protected/b2b-info`, {
-      headers: { Authorization: `Bearer ${result.b2bAccessToken}` },
+      headers: { Authorization: `Bearer ${accessToken}` },
     });
     const { data, error } = zB2BResponse.safeParse(axiosResponse.data);
     if (error) throw new HttpException('Invalid B2B response', 500);

@@ -27,7 +27,7 @@ declare module 'fastify' {
 export default async function protectRoute(req: FastifyRequest, reply: FastifyReply) {
   const authorizationHeader = req.headers.authorization;
 
-  if (oauthProvider.settings.isB2BEnabled && authorizationHeader) {
+  if (oauthProvider.settings.acceptB2BRequests && authorizationHeader) {
     const bearerAccessToken = authorizationHeader.startsWith('Bearer ') ? authorizationHeader.split(' ')[1] : undefined;
     const bearerInfo = await oauthProvider.verifyAccessToken(bearerAccessToken);
     if (!bearerInfo) throw new HttpException('Unauthorized', 401);

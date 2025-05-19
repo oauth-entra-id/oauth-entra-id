@@ -70,7 +70,7 @@ function Home() {
                 {user.injectedData ? `${user.injectedData.randomNumber} (Random Number)` : 'None'}
               </div>
               <Separator />
-              <OnBehalfOf />
+              <DownstreamServices />
               <Separator />
               <GetB2BData />
             </CardContent>
@@ -92,30 +92,30 @@ function Home() {
   );
 }
 
-function OnBehalfOf() {
-  const [selectedOnBehalfOf, setSelectedOnBehalfOf] = useState<Color[]>([]);
+function DownstreamServices() {
+  const [selectedServices, setSelectedServices] = useState<Color[]>([]);
   const appInfo = useServerStore((state) => state.appInfo);
   const { mutate: handleOnBehalfOf } = useMutation({
-    mutationFn: () => getTokensOnBehalfOf(selectedOnBehalfOf),
+    mutationFn: () => getTokensOnBehalfOf(selectedServices),
     onSuccess: (tokensSet) => {
-      setSelectedOnBehalfOf([]);
+      setSelectedServices([]);
       toast.success(tokensSet === 1 ? 'New token created!' : `${tokensSet} new tokens created!`, { duration: 1000 });
     },
     onError: () => {
-      setSelectedOnBehalfOf([]);
+      setSelectedServices([]);
       toast.error('Could not create new tokens', { duration: 1000 });
     },
   });
 
   return (
     <div className="flex flex-col items-start justify-center my-2 px-1">
-      <span className="text-sm font-semibold">On-Behalf-Of Flow:</span>
+      <span className="text-sm font-semibold">Downstream Services:</span>
       <div className="flex w-full justify-between items-center px-1.5 mb-1">
         <ToggleGroup
           type="multiple"
           className="space-x-1.5"
-          value={selectedOnBehalfOf}
-          onValueChange={(value: Color[]) => setSelectedOnBehalfOf(value)}>
+          value={selectedServices}
+          onValueChange={(value: Color[]) => setSelectedServices(value)}>
           <ToggleGroupItem
             disabled={appInfo?.currentServiceName === 'blue'}
             value="blue"
@@ -146,7 +146,7 @@ function OnBehalfOf() {
             size="sm"
             variant="outline"
             className="text-sm font-semibold w-full"
-            disabled={selectedOnBehalfOf.length === 0}
+            disabled={selectedServices.length === 0}
             onClick={() => handleOnBehalfOf()}>
             Get Tokens
           </Button>
@@ -158,17 +158,17 @@ function OnBehalfOf() {
 
 function GetB2BData() {
   const [pokemon, setPokemon] = useState<string | undefined>();
-  const [selectedService, setSelectedService] = useState<Server | undefined>();
+  const [selectedApp, setSelectedApp] = useState<Server | undefined>();
   const server = useServerStore((state) => state.server);
   const { mutate: handleGetUserInfo } = useMutation({
-    mutationFn: () => getB2BInfo(selectedService),
+    mutationFn: () => getB2BInfo(selectedApp),
     onSuccess: (data) => {
-      setSelectedService(undefined);
+      setSelectedApp(undefined);
       setPokemon(data.pokemon);
-      toast.success(`${data.pokemon} from ${data.server} service!`, { duration: 1000 });
+      toast.success(`${data.pokemon} from ${data.server} app!`, { duration: 1000 });
     },
     onError: () => {
-      setSelectedService(undefined);
+      setSelectedApp(undefined);
       setPokemon(undefined);
       toast.error('Could not get B2B data', { duration: 1000 });
     },
@@ -188,8 +188,8 @@ function GetB2BData() {
         <ToggleGroup
           type="single"
           className="space-x-1.5"
-          value={selectedService}
-          onValueChange={(value: Server) => setSelectedService(value)}>
+          value={selectedApp}
+          onValueChange={(value: Server) => setSelectedApp(value)}>
           {Object.entries(serversMap).map(
             ([key, { Icon, label, value }]) =>
               server !== value && (
@@ -206,7 +206,7 @@ function GetB2BData() {
             size="sm"
             className="text-sm font-semibold w-full"
             onClick={() => handleGetUserInfo()}
-            disabled={!selectedService}>
+            disabled={!selectedApp}>
             Get Data
           </Button>
         </div>

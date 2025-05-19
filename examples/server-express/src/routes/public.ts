@@ -4,7 +4,7 @@ import { env } from '~/env';
 export const publicRouter: Router = express.Router();
 
 publicRouter.get('/', (req, res) => {
-  res.status(200).json({ message: 'Hello World!' });
+  res.status(200).json({ message: 'Hello World' });
 });
 
 publicRouter.get('/health', (req, res) => {
@@ -14,8 +14,8 @@ publicRouter.get('/health', (req, res) => {
 publicRouter.get('/app-info', (req, res) => {
   res.status(200).send({
     current: 'yellow',
-    blue: env.BLUE_AZURE_CLIENT_ID,
-    red: env.RED_AZURE_CLIENT_ID,
-    yellow: env.YELLOW_AZURE_CLIENT_ID,
+    blue: env.AZURE_BLUE_CLIENT_ID,
+    red: env.AZURE_RED_CLIENT_ID,
+    yellow: env.AZURE_YELLOW_CLIENT_ID,
   });
 });
