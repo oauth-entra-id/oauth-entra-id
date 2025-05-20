@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import jwt from 'jsonwebtoken';
 
 const ALGORITHM = 'aes-256-gcm';
 const FORMAT = 'base64url';
@@ -54,4 +55,14 @@ export function decryptObject(data: string, secretKey: crypto.KeyObject): Record
   } catch {
     return null;
   }
+}
+
+export function getAudFromJwt(jwtToken: string) {
+  const payload = jwt.decode(jwtToken, { json: true });
+  if (!payload) return null;
+
+  const aud = payload.aud;
+  if (typeof aud !== 'string') return null;
+
+  return aud;
 }

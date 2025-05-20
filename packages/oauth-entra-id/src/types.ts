@@ -196,6 +196,6 @@ export interface GetTokenOnBehalfOfResult {
   serviceName: string;
   serviceClientId: string;
   accessToken: Cookies['AccessToken'];
-  // TODO: add refresh token
+  refreshToken: Cookies['RefreshToken'] | null;
   msalResponse: MsalResponse;
 }

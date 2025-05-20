@@ -24,7 +24,7 @@ declare module 'fastify' {
   }
 }
 
-export default async function protectRoute(req: FastifyRequest, reply: FastifyReply) {
+export async function protectRoute(req: FastifyRequest, reply: FastifyReply) {
   const authorizationHeader = req.headers.authorization;
 
   if (oauthProvider.settings.acceptB2BRequests && authorizationHeader) {
@@ -40,7 +40,7 @@ export default async function protectRoute(req: FastifyRequest, reply: FastifyRe
   const { accessTokenName, refreshTokenName } = oauthProvider.getCookieNames();
   const accessToken = req.cookies[accessTokenName];
   const refreshToken = req.cookies[refreshTokenName];
-  if (!accessToken && !refreshToken) return reply.status(401).send({ error: 'Unauthorized', statusCode: 401 });
+  if (!accessToken && !refreshToken) throw new HttpException('Unauthorized', 401);
 
   const tokenInfo = await oauthProvider.verifyAccessToken(accessToken);
   if (tokenInfo) {

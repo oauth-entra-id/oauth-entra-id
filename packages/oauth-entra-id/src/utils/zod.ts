@@ -92,6 +92,11 @@ export const zAccessTokenStructure = z.object({
   inj: z.record(zStr, z.any()).optional(),
 });
 
+export const zRefreshTokenStructure = z.object({
+  rt: zStr.min(1).max(4096), //add regex
+  isObo: z.boolean(),
+});
+
 export const zMethods = {
   getAuthUrl: z
     .object({

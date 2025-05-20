@@ -16,7 +16,7 @@ import type {
   OAuthProviderMethods,
   OAuthSettings,
 } from './types';
-import { createSecretKey, decrypt, decryptObject, encrypt, encryptObject } from './utils/crypto';
+import { createSecretKey, decrypt, decryptObject, encrypt, encryptObject, getAudFromJwt } from './utils/crypto';
 import { getCookieOptions } from './utils/get-cookie-options';
 import { debugLog, getB2BAppsInfo, getDownstreamServicesInfo } from './utils/misc';
 import { isJwt } from './utils/regex';
@@ -28,6 +28,7 @@ import {
   zJwt,
   zJwtOrEncrypted,
   zMethods,
+  zRefreshTokenStructure,
   zState,
 } from './utils/zod';
 
@@ -148,26 +149,126 @@ export class OAuthProvider {
     });
   }
 
-  /**
-   * Logs debug messages if the debug mode is enabled.
-   *
-   * @param methodName - The name of the method where the debug message is logged.
-   * @param message - The debug message to log.
-   */
+  /** Logs debug messages if the debug mode is enabled. */
   private localDebug(methodName: OAuthProviderMethods, message: string) {
     debugLog({ condition: this.settings.debug, funcName: `OAuthProvider.${methodName}`, message });
   }
 
-  /**
-   * Returns the cookie names used to store the access and refresh tokens.
-   *
-   * @returns Object containing `accessTokenName` and `refreshTokenName`.
-   */
-  getCookieNames() {
-    return {
-      accessTokenName: this.defaultCookieOptions.accessToken.name,
-      refreshTokenName: this.defaultCookieOptions.refreshToken.name,
-    } as const;
+  /** Extracts the refresh token from the cache that msal created, and removes the account from the cache. */
+  private async extractRefreshTokenFromCache(msalResponse: MsalResponse): Promise<string | null> {
+    const tokenCache = this.cca.getTokenCache();
+    const refreshTokenMap = JSON.parse(tokenCache.serialize()).RefreshToken;
+    const userRefreshTokenKey = Object.keys(refreshTokenMap).find((key) => key.startsWith(msalResponse.uniqueId));
+    if (msalResponse.account) await tokenCache.removeAccount(msalResponse.account);
+    return userRefreshTokenKey ? (refreshTokenMap[userRefreshTokenKey].secret as string) : null;
+  }
+
+  /** Encrypts both tokens, if accessTokenSecretKey is provided, it will assume the refresh token is obo. */
+  private async encryptTokens(msalResponse: MsalResponse, accessTokenSecretKey?: KeyObject) {
+    const accessTokenValue = encryptObject({ at: msalResponse.accessToken }, accessTokenSecretKey ?? this.secretKey);
+    const rawRefreshToken = await this.extractRefreshTokenFromCache(msalResponse);
+    const refreshTokenValue = rawRefreshToken
+      ? encryptObject({ rt: rawRefreshToken, isObo: !!accessTokenSecretKey }, this.secretKey)
+      : null;
+
+    this.localDebug(
+      'getBothTokens',
+      `access token length: ${accessTokenValue.length}, refresh token length: ${refreshTokenValue?.length}`,
+    );
+
+    if (accessTokenValue.length > 4096 || (refreshTokenValue && refreshTokenValue.length > 4096)) {
+      throw new OAuthError(500, 'Token size exceeds maximum allowed length');
+    }
+    return { accessTokenValue, refreshTokenValue };
+  }
+
+  /**Decrypts the access token and returns its raw value.*/
+  private decryptAccessToken(accessToken: string): {
+    rawAccessToken: string;
+    injectedData?: InjectedData;
+    wasEncrypted: boolean;
+  } {
+    const { data: token, error: tokenError } = zJwtOrEncrypted.safeParse(accessToken);
+    if (tokenError) throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid access token' });
+
+    if (isJwt(token)) {
+      return { rawAccessToken: token, wasEncrypted: false };
+    }
+
+    const accessTokenObj = decryptObject(token, this.secretKey);
+    const { data: parsedAccessToken, error: accessTokenError } = zAccessTokenStructure.safeParse(accessTokenObj);
+    if (accessTokenError) {
+      throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid access token structure' });
+    }
+
+    return { rawAccessToken: parsedAccessToken.at, injectedData: parsedAccessToken.inj, wasEncrypted: true };
+  }
+
+  /**Decrypts the refresh token and returns its raw value and OBO status. */
+  private decryptRefreshToken(refreshToken: string) {
+    const { data: token, error: tokenError } = zEncrypted.safeParse(refreshToken);
+    if (tokenError) throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid refresh token' });
+
+    const refreshTokenObj = decryptObject(token, this.secretKey);
+    const { data: parsedRefreshToken, error: refreshTokenError } = zRefreshTokenStructure.safeParse(refreshTokenObj);
+    if (refreshTokenError) {
+      throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid refresh token structure' });
+    }
+
+    return { rawRefreshToken: parsedRefreshToken.rt, isObo: parsedRefreshToken.isObo };
+  }
+
+  /** Retrieves and caches the public key for a given key ID (kid) from the JWKS endpoint. */
+  private getPublicKey(keyId: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      this.jwksClient.getSigningKey(keyId, (err, key) => {
+        if (err || !key) {
+          reject(new Error(err?.message || 'Error retrieving signing key'));
+          return;
+        }
+        const publicKey = key.getPublicKey();
+        if (!publicKey) {
+          reject(new Error('Public key not found'));
+          return;
+        }
+        resolve(publicKey);
+      });
+    });
+  }
+
+  /** Verifies the JWT token and returns its payload. */
+  private async verifyJwt(jwtToken: string): Promise<jwt.JwtPayload> {
+    try {
+      const { data: parsedJwtToken, error: jwtTokenError } = zJwt.safeParse(jwtToken);
+      if (jwtTokenError) {
+        throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid JWT Token' });
+      }
+      const decodedJwt = jwt.decode(parsedJwtToken, { complete: true });
+      if (!decodedJwt || !decodedJwt.header.kid) {
+        throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid JWT Key ID' });
+      }
+      const publicKey = await this.getPublicKey(decodedJwt.header.kid);
+
+      const fullJwt = jwt.verify(parsedJwtToken, publicKey, {
+        algorithms: ['RS256'],
+        audience: this.azure.clientId,
+        issuer: `https://login.microsoftonline.com/${this.azure.tenantId}/v2.0`,
+        complete: true,
+      });
+
+      if (typeof fullJwt.payload === 'string') {
+        throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid JWT Payload' });
+      }
+      this.localDebug('verifyJwt', `JWT Payload: ${JSON.stringify(fullJwt.payload)}`);
+
+      return fullJwt.payload;
+    } catch (err) {
+      if (err instanceof OAuthError) throw err;
+      throw new OAuthError(401, {
+        message: 'Unauthorized',
+        description: `Check your Entra ID Portal, make sure the 'accessTokenAcceptedVersion' is set to '2' in the 'Manifest' area`,
+      });
+    }
   }
 
   /**
@@ -224,67 +325,6 @@ export class OAuthProvider {
       if (err instanceof OAuthError) throw err;
       throw new OAuthError(500, { message: 'Error generating auth code URL', description: err as string });
     }
-  }
-
-  /**
-   * Extracts the refresh token from the cache that msal created, and removes the account from the cache.
-   *
-   * @param msalResponse - The response from MSAL after acquiring a token.
-   * @returns The refresh token if found, otherwise null.
-   */
-  private async extractRefreshTokenFromCache(msalResponse: MsalResponse): Promise<string | null> {
-    const tokenCache = this.cca.getTokenCache();
-    const refreshTokenMap = JSON.parse(tokenCache.serialize()).RefreshToken;
-    const userRefreshTokenKey = Object.keys(refreshTokenMap).find((key) => key.startsWith(msalResponse.uniqueId));
-    if (msalResponse.account) await tokenCache.removeAccount(msalResponse.account);
-    return userRefreshTokenKey ? (refreshTokenMap[userRefreshTokenKey].secret as string) : null;
-  }
-
-  /**
-   * Encrypts and returns both the access and refresh tokens.
-   *
-   * @param msalResponse - The response from MSAL after acquiring a token.
-   * @param secretKey - Override the default secret key for encryption.
-   * @returns An object containing the encrypted access and refresh tokens.
-   * @throws {OAuthError} If the token size exceeds 4096 bytes.
-   */
-  private async encryptTokens(msalResponse: MsalResponse, secretKey?: KeyObject) {
-    const accessTokenValue = encryptObject({ at: msalResponse.accessToken }, secretKey ?? this.secretKey);
-    const rawRefreshToken = await this.extractRefreshTokenFromCache(msalResponse);
-    const refreshTokenValue = rawRefreshToken ? encrypt(rawRefreshToken, secretKey ?? this.secretKey) : null;
-    this.localDebug(
-      'getBothTokens',
-      `access token length: ${accessTokenValue.length}, refresh token length: ${refreshTokenValue?.length}`,
-    );
-    if (accessTokenValue.length > 4096 || (refreshTokenValue && refreshTokenValue.length > 4096)) {
-      throw new OAuthError(500, 'Token size exceeds maximum allowed length');
-    }
-    return { accessTokenValue, refreshTokenValue };
-  }
-
-  /**
-   * Decrypts the access token and returns its raw value.
-   *
-   * @param accessToken - The encrypted or raw access token.
-   * @returns An object containing the access token in JWT format, injected data (if any), and whether it was encrypted.
-   */
-  private decryptAccessToken(accessToken: string): {
-    jwtAccessToken: string;
-    injectedData?: InjectedData;
-    wasEncrypted: boolean;
-  } {
-    const { data: token, error: tokenError } = zJwtOrEncrypted.safeParse(accessToken);
-    if (tokenError) throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid access token' });
-
-    if (isJwt(token)) {
-      return { jwtAccessToken: token, wasEncrypted: false };
-    }
-
-    const accessTokenObj = decryptObject(token, this.secretKey);
-    const { data: parsedAccessToken, error: accessTokenError } = zAccessTokenStructure.safeParse(accessTokenObj);
-    if (accessTokenError) throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid access token' });
-
-    return { jwtAccessToken: parsedAccessToken.at, injectedData: parsedAccessToken.inj, wasEncrypted: true };
   }
 
   /**
@@ -375,68 +415,15 @@ export class OAuthProvider {
   }
 
   /**
-   * Retrieves and caches the public key for a given key ID (kid) from the JWKS endpoint.
+   * Returns the cookie names used to store the access and refresh tokens.
    *
-   * @param keyId - The key ID (kid) from the JWT header.
-   * @returns The public key in a PEM format.
+   * @returns Object containing `accessTokenName` and `refreshTokenName`.
    */
-
-  private getPublicKey(keyId: string): Promise<string> {
-    return new Promise((resolve, reject) => {
-      this.jwksClient.getSigningKey(keyId, (err, key) => {
-        if (err || !key) {
-          reject(new Error(err?.message || 'Error retrieving signing key'));
-          return;
-        }
-        const publicKey = key.getPublicKey();
-        if (!publicKey) {
-          reject(new Error('Public key not found'));
-          return;
-        }
-        resolve(publicKey);
-      });
-    });
-  }
-
-  /**
-   * Verifies the JWT token and returns its payload.
-   *
-   * @param jwtToken - The JWT token to verify.
-   * @returns The decoded JWT payload.
-   * @throws {OAuthError} If the token is invalid or verification fails.
-   */
-  private async verifyJwt(jwtToken: string): Promise<jwt.JwtPayload> {
-    try {
-      const { data: parsedJwtToken, error: jwtTokenError } = zJwt.safeParse(jwtToken);
-      if (jwtTokenError) {
-        throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid JWT Token' });
-      }
-      const decodedJwt = jwt.decode(parsedJwtToken, { complete: true });
-      if (!decodedJwt || !decodedJwt.header.kid) {
-        throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid JWT Key ID' });
-      }
-      const publicKey = await this.getPublicKey(decodedJwt.header.kid);
-
-      const fullJwt = jwt.verify(parsedJwtToken, publicKey, {
-        algorithms: ['RS256'],
-        audience: this.azure.clientId,
-        issuer: `https://login.microsoftonline.com/${this.azure.tenantId}/v2.0`,
-        complete: true,
-      });
-
-      if (typeof fullJwt.payload === 'string') {
-        throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid JWT Payload' });
-      }
-      this.localDebug('verifyJwt', `JWT Payload: ${JSON.stringify(fullJwt.payload)}`);
-
-      return fullJwt.payload;
-    } catch (err) {
-      if (err instanceof OAuthError) throw err;
-      throw new OAuthError(401, {
-        message: 'Unauthorized',
-        description: `Check your Entra ID Portal, make sure the 'accessTokenAcceptedVersion' is set to '2' in the 'Manifest' area`,
-      });
-    }
+  getCookieNames() {
+    return {
+      accessTokenName: this.defaultCookieOptions.accessToken.name,
+      refreshTokenName: this.defaultCookieOptions.refreshToken.name,
+    } as const;
   }
 
   /**
@@ -458,7 +445,7 @@ export class OAuthProvider {
     }
 
     try {
-      const { jwtAccessToken, injectedData, wasEncrypted } = this.decryptAccessToken(accessToken);
+      const { rawAccessToken: jwtAccessToken, injectedData, wasEncrypted } = this.decryptAccessToken(accessToken);
       const payload = await this.verifyJwt(jwtAccessToken);
 
       const isB2B = payload.sub === payload.oid;
@@ -473,36 +460,6 @@ export class OAuthProvider {
       this.localDebug('verifyAccessToken', `Error verifying token: ${err}`);
       return null;
     }
-  }
-
-  /**
-   * Injects data into the access token
-   * Useful for embedding non-sensitive metadata into token structure.
-   *
-   * @param params - The parameters containing the access token value and data to inject.
-   * @returns The new access token cookie with injected data, or null if the token is invalid.
-   */
-  injectData<TValues, TData extends Record<string, TValues>>(params: { accessToken: string; data: TData }):
-    | Cookies['AccessToken']
-    | null {
-    const { jwtAccessToken } = this.decryptAccessToken(params.accessToken);
-    const { data: nextAccessToken, error: nextAccessTokenError } = zAccessTokenStructure.safeParse({
-      at: jwtAccessToken,
-      inj: params.data,
-    });
-
-    if (nextAccessTokenError) {
-      this.localDebug('injectData', 'Invalid access token format');
-      return null;
-    }
-
-    const encryptedAccessToken = encryptObject(nextAccessToken, this.secretKey);
-    if (encryptedAccessToken.length > 4096) {
-      this.localDebug('injectData', 'Token length exceeds 4kB');
-      return null;
-    }
-
-    return { value: encryptedAccessToken, ...this.defaultCookieOptions.accessToken };
   }
 
   /**
@@ -524,14 +481,9 @@ export class OAuthProvider {
       return null;
     }
 
-    const { data: parsedRefreshToken, error: refreshTokenError } = zEncrypted.safeParse(refreshToken);
-    if (refreshTokenError) {
-      throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid Refresh Token' });
-    }
-    const rawRefreshToken = decrypt(parsedRefreshToken, this.secretKey);
-    if (!rawRefreshToken) {
-      throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid Refresh Token' });
-    }
+    const { rawRefreshToken, isObo } = this.decryptRefreshToken(refreshToken);
+    if (isObo) return null;
+
     try {
       const msalResponse = await this.cca.acquireTokenByRefreshToken({
         refreshToken: rawRefreshToken,
@@ -561,6 +513,7 @@ export class OAuthProvider {
 
   /**
    * Acquires tokens for B2B apps using client credentials.
+   *
    * @param params - The parameters containing the B2B app name(s).
    * @returns The B2B access token and MSAL response for the specified app(s).
    * @throws {OAuthError} If the B2B apps are not configured or if the token is invalid.
@@ -594,11 +547,8 @@ export class OAuthProvider {
               });
               if (!msalResponse) return null;
 
-              const decodedAccessToken = jwt.decode(msalResponse.accessToken, { json: true });
-              if (!decodedAccessToken) return null;
-
-              const clientId = decodedAccessToken.aud;
-              if (typeof clientId !== 'string') return null;
+              const clientId = getAudFromJwt(msalResponse.accessToken);
+              if (!clientId) return null;
 
               return {
                 appName: app.appName,
@@ -655,7 +605,7 @@ export class OAuthProvider {
 
     this.localDebug('getTokenOnBehalfOf', `Services names: ${JSON.stringify(services)}`);
 
-    const { jwtAccessToken } = this.decryptAccessToken(parsedParams.accessToken);
+    const { rawAccessToken: jwtAccessToken } = this.decryptAccessToken(parsedParams.accessToken);
 
     try {
       const results = (
@@ -669,15 +619,14 @@ export class OAuthProvider {
               });
               if (!msalResponse) return null;
 
-              const decodedAccessToken = jwt.decode(msalResponse.accessToken, { json: true });
-              if (!decodedAccessToken) return null;
+              const clientId = getAudFromJwt(msalResponse.accessToken);
+              if (!clientId) return null;
 
-              const clientId = decodedAccessToken.aud;
-              if (typeof clientId !== 'string') return null;
-
-              const secretKey = createSecretKey(service.secretKey);
-              const { accessTokenValue, refreshTokenValue } = await this.encryptTokens(msalResponse, secretKey);
-              //TODO: find a way to create refresh token for downstream services
+              const accessTokenSecretKey = createSecretKey(service.secretKey);
+              const { accessTokenValue, refreshTokenValue } = await this.encryptTokens(
+                msalResponse,
+                accessTokenSecretKey,
+              );
 
               const cookieOptions = getCookieOptions({
                 clientId,
@@ -692,6 +641,7 @@ export class OAuthProvider {
                 serviceName: service.serviceName,
                 serviceClientId: clientId,
                 accessToken: { value: accessTokenValue, ...cookieOptions.accessToken },
+                refreshToken: refreshTokenValue ? { value: refreshTokenValue, ...cookieOptions.refreshToken } : null,
                 msalResponse,
               } satisfies GetTokenOnBehalfOfResult;
             } catch {
@@ -710,5 +660,34 @@ export class OAuthProvider {
       if (err instanceof OAuthError) throw err;
       throw new OAuthError(500, { message: 'Error getting token on behalf of', description: err as string });
     }
+  }
+
+  /**
+   * Injects data into the access token. Useful for embedding non-sensitive metadata into token structure.
+   *
+   * @param params - The parameters containing the access token value and data to inject.
+   * @returns The new access token cookie with injected data, or null if the token is invalid.
+   */
+  injectData<TValues, TData extends Record<string, TValues>>(params: { accessToken: string; data: TData }):
+    | Cookies['AccessToken']
+    | null {
+    const { rawAccessToken: jwtAccessToken } = this.decryptAccessToken(params.accessToken);
+    const { data: nextAccessToken, error: nextAccessTokenError } = zAccessTokenStructure.safeParse({
+      at: jwtAccessToken,
+      inj: params.data,
+    });
+
+    if (nextAccessTokenError) {
+      this.localDebug('injectData', 'Invalid access token format');
+      return null;
+    }
+
+    const encryptedAccessToken = encryptObject(nextAccessToken, this.secretKey);
+    if (encryptedAccessToken.length > 4096) {
+      this.localDebug('injectData', 'Token length exceeds 4kB');
+      return null;
+    }
+
+    return { value: encryptedAccessToken, ...this.defaultCookieOptions.accessToken };
   }
 }

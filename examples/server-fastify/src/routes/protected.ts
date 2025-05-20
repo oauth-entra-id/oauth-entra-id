@@ -4,7 +4,7 @@ import axios from 'axios';
 import { z } from 'zod';
 import { env } from '~/env';
 import { HttpException } from '~/error/HttpException';
-import protectRoute from '~/middlewares/protect-route';
+import { protectRoute } from '~/middlewares/protect-route';
 import { oauthProvider } from '~/oauth';
 
 const tSchemas = {
