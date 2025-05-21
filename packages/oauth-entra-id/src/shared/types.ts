@@ -35,7 +35,7 @@ export interface Endpoints {
     frontendUrl?: string;
   };
   OnBehalfOf: {
-    servicesNames: string[];
+    clientIds: string[];
   };
 }
 

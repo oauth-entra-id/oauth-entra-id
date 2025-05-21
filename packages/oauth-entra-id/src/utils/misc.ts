@@ -9,29 +9,29 @@ export function debugLog({ condition, funcName, message }: { condition: boolean;
 
 export function getB2BAppsInfo(b2bClient: B2BApp[] | undefined) {
   if (!b2bClient) {
-    return { b2bAppsMap: undefined, b2bAppsNames: undefined };
+    return { b2bAppsMap: undefined, b2bAppNames: undefined };
   }
 
   const b2bAppsMap = new Map(b2bClient.map((app) => [app.appName, app]));
-  const b2bAppsNames = Array.from(b2bAppsMap?.keys());
+  const b2bAppNames = Array.from(b2bAppsMap?.keys());
 
-  if (b2bAppsNames.length !== b2bClient.length) {
+  if (b2bAppNames.length !== b2bClient.length) {
     throw new OAuthError(500, { message: 'Invalid OAuthProvider config', description: 'Duplicate services found' });
   }
 
-  return { b2bAppsMap, b2bAppsNames };
+  return { b2bAppsMap, b2bAppNames };
 }
 
 export function getDownstreamServicesInfo(
   onBehalfOfConfig: NonNullable<OAuthConfig['advanced']>['downstreamServices'] | undefined,
 ) {
   if (!onBehalfOfConfig) {
-    return { downstreamServicesMap: undefined, downstreamServicesNames: undefined };
+    return { downstreamServicesMap: undefined, downstreamServiceNames: undefined };
   }
 
   const downstreamServicesMap = new Map(
     onBehalfOfConfig.services.map((service) => [
-      service.serviceName,
+      service.clientId,
       {
         ...service,
         isHttps: service.isHttps ?? onBehalfOfConfig.areHttps,
@@ -39,11 +39,11 @@ export function getDownstreamServicesInfo(
       },
     ]),
   );
-  const downstreamServicesNames = Array.from(downstreamServicesMap.keys());
+  const downstreamServiceNames = Array.from(downstreamServicesMap.keys());
 
-  if (downstreamServicesNames.length !== onBehalfOfConfig.services.length) {
+  if (downstreamServiceNames.length !== onBehalfOfConfig.services.length) {
     throw new OAuthError(500, { message: 'Invalid OAuthProvider config', description: 'Duplicate services found' });
   }
 
-  return { downstreamServicesMap, downstreamServicesNames };
+  return { downstreamServicesMap, downstreamServiceNames };
 }

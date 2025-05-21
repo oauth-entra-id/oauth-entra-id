@@ -4,6 +4,24 @@ import type { OAuthProvider } from 'oauth-entra-id';
 import z from 'zod';
 import { env } from '~/env';
 
+@Injectable()
+export class ProtectedService {
+  async fetchB2BInfo(oauthProvider: OAuthProvider, appName: string) {
+    const { accessToken } = await oauthProvider.getB2BToken({ appName });
+    const serverUrl = serversMap[appName];
+    const axiosResponse = await axios.get(`${serverUrl}/protected/b2b-info`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    const { data, error } = zB2BResponse.safeParse(axiosResponse.data);
+    if (error) throw new HttpException('Invalid B2B response', 500);
+    return data;
+  }
+
+  generateRandomPokemon() {
+    return pokemon[Math.floor(Math.random() * pokemon.length)];
+  }
+}
+
 const zB2BResponse = z.object({
   pokemon: z.string().trim().min(1).max(32),
   server: z.enum(['express', 'fastify', 'honojs']),
@@ -43,21 +61,3 @@ const pokemon = [
   'Snorlax',
   'Mew',
 ];
-
-@Injectable()
-export class ProtectedService {
-  async fetchB2BInfo(oauthProvider: OAuthProvider, appName: string) {
-    const { accessToken } = await oauthProvider.getB2BToken({ appName });
-    const serverUrl = serversMap[appName];
-    const axiosResponse = await axios.get(`${serverUrl}/protected/b2b-info`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
-    const { data, error } = zB2BResponse.safeParse(axiosResponse.data);
-    if (error) throw new HttpException('Invalid B2B response', 500);
-    return data;
-  }
-
-  generateRandomPokemon() {
-    return pokemon[Math.floor(Math.random() * pokemon.length)];
-  }
-}

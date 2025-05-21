@@ -96,7 +96,10 @@ function DownstreamServices() {
   const [selectedServices, setSelectedServices] = useState<Color[]>([]);
   const appInfo = useServerStore((state) => state.appInfo);
   const { mutate: handleOnBehalfOf } = useMutation({
-    mutationFn: () => getTokensOnBehalfOf(selectedServices),
+    mutationFn: () =>
+      getTokensOnBehalfOf(
+        selectedServices.map((color) => appInfo?.other[color]).filter((clientId) => typeof clientId === 'string'),
+      ),
     onSuccess: (tokensSet) => {
       setSelectedServices([]);
       toast.success(tokensSet === 1 ? 'New token created!' : `${tokensSet} new tokens created!`, { duration: 1000 });

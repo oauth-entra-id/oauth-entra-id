@@ -38,7 +38,7 @@ const zCookiesConfig = z.object({
 });
 
 const zDownstreamService = z.object({
-  serviceName: zServiceName,
+  clientId: zUuid,
   scope: zScope,
   secretKey: zSecretKey,
   isHttps: z.boolean().optional(),
@@ -92,10 +92,16 @@ export const zAccessTokenStructure = z.object({
   inj: z.record(zStr, z.any()).optional(),
 });
 
-export const zRefreshTokenStructure = z.object({
-  rt: zStr.min(1).max(4096), //add regex
-  isObo: z.boolean(),
-});
+export const zRefreshTokenStructure = z.union([
+  z.object({
+    rt: zStr.max(4096), //TODO: regex
+  }),
+  z.object({
+    ert: zStr.max(4096).regex(encryptedRegex),
+    creator: zUuid,
+    target: zUuid,
+  }),
+]);
 
 export const zMethods = {
   getAuthUrl: z
@@ -120,25 +126,25 @@ export const zMethods = {
         appName: zServiceName,
       })
       .transform((data) => ({
-        appsNames: [data.appName],
+        appNames: [data.appName],
       })),
     z.object({
-      appsNames: z.array(zServiceName).min(1),
+      appNames: z.array(zServiceName).min(1),
     }),
   ]),
   getTokenOnBehalfOf: z.union([
     z
       .object({
         accessToken: zJwtOrEncrypted,
-        serviceName: zServiceName,
+        clientId: zUuid,
       })
       .transform((data) => ({
         accessToken: data.accessToken,
-        servicesNames: [data.serviceName],
+        clientIds: [data.clientId],
       })),
     z.object({
       accessToken: zJwtOrEncrypted,
-      servicesNames: z.array(zServiceName).min(1),
+      clientIds: z.array(zUuid).min(1),
     }),
   ]),
 };

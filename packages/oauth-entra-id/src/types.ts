@@ -31,7 +31,7 @@ export interface B2BApp {
  */
 export interface DownstreamService {
   /** Unique identifier of the downstream service. */
-  serviceName: string;
+  clientId: string;
 
   /** OAuth 2.0 scope to request for the downstream service.
    * Usually end with `/.default` to request all permissions.
@@ -193,7 +193,6 @@ export interface GetB2BTokenResult {
 }
 
 export interface GetTokenOnBehalfOfResult {
-  serviceName: string;
   serviceClientId: string;
   accessToken: Cookies['AccessToken'];
   refreshToken: Cookies['RefreshToken'] | null;
