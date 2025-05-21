@@ -233,7 +233,7 @@ export class OAuthProvider {
       return { rawRefreshToken: parsedRefreshToken.rt, from: this.azure.clientId, target: this.azure.clientId };
     }
     return {
-      rawRefreshToken: parsedRefreshToken.ert,
+      encryptedRefreshToken: parsedRefreshToken.ert,
       from: parsedRefreshToken.creator,
       target: parsedRefreshToken.target,
     };
@@ -299,7 +299,7 @@ export class OAuthProvider {
    * @returns A signed Microsoft authentication URL.
    * @throws {OAuthError} If validation fails or frontend host is not allowed.
    */
-  async getAuthUrl(params: { loginPrompt?: LoginPrompt; email?: string; frontendUrl?: string }): Promise<{
+  async getAuthUrl(params?: { loginPrompt?: LoginPrompt; email?: string; frontendUrl?: string }): Promise<{
     authUrl: string;
   }> {
     const { data: parsedParams, error: paramsError } = zMethods.getAuthUrl.safeParse(params);
@@ -504,6 +504,11 @@ export class OAuthProvider {
     }
 
     const { rawRefreshToken, from, target } = this.decryptRefreshToken(refreshToken);
+    if (!rawRefreshToken) {
+      this.localDebug('getTokenByRefresh', 'Invalid refresh token: no raw refresh token');
+      return null;
+    }
+
     if (this.azure.clientId !== from) {
       this.localDebug('getTokenByRefresh', 'Invalid refresh token: not from the same client');
       return null;
