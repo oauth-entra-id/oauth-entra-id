@@ -2,7 +2,7 @@ import type { Request, Response } from 'express';
 import type { JwtPayload } from 'jsonwebtoken';
 import { OAuthError } from '~/error';
 import type { InjectedData } from '~/types';
-import { debugLog } from '~/utils/misc';
+import { $logger } from '~/utils/misc';
 import { getCookie, setCookie } from './cookie-parser';
 import type { InjectDataFunction, UserInfo } from './types';
 
@@ -11,7 +11,7 @@ export async function sharedIsAuthenticated(
   res: Response,
 ): Promise<{ userInfo: UserInfo; injectData: InjectDataFunction }> {
   const localDebug = (message: string) => {
-    debugLog({
+    $logger({
       condition: req.oauthProvider.settings.debug,
       funcName: req.serverType === 'express' ? 'protectRoute' : 'isAuthenticated',
       message,

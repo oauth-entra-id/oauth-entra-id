@@ -1,7 +1,7 @@
 import { type ZodError, z } from 'zod';
 import { base64urlWithDotRegex, encryptedRegex, jwtOrEncryptedRegex, jwtRegex } from './regex';
 
-export const prettifyError = (error: ZodError) =>
+export const $prettyError = (error: ZodError) =>
   error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join(', ');
 
 export const zStr = z.string().trim();

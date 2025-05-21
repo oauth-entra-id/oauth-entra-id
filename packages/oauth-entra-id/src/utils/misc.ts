@@ -1,13 +1,13 @@
 import { OAuthError } from '~/error';
 import type { B2BApp, OAuthConfig } from '~/types';
 
-export function debugLog({ condition, funcName, message }: { condition: boolean; funcName: string; message: string }) {
+export function $logger({ condition, funcName, message }: { condition: boolean; funcName: string; message: string }) {
   if (condition) {
     console.log(`[oauth-entra-id] ${funcName}: ${message}`);
   }
 }
 
-export function getB2BAppsInfo(b2bClient: B2BApp[] | undefined) {
+export function $getB2BInfo(b2bClient: B2BApp[] | undefined) {
   if (!b2bClient) {
     return { b2bAppsMap: undefined, b2bAppNames: undefined };
   }
@@ -22,9 +22,7 @@ export function getB2BAppsInfo(b2bClient: B2BApp[] | undefined) {
   return { b2bAppsMap, b2bAppNames };
 }
 
-export function getDownstreamServicesInfo(
-  onBehalfOfConfig: NonNullable<OAuthConfig['advanced']>['downstreamServices'] | undefined,
-) {
+export function $getOboInfo(onBehalfOfConfig: NonNullable<OAuthConfig['advanced']>['downstreamServices'] | undefined) {
   if (!onBehalfOfConfig) {
     return { downstreamServicesMap: undefined, downstreamServiceNames: undefined };
   }

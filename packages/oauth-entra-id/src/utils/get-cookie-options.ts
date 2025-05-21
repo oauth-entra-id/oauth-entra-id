@@ -1,7 +1,7 @@
 export const ACCESS_TOKEN_NAME = 'at' as const;
 export const REFRESH_TOKEN_NAME = 'rt' as const;
 
-export function getCookieOptions({
+export function $getCookieOptions({
   clientId,
   isHttps,
   isSameSite,
