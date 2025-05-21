@@ -177,7 +177,7 @@ export class OAuthProvider {
    * @returns A signed Microsoft authentication URL.
    * @throws {OAuthError} If validation fails or frontend host is not allowed.
    */
-  async getAuthUrl(params: { loginPrompt?: LoginPrompt; email?: string; frontendUrl?: string }): Promise<{
+  async getAuthUrl(params?: { loginPrompt?: LoginPrompt; email?: string; frontendUrl?: string }): Promise<{
     authUrl: string;
   }> {
     const { data: parsedParams, error: paramsError } = zMethods.getAuthUrl.safeParse(params);
@@ -470,6 +470,11 @@ export class OAuthProvider {
 
       return { jwtAccessToken, payload, injectedData, isB2B };
     } catch (err) {
+      if (err instanceof OAuthError) {
+        this.localDebug('verifyAccessToken', `Error verifying token: ${err.message}, description: ${err.description}`);
+        return null;
+      }
+
       this.localDebug('verifyAccessToken', `Error verifying token: ${err}`);
       return null;
     }
