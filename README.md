@@ -24,14 +24,14 @@ npm install oauth-entra-id
 
 You can explore the demo apps to see how to integrate the package into your applications.
 
-- [React Demo App](demos/client-react/) 🖥️ - React 19 frontend showcasing best practices for frontend integration in an OAuth 2.0 cookie-based flow.
+- [React Demo App](examples/frontend-react/) 🖥️ - React 19 frontend showcasing best practices for frontend integration in an OAuth 2.0 cookie-based flow.
 
   > React 19, TanStack Router, TanStack Query (React Query), TanStack Form, Zustand, Tailwind, ShadCN Components, Axios and Zod.
 
-- [Express Demo App](demos/server-express/) 📫- Express server, implements `oauth-entra-id/express` for authentication.
-- [NestJS Demo App](demos/server-nestjs/) 🪺 - NestJS server, implements `oauth-entra-id/nestjs` for authentication.
-- [HonoJS Demo App](demos/server-honojs/) 🔥 - HonoJS server, implements authentication using the core utilities of the package.
-- [Fastify Demo App](demos/server-fastify/) ⚡ - Fastify server, implements authentication using the core utilities of the package.
+- [Express Demo App](exampels/server-express/) 📫- Express server, implements `oauth-entra-id/express` for authentication.
+- [NestJS Demo App](examples/server-nestjs/) 🪺 - NestJS server, implements `oauth-entra-id/nestjs` for authentication.
+- [HonoJS Demo App](examples/server-honojs/) 🔥 - HonoJS server, implements authentication using the core utilities of the package.
+- [Fastify Demo App](examples/server-fastify/) ⚡ - Fastify server, implements authentication using the core utilities of the package.
 
 > In each server demo you get a fully working server with the following features:
 >
