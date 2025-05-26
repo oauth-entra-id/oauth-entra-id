@@ -29,8 +29,8 @@ export async function protectRoute(req: FastifyRequest, reply: FastifyReply) {
 
   if (oauthProvider.settings.acceptB2BRequests && authorizationHeader) {
     const bearerAccessToken = authorizationHeader.startsWith('Bearer ') ? authorizationHeader.split(' ')[1] : undefined;
-    const bearerInfo = await oauthProvider.verifyAccessToken(bearerAccessToken);
-    if (!bearerInfo) throw new HttpException('Unauthorized', 401);
+    const { result: bearerInfo, error: bearerInfoError } = await oauthProvider.verifyAccessToken(bearerAccessToken);
+    if (bearerInfoError) throw new HttpException(bearerInfoError.message, bearerInfoError.statusCode);
 
     setUserInfo(req, { payload: bearerInfo.payload, isB2B: true });
 
@@ -42,15 +42,18 @@ export async function protectRoute(req: FastifyRequest, reply: FastifyReply) {
   const refreshToken = req.cookies[refreshTokenName];
   if (!accessToken && !refreshToken) throw new HttpException('Unauthorized', 401);
 
-  const tokenInfo = await oauthProvider.verifyAccessToken(accessToken);
+  const { result: tokenInfo } = await oauthProvider.verifyAccessToken(accessToken);
   if (tokenInfo) {
-    req.accessTokenInfo = { jwt: tokenInfo.jwtAccessToken, payload: tokenInfo.payload };
+    req.accessTokenInfo = { jwt: tokenInfo.rawAccessToken, payload: tokenInfo.payload };
     const injectedData = tokenInfo.injectedData
       ? (tokenInfo.injectedData as { randomNumber: number })
       : { randomNumber: getRandomNumber() };
 
     if (!tokenInfo.injectedData) {
-      const newAccessToken = oauthProvider.injectData({ accessToken: tokenInfo.jwtAccessToken, data: injectedData });
+      const { result: newAccessToken } = oauthProvider.injectData({
+        accessToken: tokenInfo.rawAccessToken,
+        data: injectedData,
+      });
       if (!newAccessToken) {
         setUserInfo(req, { payload: tokenInfo.payload });
         return;
@@ -63,14 +66,14 @@ export async function protectRoute(req: FastifyRequest, reply: FastifyReply) {
     return;
   }
 
-  const newTokensInfo = await oauthProvider.getTokenByRefresh(refreshToken);
-  if (!newTokensInfo) throw new HttpException('Unauthorized', 401);
+  const { result: newTokensInfo, error: newTokensInfoError } = await oauthProvider.getTokenByRefresh(refreshToken);
+  if (newTokensInfoError) throw new HttpException(newTokensInfoError.message, newTokensInfoError.statusCode);
 
-  const { jwtAccessToken, payload, newAccessToken, newRefreshToken } = newTokensInfo;
-  req.accessTokenInfo = { jwt: jwtAccessToken, payload };
+  const { rawAccessToken, payload, newAccessToken, newRefreshToken } = newTokensInfo;
+  req.accessTokenInfo = { jwt: rawAccessToken, payload };
 
   const injectedData = { randomNumber: getRandomNumber() };
-  const newerAccessToken = oauthProvider.injectData({ accessToken: jwtAccessToken, data: injectedData });
+  const { result: newerAccessToken } = oauthProvider.injectData({ accessToken: rawAccessToken, data: injectedData });
 
   const finalAccessToken = newerAccessToken ?? newAccessToken;
 

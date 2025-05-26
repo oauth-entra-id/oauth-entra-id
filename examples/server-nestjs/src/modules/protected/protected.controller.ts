@@ -33,7 +33,7 @@ export class ProtectedController {
 
   @Get('b2b-info')
   sendB2BInfo(@UserInfo() userInfo: UserInfoType) {
-    if (userInfo?.isB2B === false) throw new HttpException('Unauthorized', 401);
+    if (userInfo?.isApp === false) throw new HttpException('Unauthorized', 401);
     const randomPokemon = this.protectedService.generateRandomPokemon();
     return { pokemon: randomPokemon, server: 'nestjs' };
   }

@@ -31,8 +31,8 @@ export const protectRoute = createMiddleware<ProtectRoute>(async (c, next) => {
 
   if (oauthProvider.settings.acceptB2BRequests && authorizationHeader) {
     const bearerAccessToken = authorizationHeader.startsWith('Bearer ') ? authorizationHeader.split(' ')[1] : undefined;
-    const bearerInfo = await oauthProvider.verifyAccessToken(bearerAccessToken);
-    if (!bearerInfo) throw new HTTPException(401, { message: 'Unauthorized' });
+    const { result: bearerInfo, error: bearerInfoError } = await oauthProvider.verifyAccessToken(bearerAccessToken);
+    if (bearerInfoError) throw new HTTPException(bearerInfoError.statusCode, { message: bearerInfoError.message });
 
     setUserInfo(c, { payload: bearerInfo.payload, isB2B: true });
 
@@ -44,15 +44,18 @@ export const protectRoute = createMiddleware<ProtectRoute>(async (c, next) => {
   const refreshToken = getCookie(c, refreshTokenName);
   if (!accessToken && !refreshToken) throw new HTTPException(401, { message: 'Unauthorized' });
 
-  const tokenInfo = await oauthProvider.verifyAccessToken(accessToken);
+  const { result: tokenInfo } = await oauthProvider.verifyAccessToken(accessToken);
   if (tokenInfo) {
-    c.set('accessTokenInfo', { jwt: tokenInfo.jwtAccessToken, payload: tokenInfo.payload });
+    c.set('accessTokenInfo', { jwt: tokenInfo.rawAccessToken, payload: tokenInfo.payload });
     const injectedData = tokenInfo.injectedData
       ? (tokenInfo.injectedData as { randomNumber: number })
       : { randomNumber: getRandomNumber() };
 
     if (!tokenInfo.injectedData) {
-      const newAccessToken = oauthProvider.injectData({ accessToken: tokenInfo.jwtAccessToken, data: injectedData });
+      const { result: newAccessToken } = oauthProvider.injectData({
+        accessToken: tokenInfo.rawAccessToken,
+        data: injectedData,
+      });
       if (!newAccessToken) {
         setUserInfo(c, { payload: tokenInfo.payload });
         return await next();
@@ -64,14 +67,14 @@ export const protectRoute = createMiddleware<ProtectRoute>(async (c, next) => {
     return await next();
   }
 
-  const newTokensInfo = await oauthProvider.getTokenByRefresh(refreshToken);
-  if (!newTokensInfo) throw new HTTPException(401, { message: 'Unauthorized' });
+  const { result: newTokensInfo, error: newTokenInfoError } = await oauthProvider.getTokenByRefresh(refreshToken);
+  if (newTokenInfoError) throw new HTTPException(newTokenInfoError.statusCode, { message: newTokenInfoError.message });
 
-  const { jwtAccessToken, payload, newAccessToken, newRefreshToken } = newTokensInfo;
-  c.set('accessTokenInfo', { jwt: jwtAccessToken, payload });
+  const { rawAccessToken, payload, newAccessToken, newRefreshToken } = newTokensInfo;
+  c.set('accessTokenInfo', { jwt: rawAccessToken, payload });
 
   const injectedData = { randomNumber: getRandomNumber() };
-  const newerAccessToken = oauthProvider.injectData({ accessToken: jwtAccessToken, data: injectedData });
+  const { result: newerAccessToken } = oauthProvider.injectData({ accessToken: rawAccessToken, data: injectedData });
 
   const finalAccessToken = newerAccessToken ?? newAccessToken;
 

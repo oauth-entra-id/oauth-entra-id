@@ -11,7 +11,7 @@ routesRouter.use('/auth', authRouter);
 routesRouter.use(
   '/protected',
   protectRoute(({ userInfo, injectData }) => {
-    if (!userInfo.isB2B && !userInfo.injectedData) {
+    if (!userInfo.isApp && !userInfo.injectedData) {
       injectData({ randomNumber: getRandomNumber() });
     }
   }),
