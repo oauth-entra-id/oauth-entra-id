@@ -190,8 +190,7 @@ export interface GetB2BTokenResult {
 }
 
 export interface GetTokenOnBehalfOfResult {
-  serviceClientId: string;
+  clientId: string;
   accessToken: Cookies['AccessToken'];
-  refreshToken: Cookies['RefreshToken'] | null;
   msalResponse: MsalResponse;
 }

@@ -9,14 +9,14 @@ export type ErrorTypes =
   | 'serialization'
   | 'jwt_error';
 
-export interface OAuthErr {
+export interface ResultErr {
   readonly type: ErrorTypes;
   readonly message: string;
   readonly description?: string;
   readonly statusCode: HttpErrorCodes;
 }
 
-export type Result<T, E = OAuthErr> =
+export type Result<T, E = ResultErr> =
   | {
       readonly success: true;
       readonly result: T;
@@ -35,12 +35,27 @@ export function $ok<T>(result: T): Result<T> {
 export function $err(
   type: ErrorTypes,
   details: { error: string; description?: string },
+  status?: HttpErrorCodes,
+): Result<never, ResultErr>;
+export function $err(err: ResultErr): Result<never, ResultErr>;
+export function $err(
+  typeOrErr: ErrorTypes | ResultErr,
+  details?: { error: string; description?: string },
   status: HttpErrorCodes = 400,
-): Result<never, OAuthErr> {
-  return {
-    success: false,
-    error: { type, message: details.error, description: details.description, statusCode: status },
-  } satisfies Result<never, OAuthErr>;
+): Result<never, ResultErr> {
+  if (typeof typeOrErr === 'string') {
+    return {
+      success: false,
+      error: {
+        type: typeOrErr,
+        message: details?.error ?? 'An error occurred',
+        description: details?.description,
+        statusCode: status,
+      },
+    };
+  }
+
+  return { success: false, error: typeOrErr };
 }
 
 /**
@@ -56,25 +71,27 @@ export class OAuthError extends Error {
   readonly statusCode: HttpErrorCodes;
   readonly description: string | undefined;
 
-  constructor(errorResult: OAuthErr);
+  constructor(err: ResultErr);
   constructor(type: ErrorTypes, details: { error: string; description?: string }, status?: HttpErrorCodes);
   constructor(
-    typeOrErrorResult: ErrorTypes | OAuthErr,
+    typeOrErr: ErrorTypes | ResultErr,
     details?: { error: string; description?: string },
     status: HttpErrorCodes = 400,
   ) {
-    if (typeof typeOrErrorResult === 'string') {
+    if (typeof typeOrErr === 'string') {
       super(details?.error ?? 'An error occurred');
-      this.type = typeOrErrorResult;
+      this.type = typeOrErr;
       this.statusCode = status;
       this.description = details?.description;
     } else {
-      super(typeOrErrorResult.message);
-      this.type = typeOrErrorResult.type;
-      this.statusCode = typeOrErrorResult.statusCode;
-      this.description = typeOrErrorResult.description;
+      super(typeOrErr.message);
+      this.type = typeOrErr.type;
+      this.statusCode = typeOrErr.statusCode;
+      this.description = typeOrErr.description;
     }
     this.name = 'OAuthError';
+
+    //TODO: Check if this is needed
     // Object.setPrototypeOf(this, new.target.prototype);
     // Error.captureStackTrace(this, this.constructor);
   }
