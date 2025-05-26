@@ -5,7 +5,10 @@ import type { Endpoints } from './types';
 
 export async function sharedHandleAuthentication(req: Request, res: Response) {
   if (req.oauthProvider.settings.sessionType !== 'cookie-session') {
-    throw new OAuthError(500, { message: 'Invalid session type', description: 'Session type must be cookie-session' });
+    throw new OAuthError(500, {
+      message: 'Invalid session type',
+      description: 'Session type must be cookie-session',
+    });
   }
 
   const body = req.body as Endpoints['Authenticate'] | undefined;
@@ -18,7 +21,10 @@ export async function sharedHandleAuthentication(req: Request, res: Response) {
 
 export async function sharedHandleCallback(req: Request, res: Response) {
   if (req.oauthProvider.settings.sessionType !== 'cookie-session') {
-    throw new OAuthError(500, { message: 'Invalid session type', description: 'Session type must be cookie-session' });
+    throw new OAuthError(500, {
+      message: 'Invalid session type',
+      description: 'Session type must be cookie-session',
+    });
   }
 
   const body = req.body as Endpoints['Callback'] | undefined;
@@ -36,7 +42,10 @@ export async function sharedHandleCallback(req: Request, res: Response) {
 
 export function sharedHandleLogout(req: Request, res: Response) {
   if (req.oauthProvider.settings.sessionType !== 'cookie-session') {
-    throw new OAuthError(500, { message: 'Invalid session type', description: 'Session type must be cookie-session' });
+    throw new OAuthError(500, {
+      message: 'Invalid session type',
+      description: 'Session type must be cookie-session',
+    });
   }
 
   const body = req.body as Endpoints['Logout'] | undefined;
@@ -51,7 +60,10 @@ export function sharedHandleLogout(req: Request, res: Response) {
 
 export async function sharedHandleOnBehalfOf(req: Request, res: Response) {
   if (req.oauthProvider.settings.sessionType !== 'cookie-session') {
-    throw new OAuthError(500, { message: 'Invalid session type', description: 'Session type must be cookie-session' });
+    throw new OAuthError(500, {
+      message: 'Invalid session type',
+      description: 'Session type must be cookie-session',
+    });
   }
 
   const body = req.body as Endpoints['OnBehalfOf'] | undefined;

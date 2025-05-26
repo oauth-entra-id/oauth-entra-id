@@ -20,7 +20,10 @@ export async function sharedIsAuthenticated(
 
   const oauthProvider = req.oauthProvider;
   if (oauthProvider.settings.sessionType !== 'cookie-session') {
-    throw new OAuthError(500, { message: 'Invalid session type', description: 'Session type must be cookie-session' });
+    throw new OAuthError(500, {
+      message: 'Invalid session type',
+      description: 'Session type must be cookie-session',
+    });
   }
 
   const InjectDataFunction = (accessToken: string, data: InjectedData) => {

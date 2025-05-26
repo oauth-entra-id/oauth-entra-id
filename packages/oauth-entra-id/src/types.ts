@@ -1,6 +1,5 @@
 import type { AuthenticationResult } from '@azure/msal-node';
-import type { OAuthProvider } from './core';
-import type { ACCESS_TOKEN_NAME, REFRESH_TOKEN_NAME } from './utils/get-cookie-options';
+import type { ACCESS_TOKEN_NAME, REFRESH_TOKEN_NAME } from './utils/cookie-options';
 
 export type LoginPrompt = 'email' | 'select-account' | 'sso';
 export type TimeUnit = 'ms' | 'sec';
@@ -54,6 +53,16 @@ export interface DownstreamService {
   refreshTokenExpiry?: number;
 }
 
+export interface OboService {
+  clientId: string;
+  secure: boolean;
+  sameSite: boolean;
+  scope: string;
+  secretKey: string;
+  atExp?: number;
+  rtExp?: number;
+}
+
 /**
  * Configuration object for initializing the OAuthProvider.
  */
@@ -85,8 +94,6 @@ export interface OAuthConfig {
     acceptB2BRequests?: boolean;
     /** List of external B2B services to acquire tokens for. */
     b2bTargetedApps?: B2BApp[];
-    /** Enables verbose debug logging. */
-    debug?: boolean;
     /** Cookie behavior and expiration settings. */
     cookies?: {
       /** Unit used for cookie expiration times. */
@@ -126,7 +133,6 @@ export interface OAuthSettings {
   readonly downstreamServices?: string[];
   readonly accessTokenCookieExpiry: number;
   readonly refreshTokenCookieExpiry: number;
-  readonly debug: boolean;
 }
 
 export type MsalResponse = AuthenticationResult;
@@ -175,15 +181,6 @@ export interface Cookies {
     readonly options: CookieOptions;
   };
 }
-
-type PrivateMethods = 'verifyJwt' | 'getBothTokens';
-
-export type OAuthProviderMethods =
-  | {
-      // biome-ignore lint/suspicious/noExplicitAny: The only way to get the method names of the class
-      [K in keyof OAuthProvider]: OAuthProvider[K] extends (...args: any[]) => any ? K : never;
-    }[keyof OAuthProvider]
-  | PrivateMethods;
 
 export interface GetB2BTokenResult {
   appName: string;

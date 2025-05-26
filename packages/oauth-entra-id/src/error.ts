@@ -1,15 +1,13 @@
-export type Result<T, E = OAuthErr> =
-  | {
-      success: true;
-      result: T;
-    }
-  | {
-      success: false;
-      error: E;
-    };
-
 export type HttpErrorCodes = 400 | 401 | 403 | 500;
-export type ErrorTypes = (string & {}) | 'null_value' | 'encrypt_error' | 'decrypt_error' | 'jwt_error';
+export type ErrorTypes =
+  | 'internal_error'
+  | 'nullish_value'
+  | 'input'
+  | 'format'
+  | 'config'
+  | 'cryptography'
+  | 'serialization'
+  | 'jwt_error';
 
 export interface OAuthErr {
   readonly type: ErrorTypes;
@@ -18,18 +16,30 @@ export interface OAuthErr {
   readonly statusCode: HttpErrorCodes;
 }
 
+export type Result<T, E = OAuthErr> =
+  | {
+      readonly success: true;
+      readonly result: T;
+      readonly error?: undefined;
+    }
+  | {
+      readonly success: false;
+      readonly error: E;
+      readonly result?: undefined;
+    };
+
 export function $ok<T>(result: T): Result<T> {
   return { success: true, result } as const;
 }
 
 export function $err(
   type: ErrorTypes,
-  { error, description }: { error: string; description?: string },
+  details: { error: string; description?: string },
   status: HttpErrorCodes = 400,
 ): Result<never, OAuthErr> {
   return {
     success: false,
-    error: { type, message: error, description, statusCode: status },
+    error: { type, message: details.error, description: details.description, statusCode: status },
   } satisfies Result<never, OAuthErr>;
 }
 
@@ -42,35 +52,30 @@ export function $err(
  * @extends {Error}
  */
 export class OAuthError extends Error {
-  /**
-   * The HTTP status code representing the type of OAuth error.
-   * @readonly
-   * @type {400 | 401 | 403 | 500}
-   */
+  readonly type: ErrorTypes;
   readonly statusCode: HttpErrorCodes;
-
-  /**
-   * A more detailed description of the error (if provided).
-   * Shouldn't be sent to the client in a production environment.
-   * @readonly
-   * @type {string | undefined}
-   */
   readonly description: string | undefined;
 
-  /**
-   * Creates an instance of `OAuthError`.
-   *
-   * @param {400 | 401 | 403 | 500} statusCode - The HTTP status code for the error.
-   * @param {string | { message: string; description?: string }} errMessage - The error message or an object containing message and optional description.
-   */
-  constructor(statusCode: HttpErrorCodes, errMessage: string | { message: string; description: string }) {
-    super(typeof errMessage === 'string' ? errMessage : errMessage.message);
-
-    Object.setPrototypeOf(this, new.target.prototype);
-    Error.captureStackTrace(this, this.constructor);
-
+  constructor(errorResult: OAuthErr);
+  constructor(type: ErrorTypes, details: { error: string; description?: string }, status?: HttpErrorCodes);
+  constructor(
+    typeOrErrorResult: ErrorTypes | OAuthErr,
+    details?: { error: string; description?: string },
+    status: HttpErrorCodes = 400,
+  ) {
+    if (typeof typeOrErrorResult === 'string') {
+      super(details?.error ?? 'An error occurred');
+      this.type = typeOrErrorResult;
+      this.statusCode = status;
+      this.description = details?.description;
+    } else {
+      super(typeOrErrorResult.message);
+      this.type = typeOrErrorResult.type;
+      this.statusCode = typeOrErrorResult.statusCode;
+      this.description = typeOrErrorResult.description;
+    }
     this.name = 'OAuthError';
-    this.statusCode = statusCode;
-    this.description = typeof errMessage === 'string' ? undefined : errMessage.description;
+    // Object.setPrototypeOf(this, new.target.prototype);
+    // Error.captureStackTrace(this, this.constructor);
   }
 }

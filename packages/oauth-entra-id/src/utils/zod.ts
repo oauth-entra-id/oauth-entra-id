@@ -58,7 +58,6 @@ const zAdvanced = z.object({
   sessionType: zSessionType.default('cookie-session'),
   acceptB2BRequests: z.boolean().default(false),
   b2bTargetedApps: z.array(zB2BApp).min(1).optional(),
-  debug: z.boolean().default(false),
   cookies: zCookiesConfig.default({}),
   downstreamServices: zDownstreamConfig.optional(),
 });
@@ -91,17 +90,6 @@ export const zAccessTokenStructure = z.object({
   at: zJwt,
   inj: z.record(zStr, z.any()).optional(),
 });
-
-export const zRefreshTokenStructure = z.union([
-  z.object({
-    rt: zStr.max(4096), //TODO: regex
-  }),
-  z.object({
-    ert: zStr.max(4096).regex(encryptedRegex),
-    creator: zUuid,
-    target: zUuid,
-  }),
-]);
 
 export const zMethods = {
   getAuthUrl: z

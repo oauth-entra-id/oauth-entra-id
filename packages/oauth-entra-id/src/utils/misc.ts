@@ -1,47 +1,46 @@
-import { OAuthError } from '~/error';
-import type { B2BApp, OAuthConfig } from '~/types';
+import { $err, $ok, type Result } from '~/error';
+import type { B2BApp, OAuthConfig, OboService } from '~/types';
 
 export function $logger({ condition, funcName, message }: { condition: boolean; funcName: string; message: string }) {
-  if (condition) {
-    console.log(`[oauth-entra-id] ${funcName}: ${message}`);
-  }
+  if (condition) console.log(`[oauth-entra-id] ${funcName}: ${message}`);
 }
 
-export function $getB2BInfo(b2bClient: B2BApp[] | undefined) {
-  if (!b2bClient) {
-    return { b2bAppsMap: undefined, b2bAppNames: undefined };
+export function $getB2BInfo(
+  b2bConfig: B2BApp[] | undefined,
+): Result<{ map: Map<string, B2BApp>; names: string[] } | null> {
+  if (!b2bConfig) return $ok(null);
+
+  const map = new Map(b2bConfig.map((app) => [app.appName, app]));
+  const names = Array.from(map.keys());
+
+  if (names.length !== b2bConfig.length) {
+    return $err('config', { error: 'Invalid config', description: 'B2B has duplicate names' }, 500);
   }
 
-  const b2bAppsMap = new Map(b2bClient.map((app) => [app.appName, app]));
-  const b2bAppNames = Array.from(b2bAppsMap?.keys());
-
-  if (b2bAppNames.length !== b2bClient.length) {
-    throw new OAuthError(500, { message: 'Invalid OAuthProvider config', description: 'Duplicate services found' });
-  }
-
-  return { b2bAppsMap, b2bAppNames };
+  return $ok({ map, names });
 }
 
-export function $getOboInfo(onBehalfOfConfig: NonNullable<OAuthConfig['advanced']>['downstreamServices'] | undefined) {
-  if (!onBehalfOfConfig) {
-    return { downstreamServicesMap: undefined, downstreamServiceNames: undefined };
-  }
+export function $getOboInfo(
+  oboConfig: NonNullable<OAuthConfig['advanced']>['downstreamServices'] | undefined,
+): Result<{ map: Map<string, OboService>; names: string[] } | null> {
+  if (!oboConfig) return $ok(null);
 
-  const downstreamServicesMap = new Map(
-    onBehalfOfConfig.services.map((service) => [
+  const map = new Map(
+    oboConfig.services.map((service) => [
       service.clientId,
       {
         ...service,
-        isHttps: service.isHttps ?? onBehalfOfConfig.areHttps,
-        isSameSite: service.isSameOrigin ?? onBehalfOfConfig.areSameOrigin,
-      },
+        secure: service.isHttps ?? oboConfig.areHttps,
+        sameSite: service.isSameOrigin ?? oboConfig.areSameOrigin,
+      } satisfies OboService,
     ]),
   );
-  const downstreamServiceNames = Array.from(downstreamServicesMap.keys());
 
-  if (downstreamServiceNames.length !== onBehalfOfConfig.services.length) {
-    throw new OAuthError(500, { message: 'Invalid OAuthProvider config', description: 'Duplicate services found' });
+  const names = Array.from(map.keys());
+
+  if (names.length !== oboConfig.services.length) {
+    return $err('config', { error: 'Invalid config', description: 'OBO has duplicate client IDs' }, 500);
   }
 
-  return { downstreamServicesMap, downstreamServiceNames };
+  return $ok({ map, names });
 }
