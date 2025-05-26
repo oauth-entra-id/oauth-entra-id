@@ -5,18 +5,11 @@ export function $cookieOptions({
   clientId,
   secure,
   sameSite,
-  cookiesTimeUnit,
-  accessTokenCookieExpiry,
-  refreshTokenCookieExpiry,
-}: {
-  clientId: string;
-  secure: boolean;
-  sameSite: boolean;
-  cookiesTimeUnit: 'sec' | 'ms';
-  accessTokenCookieExpiry: number;
-  refreshTokenCookieExpiry: number;
-}) {
-  const timeFrame = cookiesTimeUnit === 'sec' ? 1 : 1000;
+  timeUnit,
+  atExp,
+  rtExp,
+}: { clientId: string; secure: boolean; sameSite: boolean; timeUnit: 'sec' | 'ms'; atExp: number; rtExp: number }) {
+  const timeFrame = timeUnit === 'sec' ? 1 : 1000;
   const baseOptions = {
     httpOnly: true,
     secure,
@@ -27,11 +20,11 @@ export function $cookieOptions({
   return {
     accessToken: {
       name: `${`${secure ? '__Host-' : ''}${ACCESS_TOKEN_NAME}-${clientId}`}`,
-      options: { ...baseOptions, maxAge: accessTokenCookieExpiry * timeFrame },
+      options: { ...baseOptions, maxAge: atExp * timeFrame },
     },
     refreshToken: {
       name: `${`${secure ? '__Host-' : ''}${REFRESH_TOKEN_NAME}-${clientId}`}`,
-      options: { ...baseOptions, maxAge: refreshTokenCookieExpiry * timeFrame },
+      options: { ...baseOptions, maxAge: rtExp * timeFrame },
     },
     deleteOptions: { ...baseOptions, sameSite: secure ? 'none' : undefined, maxAge: 0 },
   } as const;

@@ -15,7 +15,7 @@ export function $encode(str: string): Result<string> {
   try {
     return $ok(Buffer.from(str, 'utf8').toString(ENCODE_FORMAT));
   } catch {
-    return $err('format', { error: 'Invalid base64url format', description: `Input: ${str}` });
+    return $err('invalid_format', { error: 'Invalid base64url format', description: `Input: ${str}` });
   }
 }
 
@@ -26,7 +26,7 @@ export function $decode(str: string): Result<string> {
   try {
     return $ok(Buffer.from(str, ENCODE_FORMAT).toString('utf8'));
   } catch {
-    return $err('format', { error: 'Invalid base64url format', description: `Input: ${str}` });
+    return $err('invalid_format', { error: 'Invalid base64url format', description: `Input: ${str}` });
   }
 }
 
@@ -39,25 +39,8 @@ export function $createSecretKey(key: string): Result<KeyObject> {
     const hashedKey = crypto.createHash('sha256').update(key).digest();
     return $ok(crypto.createSecretKey(hashedKey));
   } catch {
-    return $err('cryptography', { error: 'Failed to create secret key', description: `Input: ${key}` }, 500);
+    return $err('crypto_error', { error: 'Failed to create secret key', description: `Input: ${key}` }, 500);
   }
-}
-
-export function $createSecretKeys(key: string): Result<{ at: KeyObject; rt: KeyObject; state: KeyObject }> {
-  if ($isEmptyString(key)) {
-    return $err('nullish_value', { error: 'Invalid secret key', description: 'Empty string' }, 500);
-  }
-
-  const { result: atSecretKey, error: atSecretKeyError } = $createSecretKey(`access-token-${key}`);
-  if (atSecretKeyError) return $err(atSecretKeyError);
-
-  const { result: rtSecretKey, error: rtSecretKeyError } = $createSecretKey(`refresh-token-${key}`);
-  if (rtSecretKeyError) return $err(rtSecretKeyError);
-
-  const { result: stateSecretKey, error: stateSecretKeyError } = $createSecretKey(`state-${key}`);
-  if (stateSecretKeyError) return $err(stateSecretKeyError);
-
-  return $ok({ at: atSecretKey, rt: rtSecretKey, state: stateSecretKey });
 }
 
 export function $encrypt(str: string, secretKey: KeyObject): Result<string> {
@@ -72,18 +55,20 @@ export function $encrypt(str: string, secretKey: KeyObject): Result<string> {
 
     return $ok(`${iv.toString(ENCODE_FORMAT)}.${encrypted.toString(ENCODE_FORMAT)}.${tag.toString(ENCODE_FORMAT)}.`);
   } catch {
-    return $err('cryptography', { error: 'Encryption failed', description: `Input: ${str}` });
+    return $err('crypto_error', { error: 'Encryption failed', description: `Input: ${str}` });
   }
 }
 
 export function $decrypt(encrypted: string, secretKey: KeyObject): Result<string> {
   if ($isEmptyString(encrypted)) return $err('nullish_value', { error: 'Invalid data', description: 'Empty string' });
 
-  if (!encrypted.includes('.')) return $err('format', { error: 'Invalid data', description: 'Missing dot separator' });
+  if (!encrypted.includes('.')) {
+    return $err('invalid_format', { error: 'Invalid data', description: 'Missing dot separator' });
+  }
 
   try {
     const [iv, encryptedData, tag] = encrypted.split('.');
-    if (!iv || !encryptedData || !tag) return $err('format', { error: 'Invalid encrypted data format' });
+    if (!iv || !encryptedData || !tag) return $err('invalid_format', { error: 'Invalid encrypted data format' });
 
     const decipher = crypto.createDecipheriv(ALGORITHM, secretKey, Buffer.from(iv, ENCODE_FORMAT));
     decipher.setAuthTag(Buffer.from(tag, ENCODE_FORMAT));
@@ -92,7 +77,7 @@ export function $decrypt(encrypted: string, secretKey: KeyObject): Result<string
       Buffer.concat([decipher.update(Buffer.from(encryptedData, ENCODE_FORMAT)), decipher.final()]).toString('utf8'),
     );
   } catch {
-    return $err('cryptography', { error: 'Invalid encrypted data format', description: `Input: ${encrypted}` });
+    return $err('crypto_error', { error: 'Invalid encrypted data format', description: `Input: ${encrypted}` });
   }
 }
 
@@ -102,7 +87,7 @@ export function $encryptObj(obj: Record<string, unknown> | null, secretKey: KeyO
   try {
     return $encrypt(JSON.stringify(obj), secretKey);
   } catch {
-    return $err('serialization', { error: 'Encryption failed', description: 'Failed to stringify object' });
+    return $err('invalid_format', { error: 'Encryption failed', description: 'Failed to stringify object' });
   }
 }
 
@@ -114,7 +99,7 @@ export function $decryptObj(data: string | null, secretKey: KeyObject): Result<R
   try {
     return JSON.parse(decrypted);
   } catch {
-    return $err('serialization', { error: 'Invalid data', description: `Failed to parse JSON, input: ${decrypted}` });
+    return $err('invalid_format', { error: 'Invalid data', description: `Failed to parse JSON, input: ${decrypted}` });
   }
 }
 
@@ -146,7 +131,9 @@ export function $decryptToken(
     if (decryptedAtError) return $err(decryptedAtError);
 
     const { data: atObj, error: atObjError } = zAccessTokenStructure.safeParse(decryptedAt);
-    if (atObjError) return $err('format', { error: 'Invalid data', description: 'Invalid access token structure' });
+    if (atObjError) {
+      return $err('invalid_format', { error: 'Invalid data', description: 'Invalid access token structure' });
+    }
 
     return $ok({ rawToken: atObj.at, injectedData: atObj.inj });
   }

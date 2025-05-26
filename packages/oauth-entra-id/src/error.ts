@@ -1,12 +1,12 @@
 export type HttpErrorCodes = 400 | 401 | 403 | 500;
+
 export type ErrorTypes =
-  | 'internal_error'
+  | 'internal'
   | 'nullish_value'
-  | 'input'
-  | 'format'
-  | 'config'
-  | 'cryptography'
-  | 'serialization'
+  | 'bad_request'
+  | 'invalid_format'
+  | 'misconfiguration'
+  | 'crypto_error'
   | 'jwt_error';
 
 export interface ResultErr {

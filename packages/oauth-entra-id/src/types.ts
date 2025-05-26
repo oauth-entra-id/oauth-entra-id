@@ -9,8 +9,7 @@ export type SessionType = 'cookie-session' | 'bearer-token';
  * Optional custom data to embed in access tokens.
  * Should not contain sensitive information.
  */
-// biome-ignore lint/suspicious/noExplicitAny: <explanation>
-export type InjectedData = Record<string, any>;
+export type InjectedData<T = any> = Record<string, T>;
 
 /**
  * Configuration for acquiring client credentials for a B2B service.
@@ -30,7 +29,7 @@ export interface B2BApp {
  */
 export interface DownstreamService {
   /** Unique identifier of the downstream service. */
-  clientId: string;
+  serviceName: string;
 
   /** OAuth 2.0 scope to request for the downstream service.
    * Usually end with `/.default` to request all permissions.
@@ -54,7 +53,7 @@ export interface DownstreamService {
 }
 
 export interface OboService {
-  clientId: string;
+  serviceName: string;
   secure: boolean;
   sameSite: boolean;
   scope: string;
@@ -190,6 +189,7 @@ export interface GetB2BTokenResult {
 }
 
 export interface GetTokenOnBehalfOfResult {
+  serviceName: string;
   clientId: string;
   accessToken: Cookies['AccessToken'];
   msalResponse: MsalResponse;

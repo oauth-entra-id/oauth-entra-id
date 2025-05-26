@@ -3,18 +3,26 @@ import type { OAuthProvider } from '~/core';
 import type { InjectedData } from '~/types';
 
 export type ServerType = 'express' | 'nestjs';
-export type UserInfo =
-  | {
-      isB2B: false;
-      uniqueId: string;
-      roles: string[];
-      name: string;
-      email: string;
-      injectedData?: InjectedData;
-    }
-  | { isB2B: true; uniqueId: string; roles: string[]; appId: string };
 
-export type InjectDataFunction = (data: InjectedData) => void;
+export interface User {
+  isApp: false;
+  uniqueId: string;
+  roles: string[];
+  name: string;
+  email: string;
+  injectedData?: InjectedData;
+}
+
+export interface AppUser {
+  isApp: true;
+  uniqueId: string;
+  roles: string[];
+  appId: string;
+}
+
+export type UserInfo = User | AppUser;
+
+export type InjectDataFunction<T = any> = (data: InjectedData<T>) => void;
 
 export type CallbackFunction = (params: {
   userInfo: UserInfo;
@@ -35,7 +43,7 @@ export interface Endpoints {
     frontendUrl?: string;
   };
   OnBehalfOf: {
-    clientIds: string[];
+    serviceNames: string[];
   };
 }
 
@@ -67,8 +75,8 @@ declare global {
       /**
        * Stores user authentication details.
        *
-       * - If `isB2B` is `false`, the user is authenticated locally.
-       * - If `isB2B` is `true`, the token was issued by another service.
+       * - If `isApp` is `false`, the user is authenticated locally.
+       * - If `isApp` is `true`, the token was issued by another service.
        */
       userInfo?: UserInfo;
     }

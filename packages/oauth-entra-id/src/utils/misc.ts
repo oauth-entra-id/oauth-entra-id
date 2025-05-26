@@ -1,4 +1,5 @@
-import { $err, $ok, type Result } from '~/error';
+import type { OAuthProvider } from '~/core';
+import { $err, $ok, type Result, type ResultErr } from '~/error';
 import type { B2BApp, OAuthConfig, OboService } from '~/types';
 
 export function $logger({ condition, funcName, message }: { condition: boolean; funcName: string; message: string }) {
@@ -14,7 +15,7 @@ export function $getB2BInfo(
   const names = Array.from(map.keys());
 
   if (names.length !== b2bConfig.length) {
-    return $err('config', { error: 'Invalid config', description: 'B2B has duplicate names' }, 500);
+    return $err('misconfiguration', { error: 'Invalid config', description: 'B2B has duplicate names' }, 500);
   }
 
   return $ok({ map, names });
@@ -27,7 +28,7 @@ export function $getOboInfo(
 
   const map = new Map(
     oboConfig.services.map((service) => [
-      service.clientId,
+      service.serviceName,
       {
         ...service,
         secure: service.isHttps ?? oboConfig.areHttps,
@@ -39,8 +40,33 @@ export function $getOboInfo(
   const names = Array.from(map.keys());
 
   if (names.length !== oboConfig.services.length) {
-    return $err('config', { error: 'Invalid config', description: 'OBO has duplicate client IDs' }, 500);
+    return $err('misconfiguration', { error: 'Invalid config', description: 'OBO has duplicate client IDs' }, 500);
   }
 
   return $ok({ map, names });
+}
+
+export function $filterCoreErrors(
+  err: unknown,
+  method: {
+    [K in keyof OAuthProvider]: OAuthProvider[K] extends (...args: any[]) => any ? K : never;
+  }[keyof OAuthProvider],
+): Result<never, ResultErr> {
+  if (err instanceof Error) {
+    return $err(
+      'internal',
+      { error: 'An Error occurred', description: `method: ${method}, message: ${err.message}, stack : ${err.stack}` },
+      500,
+    );
+  }
+
+  if (typeof err === 'string') {
+    return $err('internal', { error: 'An Error occurred', description: `method: ${method}, message: ${err}` }, 500);
+  }
+
+  return $err(
+    'internal',
+    { error: 'Unknown error', description: `method: ${method}, error: ${JSON.stringify(err)}` },
+    500,
+  );
 }

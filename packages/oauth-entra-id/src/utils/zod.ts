@@ -38,7 +38,7 @@ const zCookiesConfig = z.object({
 });
 
 const zDownstreamService = z.object({
-  clientId: zUuid,
+  serviceName: zServiceName,
   scope: zScope,
   secretKey: zSecretKey,
   isHttps: z.boolean().optional(),

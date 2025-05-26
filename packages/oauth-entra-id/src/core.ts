@@ -18,7 +18,6 @@ import type {
 import { $cookieOptions } from './utils/cookie-options';
 import {
   $createSecretKey,
-  $createSecretKeys,
   $decryptObj,
   $decryptToken,
   $encryptObj,
@@ -26,7 +25,7 @@ import {
   $getAud,
   $getKid,
 } from './utils/crypto';
-import { $getB2BInfo, $getOboInfo } from './utils/misc';
+import { $filterCoreErrors, $getB2BInfo, $getOboInfo } from './utils/misc';
 import { isJwt } from './utils/regex';
 import {
   $prettyError,
@@ -75,9 +74,13 @@ export class OAuthProvider {
    * @throws {OAuthError} If the configuration is invalid or contains duplicate service definitions.
    */
   constructor(configuration: OAuthConfig) {
-    const config = zConfig.safeParse(configuration);
-    if (config.error) {
-      throw new OAuthError('config', { error: 'Invalid configuration', description: $prettyError(config.error) }, 500);
+    const { data: config, error: configError } = zConfig.safeParse(configuration);
+    if (configError) {
+      throw new OAuthError(
+        'misconfiguration',
+        { error: 'Invalid configuration', description: $prettyError(configError) },
+        500,
+      );
     }
 
     const {
@@ -86,15 +89,21 @@ export class OAuthProvider {
       serverCallbackUrl,
       secretKey,
       advanced: { loginPrompt, sessionType, acceptB2BRequests, b2bTargetedApps, cookies, downstreamServices },
-    } = config.data;
-
-    const secretKeys = $createSecretKeys(secretKey);
-    if (secretKeys.error) throw new OAuthError(secretKeys.error);
+    } = config;
 
     const frontHosts = new Set(frontendUrl.map((url) => new URL(url).host));
     const serverHost = new URL(serverCallbackUrl).host;
     const secure = !cookies.disableHttps && [serverHost, ...frontHosts].every((url) => url.startsWith('https'));
     const sameSite = !cookies.disableSameSite && frontHosts.size === 1 ? frontHosts.has(serverHost) : false;
+
+    const { result: atSecretKey, error: atSecretKeyError } = $createSecretKey(`access-token-${secretKey}`);
+    if (atSecretKeyError) throw new OAuthError(atSecretKeyError);
+
+    const { result: rtSecretKey, error: rtSecretKeyError } = $createSecretKey(`refresh-token-${secretKey}`);
+    if (rtSecretKeyError) throw new OAuthError(rtSecretKeyError);
+
+    const { result: stateSecretKey, error: stateSecretKeyError } = $createSecretKey(`state-${secretKey}`);
+    if (stateSecretKeyError) throw new OAuthError(stateSecretKeyError);
 
     const b2bInfo = $getB2BInfo(b2bTargetedApps);
     if (b2bInfo.error) throw new OAuthError(b2bInfo.error);
@@ -106,9 +115,9 @@ export class OAuthProvider {
       clientId: azure.clientId,
       secure: secure,
       sameSite: sameSite,
-      cookiesTimeUnit: cookies.timeUnit,
-      accessTokenCookieExpiry: cookies.accessTokenExpiry,
-      refreshTokenCookieExpiry: cookies.refreshTokenExpiry,
+      timeUnit: cookies.timeUnit,
+      atExp: cookies.accessTokenExpiry,
+      rtExp: cookies.refreshTokenExpiry,
     });
 
     const settings = {
@@ -143,7 +152,7 @@ export class OAuthProvider {
     this.azure = azure;
     this.frontendUrls = frontendUrl as [string, ...string[]];
     this.serverCallbackUrl = serverCallbackUrl;
-    this.secretKeys = secretKeys.result;
+    this.secretKeys = { at: atSecretKey, rt: rtSecretKey, state: stateSecretKey };
     this.frontendWhitelist = frontHosts;
     this.defaultCookieOptions = defaultCookieOptions;
     this.b2bMap = b2bInfo.result?.map ?? null;
@@ -194,13 +203,15 @@ export class OAuthProvider {
     wasEncrypted: boolean;
   }> {
     const token = zJwtOrEncrypted.safeParse(accessToken);
-    if (token.error) return $err('format', { error: 'Unauthorized', description: 'Invalid access token format' }, 401);
+    if (token.error) {
+      return $err('invalid_format', { error: 'Unauthorized', description: 'Invalid access token format' }, 401);
+    }
 
     if (isJwt(token.data)) return $ok({ rawAccessToken: token.data, wasEncrypted: false });
 
     const decryptedToken = $decryptToken('accessToken', token.data, this.secretKeys.at);
     if (decryptedToken.error) {
-      return $err('format', { error: 'Unauthorized', description: decryptedToken.error.description }, 401);
+      return $err('invalid_format', { error: 'Unauthorized', description: decryptedToken.error.description }, 401);
     }
 
     return $ok({
@@ -213,11 +224,13 @@ export class OAuthProvider {
   /**Decrypts the refresh token and returns its raw value and OBO status. */
   private $decryptRefreshToken(refreshToken: string): Result<{ rawRefreshToken: string }> {
     const token = zEncrypted.safeParse(refreshToken);
-    if (token.error) return $err('format', { error: 'Unauthorized', description: 'Invalid refresh token format' }, 401);
+    if (token.error) {
+      return $err('invalid_format', { error: 'Unauthorized', description: 'Invalid refresh token format' }, 401);
+    }
 
     const decryptedToken = $decryptToken('refreshToken', token.data, this.secretKeys.rt);
     if (decryptedToken.error) {
-      return $err('format', { error: 'Unauthorized', description: decryptedToken.error.description }, 401);
+      return $err('invalid_format', { error: 'Unauthorized', description: decryptedToken.error.description }, 401);
     }
 
     return $ok({ rawRefreshToken: decryptedToken.result.rawToken });
@@ -279,13 +292,13 @@ export class OAuthProvider {
     Result<{ authUrl: string }>
   > {
     const { data: parsedParams, error: paramsError } = zMethods.getAuthUrl.safeParse(params);
-    if (paramsError) return $err('input', { error: 'Invalid params', description: $prettyError(paramsError) });
+    if (paramsError) return $err('bad_request', { error: 'Invalid params', description: $prettyError(paramsError) });
 
     if (parsedParams.loginPrompt === 'email' && !parsedParams.email) {
-      return $err('input', { error: 'Invalid params: Email required' });
+      return $err('bad_request', { error: 'Invalid params: Email required' });
     }
     if (parsedParams.frontendUrl && !this.frontendWhitelist.has(new URL(parsedParams.frontendUrl).host)) {
-      return $err('input', { error: 'Invalid params: Unlisted host frontend URL' }, 403);
+      return $err('bad_request', { error: 'Invalid params: Unlisted host frontend URL' }, 403);
     }
 
     try {
@@ -314,17 +327,12 @@ export class OAuthProvider {
       });
 
       if (new URL(authUrl).hostname !== 'login.microsoftonline.com') {
-        return $err('internal_error', { error: "Invalid redirect URL: must be 'login.microsoftonline.com'" }, 500);
+        return $err('internal', { error: "Invalid redirect URL: must be 'login.microsoftonline.com'" }, 500);
       }
 
       return $ok({ authUrl });
     } catch (err) {
-      //TODO: Handle specific MSAL errors
-      if (err instanceof Error) {
-        return $err('internal_error', { error: 'An error occurred', description: err.message }, 500);
-      }
-      if (typeof err === 'string') return $err('internal_error', { error: 'An error occurred', description: err }, 500);
-      return $err('internal_error', { error: 'An error occurred', description: String(err) }, 500);
+      return $filterCoreErrors(err, 'getAuthUrl');
     }
   }
 
@@ -338,13 +346,13 @@ export class OAuthProvider {
     }>
   > {
     const { data: parsedParams, error: paramsError } = zMethods.getTokenByCode.safeParse(params);
-    if (paramsError) return $err('input', { error: 'Invalid params', description: $prettyError(paramsError) });
+    if (paramsError) return $err('bad_request', { error: 'Invalid params', description: $prettyError(paramsError) });
 
     const { data: state, error: stateError } = zState.safeParse($decryptObj(parsedParams.state, this.secretKeys.state));
-    if (stateError) return $err('input', { error: 'Invalid state', description: $prettyError(stateError) });
+    if (stateError) return $err('bad_request', { error: 'Invalid state', description: $prettyError(stateError) });
 
     if (!this.frontendWhitelist.has(new URL(state.frontendUrl).host)) {
-      return $err('input', { error: 'Invalid params: Unlisted host frontend URL' }, 403);
+      return $err('bad_request', { error: 'Invalid params: Unlisted host frontend URL' }, 403);
     }
 
     try {
@@ -367,12 +375,7 @@ export class OAuthProvider {
         msalResponse,
       });
     } catch (err) {
-      //TODO: Handle specific MSAL errors
-      if (err instanceof Error) {
-        return $err('internal_error', { error: 'An error occurred', description: err.message }, 500);
-      }
-      if (typeof err === 'string') return $err('internal_error', { error: 'An error occurred', description: err }, 500);
-      return $err('internal_error', { error: 'An error occurred', description: String(err) }, 500);
+      return $filterCoreErrors(err, 'getTokenByCode');
     }
   }
 
@@ -383,10 +386,10 @@ export class OAuthProvider {
     deleteRefreshToken: Cookies['DeleteRefreshToken'];
   }> {
     const { data: parsedParams, error: paramsError } = zMethods.getLogoutUrl.safeParse(params);
-    if (paramsError) return $err('input', { error: 'Invalid params', description: $prettyError(paramsError) });
+    if (paramsError) return $err('bad_request', { error: 'Invalid params', description: $prettyError(paramsError) });
 
     if (parsedParams.frontendUrl && !this.frontendWhitelist.has(new URL(parsedParams.frontendUrl).host)) {
-      return $err('input', { error: 'Invalid params: Unlisted host frontend URL' }, 403);
+      return $err('bad_request', { error: 'Invalid params: Unlisted host frontend URL' }, 403);
     }
 
     const logoutUrl = new URL(`https://login.microsoftonline.com/${this.azure.tenantId}/oauth2/v2.0/logout`);
@@ -431,15 +434,25 @@ export class OAuthProvider {
     }
 
     const { result: at, error: atError } = this.$decryptAccessToken(accessToken);
-    if (atError) return $err('format', { error: 'Unauthorized', description: atError.description }, 401);
+    if (atError) return $err('invalid_format', { error: 'Unauthorized', description: atError.description }, 401);
 
     const payload = await this.$verifyJwt(at.rawAccessToken);
     if (payload.error) return payload;
 
     const isApp = payload.result.sub === payload.result.oid;
-    if (isApp && (at.wasEncrypted || !this.settings.acceptB2BRequests)) {
-      //TODO: Give better error type
-      return $err('internal_error', { error: 'Unauthorized', description: 'B2B token cannot be encrypted' }, 401);
+
+    if (this.settings.acceptB2BRequests === false) {
+      if (isApp === true && at.wasEncrypted === true) {
+        return $err('jwt_error', { error: 'Unauthorized', description: 'App token cannot be encrypted' }, 401);
+      }
+
+      if (isApp === false && at.wasEncrypted === false) {
+        return $err(
+          'jwt_error',
+          { error: 'Unauthorized', description: 'Normal user token cannot be unencrypted' },
+          401,
+        );
+      }
     }
 
     return $ok({ rawAccessToken: at.rawAccessToken, payload: payload.result, injectedData: at.injectedData, isApp });
@@ -475,8 +488,11 @@ export class OAuthProvider {
         forceCache: true,
       });
       if (!msalResponse) {
-        //TODO: Handle specific MSAL errors
-        return $err('internal_error', { error: 'Unauthorized', description: 'Failed to refresh token' }, 401);
+        return $err(
+          'internal',
+          { error: 'Unauthorized', description: 'Failed to refresh token, no msal response' },
+          401,
+        );
       }
 
       const { result: payload, error: payloadError } = await this.$verifyJwt(msalResponse.accessToken);
@@ -495,34 +511,24 @@ export class OAuthProvider {
         msalResponse,
       });
     } catch (err) {
-      //TODO: Handle specific MSAL errors
-      if (err instanceof Error) {
-        return $err('internal_error', { error: 'An error occurred', description: err.message }, 500);
-      }
-      if (typeof err === 'string') return $err('internal_error', { error: 'An error occurred', description: err }, 500);
-      return $err('internal_error', { error: 'An error occurred', description: String(err) }, 500);
+      return $filterCoreErrors(err, 'getTokenByRefresh');
     }
   }
 
-  /**
-   * Acquires tokens for B2B apps using client credentials.
-   *
-   * @param params - The parameters containing the B2B app name(s).
-   * @returns The B2B access token and MSAL response for the specified app(s).
-   * @throws {OAuthError} If the B2B apps are not configured or if the token is invalid.
-   */
+  /** Acquires tokens for B2B apps using client credentials. */
   async getB2BToken(params: { appName: string }): Promise<Result<GetB2BTokenResult>>;
   async getB2BToken(params: { appsNames: string[] }): Promise<Result<GetB2BTokenResult[]>>;
   async getB2BToken(
     params: { appName: string } | { appsNames: string[] },
   ): Promise<Result<GetB2BTokenResult | GetB2BTokenResult[]>> {
-    if (!this.b2bMap) return $err('config', { error: 'B2B apps not configured' }, 500);
+    if (!this.b2bMap) return $err('misconfiguration', { error: 'B2B apps not configured' }, 500);
 
     const { data: parsedParams, error: paramsError } = zMethods.getB2BToken.safeParse(params);
-    if (paramsError) return $err('input', { error: 'Invalid params', description: $prettyError(paramsError) });
+    if (paramsError) return $err('bad_request', { error: 'Invalid params', description: $prettyError(paramsError) });
 
     const apps = parsedParams.appNames.map((appName) => this.b2bMap?.get(appName)).filter((app) => !!app);
-    if (!apps || apps.length === 0) return $err('input', { error: 'Invalid params', description: 'B2B app not found' });
+    if (!apps || apps.length === 0)
+      return $err('bad_request', { error: 'Invalid params', description: 'B2B app not found' });
 
     try {
       const results = (
@@ -552,47 +558,36 @@ export class OAuthProvider {
       ).filter((result) => !!result);
 
       if (!results || results.length === 0) {
-        return $err('internal_error', { error: 'Failed to get B2B token' }, 500);
+        return $err('internal', { error: 'Failed to get B2B token' }, 500);
       }
 
       return $ok('appName' in params ? (results[0] as GetB2BTokenResult) : results);
     } catch (err) {
-      //TODO: Handle specific MSAL errors
-      if (err instanceof Error) {
-        return $err('internal_error', { error: 'An error occurred', description: err.message }, 500);
-      }
-      if (typeof err === 'string') return $err('internal_error', { error: 'An error occurred', description: err }, 500);
-      return $err('internal_error', { error: 'An error occurred', description: String(err) }, 500);
+      return $filterCoreErrors(err, 'getB2BToken');
     }
   }
 
-  /**
-   * Acquires tokens for trusted downstream services via the On-Behalf-Of (OBO) flow.
-   *
-   * @param params - The parameters containing the access token and service name(s).
-   * @returns The OBO access token and MSAL response for the specified service(s).
-   * @throws {OAuthError} If the OBO services are not configured or if the token is invalid.
-   */
-  async getTokenOnBehalfOf(params: { accessToken: string; clientId: string }): Promise<
+  /** Acquires tokens for trusted downstream services via the On-Behalf-Of (OBO) flow. */
+  async getTokenOnBehalfOf(params: { accessToken: string; serviceName: string }): Promise<
     Result<GetTokenOnBehalfOfResult>
   >;
-  async getTokenOnBehalfOf(params: { accessToken: string; clientIds: string[] }): Promise<
+  async getTokenOnBehalfOf(params: { accessToken: string; serviceNames: string[] }): Promise<
     Result<GetTokenOnBehalfOfResult[]>
   >;
   async getTokenOnBehalfOf(
-    params: { accessToken: string; clientId: string } | { accessToken: string; clientIds: string[] },
+    params: { accessToken: string; serviceName: string } | { accessToken: string; serviceNames: string[] },
   ): Promise<Result<GetTokenOnBehalfOfResult | GetTokenOnBehalfOfResult[]>> {
-    if (!this.oboMap) return $err('config', { error: 'OBO services not configured' }, 500);
+    if (!this.oboMap) return $err('misconfiguration', { error: 'OBO services not configured' }, 500);
 
     const { data: parsedParams, error: paramsError } = zMethods.getTokenOnBehalfOf.safeParse(params);
-    if (paramsError) return $err('input', { error: 'Invalid params', description: $prettyError(paramsError) });
+    if (paramsError) return $err('bad_request', { error: 'Invalid params', description: $prettyError(paramsError) });
 
     const services = parsedParams.clientIds
       .map((clientId) => this.oboMap?.get(clientId))
       .filter((service) => !!service);
 
     if (!services || services.length === 0) {
-      return $err('input', { error: 'Invalid params', description: 'OBO service not found' });
+      return $err('bad_request', { error: 'Invalid params', description: 'OBO service not found' });
     }
 
     const { result: at, error: atError } = this.$decryptAccessToken(parsedParams.accessToken);
@@ -613,8 +608,6 @@ export class OAuthProvider {
               const { result: clientId, error: clientIdError } = $getAud(msalResponse.accessToken);
               if (clientIdError) return null;
 
-              if (clientId !== service.clientId) return null;
-
               const { result: serviceSecretKey, error: serviceSecretKeyError } = $createSecretKey(
                 `access-token-${service.secretKey}`,
               );
@@ -633,12 +626,13 @@ export class OAuthProvider {
                 clientId,
                 secure: service.secure,
                 sameSite: service.sameSite,
-                cookiesTimeUnit: this.settings.cookiesTimeUnit,
-                accessTokenCookieExpiry: service.atExp ?? this.settings.accessTokenCookieExpiry,
-                refreshTokenCookieExpiry: service.atExp ?? this.settings.refreshTokenCookieExpiry,
+                timeUnit: this.settings.cookiesTimeUnit,
+                atExp: service.atExp ?? this.settings.accessTokenCookieExpiry,
+                rtExp: service.atExp ?? this.settings.refreshTokenCookieExpiry,
               });
 
               return {
+                serviceName: service.serviceName,
                 clientId,
                 accessToken: { value: accessTokenValue, ...cookieOptions.accessToken },
                 msalResponse,
@@ -651,27 +645,17 @@ export class OAuthProvider {
       ).filter((result) => !!result);
 
       if (!results || results.length === 0) {
-        return $err('internal_error', { error: 'Failed to get OBO token' }, 500);
+        return $err('internal', { error: 'Failed to get OBO token' }, 500);
       }
 
-      return $ok('clientId' in params ? (results[0] as GetTokenOnBehalfOfResult) : results);
+      return $ok('serviceName' in params ? (results[0] as GetTokenOnBehalfOfResult) : results);
     } catch (err) {
-      //TODO: Handle specific MSAL errors
-      if (err instanceof Error) {
-        return $err('internal_error', { error: 'An error occurred', description: err.message }, 500);
-      }
-      if (typeof err === 'string') return $err('internal_error', { error: 'An error occurred', description: err }, 500);
-      return $err('internal_error', { error: 'An error occurred', description: String(err) }, 500);
+      return $filterCoreErrors(err, 'getTokenOnBehalfOf');
     }
   }
 
-  /**
-   * Injects data into the access token. Useful for embedding non-sensitive metadata into token structure.
-   *
-   * @param params - The parameters containing the access token value and data to inject.
-   * @returns The new access token cookie with injected data, or null if the token is invalid.
-   */
-  injectData<TValues, TData extends Record<string, TValues>>(params: { accessToken: string; data: TData }): Result<
+  /** Injects data into the access token. Useful for embedding non-sensitive metadata into token structure. */
+  injectData<TData extends InjectedData<unknown>>(params: { accessToken: string; data: TData }): Result<
     Cookies['AccessToken']
   > {
     const { result: at, error: atError } = this.$decryptAccessToken(params.accessToken);
@@ -683,7 +667,7 @@ export class OAuthProvider {
     });
 
     if (nextAtStructError) {
-      return $err('format', { error: 'Invalid data', description: $prettyError(nextAtStructError) });
+      return $err('invalid_format', { error: 'Invalid data', description: $prettyError(nextAtStructError) });
     }
 
     const { result: accessToken, error: accessTokenError } = $encryptToken(

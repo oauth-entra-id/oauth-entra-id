@@ -10,38 +10,31 @@ export async function sharedIsAuthenticated(
   req: Request,
   res: Response,
 ): Promise<{ userInfo: UserInfo; injectData: InjectDataFunction }> {
-  const localDebug = (message: string) => {
-    $logger({
-      condition: req.oauthProvider.settings.debug,
-      funcName: req.serverType === 'express' ? 'protectRoute' : 'isAuthenticated',
-      message,
-    });
-  };
-
   const oauthProvider = req.oauthProvider;
+
   if (oauthProvider.settings.sessionType !== 'cookie-session') {
-    throw new OAuthError(500, {
-      message: 'Invalid session type',
+    throw new OAuthError('misconfiguration', {
+      error: 'Invalid session type',
       description: 'Session type must be cookie-session',
     });
   }
 
   const InjectDataFunction = (accessToken: string, data: InjectedData) => {
-    const newAccessToken = oauthProvider.injectData({ accessToken, data });
+    const { result: newAccessToken } = oauthProvider.injectData({ accessToken, data });
     if (newAccessToken) setCookie(res, newAccessToken.name, newAccessToken.value, newAccessToken.options);
-    if (req.userInfo?.isB2B === false) req.userInfo = { ...req.userInfo, injectedData: data };
+    if (req.userInfo?.isApp === false) req.userInfo = { ...req.userInfo, injectedData: data };
   };
 
   const authorizationHeader = req.headers.authorization;
 
   if (oauthProvider.settings.acceptB2BRequests && authorizationHeader) {
     const bearerAccessToken = authorizationHeader.startsWith('Bearer ') ? authorizationHeader.split(' ')[1] : undefined;
-    const bearerInfo = await oauthProvider.verifyAccessToken(bearerAccessToken);
-    if (!bearerInfo) throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid access token' });
+    const { result: bearerInfo, error: bearerError } = await oauthProvider.verifyAccessToken(bearerAccessToken);
+    if (bearerError) throw new OAuthError(bearerError);
 
-    const userInfo = getUserInfo({ payload: bearerInfo.payload, isB2B: true });
+    const userInfo = getUserInfo({ payload: bearerInfo.payload, isApp: true });
 
-    req.accessTokenInfo = { jwt: bearerInfo.jwtAccessToken, payload: bearerInfo.payload };
+    req.accessTokenInfo = { jwt: bearerInfo.rawAccessToken, payload: bearerInfo.payload };
     req.userInfo = userInfo;
 
     return { userInfo, injectData: (data) => null };
@@ -50,32 +43,34 @@ export async function sharedIsAuthenticated(
   const { accessTokenName, refreshTokenName } = oauthProvider.getCookieNames();
   const cookieAccessToken = getCookie(req, accessTokenName);
   const cookieRefreshToken = getCookie(req, refreshTokenName);
-  localDebug(`Cookies: ${accessTokenName}=${!!cookieAccessToken}, ${refreshTokenName}=${!!cookieRefreshToken}`);
 
   if (!cookieAccessToken && !cookieRefreshToken) {
-    throw new OAuthError(401, { message: 'Unauthorized', description: 'No access token and refresh token' });
+    throw new OAuthError('nullish_value', {
+      error: 'Unauthorized',
+      description: 'Access token and refresh token are required for authentication',
+    });
   }
 
-  const tokenInfo = await oauthProvider.verifyAccessToken(cookieAccessToken);
+  const { result: tokenInfo } = await oauthProvider.verifyAccessToken(cookieAccessToken);
 
   if (tokenInfo) {
     const userInfo = getUserInfo({ payload: tokenInfo.payload, injectedData: tokenInfo.injectedData });
 
-    req.accessTokenInfo = { jwt: tokenInfo.jwtAccessToken, payload: tokenInfo.payload };
+    req.accessTokenInfo = { jwt: tokenInfo.rawAccessToken, payload: tokenInfo.payload };
     req.userInfo = userInfo;
 
-    return { userInfo, injectData: (data) => InjectDataFunction(tokenInfo.jwtAccessToken, data) };
+    return { userInfo, injectData: (data) => InjectDataFunction(tokenInfo.rawAccessToken, data) };
   }
 
-  const newTokensInfo = await oauthProvider.getTokenByRefresh(cookieRefreshToken);
-  if (!newTokensInfo) throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid refresh token' });
-  const { jwtAccessToken, payload, newAccessToken, newRefreshToken } = newTokensInfo;
+  const { result: newTokensInfo, error: newTokensError } = await oauthProvider.getTokenByRefresh(cookieRefreshToken);
+  if (newTokensError) throw new OAuthError(newTokensError);
+  const { rawAccessToken, payload, newAccessToken, newRefreshToken } = newTokensInfo;
 
   setCookie(res, newAccessToken.name, newAccessToken.value, newAccessToken.options);
   if (newRefreshToken) setCookie(res, newRefreshToken.name, newRefreshToken.value, newRefreshToken.options);
 
-  const userInfo = getUserInfo({ payload, isB2B: false });
-  req.accessTokenInfo = { jwt: jwtAccessToken, payload };
+  const userInfo = getUserInfo({ payload, isApp: false });
+  req.accessTokenInfo = { jwt: rawAccessToken, payload };
   req.userInfo = userInfo;
 
   return { userInfo, injectData: (data) => InjectDataFunction(newAccessToken.value, data) };
@@ -84,17 +79,17 @@ export async function sharedIsAuthenticated(
 function getUserInfo({
   payload,
   injectedData,
-  isB2B,
-}: { payload: JwtPayload; injectedData?: InjectedData; isB2B?: boolean }) {
-  return isB2B
+  isApp,
+}: { payload: JwtPayload; injectedData?: InjectedData; isApp?: boolean }) {
+  return isApp
     ? ({
-        isB2B: true,
+        isApp: true,
         uniqueId: payload.oid,
         roles: payload.roles,
         appId: payload.azp,
       } as const)
     : ({
-        isB2B: false,
+        isApp: false,
         uniqueId: payload.oid,
         roles: payload.roles,
         name: payload.name,
