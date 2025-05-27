@@ -26,17 +26,7 @@ import {
   $getKid,
 } from './utils/crypto';
 import { $filterCoreErrors, $getB2BInfo, $getOboInfo } from './utils/misc';
-import { isJwt } from './utils/regex';
-import {
-  $prettyError,
-  zAccessTokenStructure,
-  zConfig,
-  zEncrypted,
-  zJwt,
-  zJwtOrEncrypted,
-  zMethods,
-  zState,
-} from './utils/zod';
+import { $prettyError, zAccessTokenStructure, zConfig, zEncrypted, zJwt, zMethods, zState } from './utils/zod';
 
 /**
  * The core authentication class that handles OAuth 2.0 flows using Microsoft Entra ID (Azure AD).
@@ -204,15 +194,22 @@ export class OAuthProvider {
     injectedData?: T;
     wasEncrypted: boolean;
   }> {
-    const token = zJwtOrEncrypted.safeParse(accessToken);
-    if (token.error) {
-      return $err('invalid_format', { error: 'Unauthorized', description: 'Invalid access token format', status: 401 });
+    const { data: jwtToken, success: jwtSuccess } = zJwt.safeParse(accessToken);
+    if (jwtSuccess) return $ok({ rawAccessToken: jwtToken, injectedData: undefined, wasEncrypted: false });
+
+    const { data: token, error: tokenError } = zEncrypted.safeParse(accessToken);
+    if (tokenError) {
+      return $err('invalid_format', {
+        error: 'Unauthorized',
+        description: 'Invalid access token format',
+        status: 401,
+      });
     }
 
-    if (isJwt(token.data)) return $ok({ rawAccessToken: token.data, wasEncrypted: false });
-
-    const { error, rawToken, injectedData } = $decryptToken<T>('accessToken', token.data, this.secretKeys.at);
-    if (error) return $err('invalid_format', { error: 'Unauthorized', description: error.description, status: 401 });
+    const { error: decryptError, rawToken, injectedData } = $decryptToken<T>('accessToken', token, this.secretKeys.at);
+    if (decryptError) {
+      return $err('invalid_format', { error: 'Unauthorized', description: decryptError.description, status: 401 });
+    }
 
     return $ok({ rawAccessToken: rawToken, injectedData, wasEncrypted: true });
   }
@@ -598,8 +595,8 @@ export class OAuthProvider {
     const { data: parsedParams, error: paramsError } = zMethods.getTokenOnBehalfOf.safeParse(params);
     if (paramsError) return $err('bad_request', { error: 'Invalid params', description: $prettyError(paramsError) });
 
-    const services = parsedParams.clientIds
-      .map((clientId) => this.oboMap?.get(clientId))
+    const services = parsedParams.serviceNames
+      .map((serviceName) => this.oboMap?.get(serviceName))
       .filter((service) => !!service);
 
     if (!services || services.length === 0) {

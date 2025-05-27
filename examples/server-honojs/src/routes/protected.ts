@@ -3,7 +3,7 @@ import axios from 'axios';
 import { Hono } from 'hono';
 import { setCookie } from 'hono/cookie';
 import { HTTPException } from 'hono/http-exception';
-import { z } from 'zod';
+import { z } from 'zod/v4';
 import { env } from '~/env';
 import { type ProtectRoute, protectRoute } from '~/middlewares/protect-route';
 import { oauthProvider } from '~/oauth';
@@ -11,12 +11,8 @@ import { oauthProvider } from '~/oauth';
 const zAvailableServers = z.enum(['express', 'nestjs', 'fastify']);
 
 const zSchemas = {
-  onBehalfOf: z.object({
-    serviceNames: z.array(z.string()),
-  }),
-  getB2BInfo: z.object({
-    appName: zAvailableServers,
-  }),
+  onBehalfOf: z.object({ serviceNames: z.array(z.string()) }),
+  getB2BInfo: z.object({ appName: zAvailableServers }),
 };
 
 export const protectedRouter = new Hono<ProtectRoute>();

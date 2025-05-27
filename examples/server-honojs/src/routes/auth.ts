@@ -2,26 +2,19 @@ import { zValidator } from '@hono/zod-validator';
 import { Hono } from 'hono';
 import { deleteCookie, setCookie } from 'hono/cookie';
 import { HTTPException } from 'hono/http-exception';
-import { z } from 'zod';
+import { z } from 'zod/v4';
 import { oauthProvider } from '~/oauth';
 
 const zSchemas = {
   authenticate: z
     .object({
       loginPrompt: z.enum(['email', 'select-account', 'sso']).optional(),
-      email: z.string().email().optional(),
-      frontendUrl: z.string().url().optional(),
+      email: z.email().optional(),
+      frontendUrl: z.url().optional(),
     })
     .optional(),
-  callback: z.object({
-    code: z.string(),
-    state: z.string(),
-  }),
-  logout: z
-    .object({
-      frontendUrl: z.string().url().optional(),
-    })
-    .optional(),
+  callback: z.object({ code: z.string(), state: z.string() }),
+  logout: z.object({ frontendUrl: z.url().optional() }).optional(),
 };
 
 export const authRouter = new Hono();

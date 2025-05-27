@@ -16,15 +16,36 @@ export class ErrorCatcher implements ExceptionFilter {
     let message = 'Something went wrong...';
     let description: string | undefined;
 
-    if (exception instanceof HttpException) {
-      statusCode = exception.getStatus();
-      message = exception.message;
-    } else if (exception instanceof OAuthError) {
-      statusCode = exception.statusCode;
-      message = exception.message;
-      description = env.NODE_ENV === 'development' ? exception.description : undefined;
-    } else if (exception instanceof Error) {
-      message = exception.message;
+    switch (true) {
+      case typeof exception === 'string': {
+        message = exception;
+        break;
+      }
+      case exception instanceof OAuthError: {
+        message = exception.message;
+        statusCode = exception.statusCode;
+        description = env.NODE_ENV === 'development' ? exception.description : undefined;
+        break;
+      }
+      case exception instanceof HttpException: {
+        message = exception.message;
+        statusCode = exception.getStatus();
+        break;
+      }
+      case exception instanceof Error: {
+        message = exception.message;
+        if (exception.name === 'SyntaxError') {
+          message = 'Invalid Syntax';
+          statusCode = 400;
+        }
+        break;
+      }
+      case typeof exception === 'object' && exception !== null: {
+        const error = exception as { message?: string; statusCode?: number };
+        if (error.message && typeof error.message === 'string') message = error.message;
+        if (error.statusCode && typeof error.statusCode === 'number') statusCode = error.statusCode;
+        break;
+      }
     }
 
     httpAdapter.reply(ctx.getResponse(), { error: message, statusCode, description }, statusCode);

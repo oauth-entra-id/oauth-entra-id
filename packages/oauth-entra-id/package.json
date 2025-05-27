@@ -62,7 +62,7 @@
     "@azure/msal-node": "^3.5.3",
     "jsonwebtoken": "^9.0.2",
     "jwks-rsa": "^3.2.0",
-    "zod": "^3.24.4"
+    "zod": "^3.25.30"
   },
   "peerDependencies": {
     "express": ">=4.21.0"
@@ -73,10 +73,10 @@
     }
   },
   "devDependencies": {
-    "@types/express": "^5.0.1",
+    "@types/express": "^5.0.2",
     "@types/jsonwebtoken": "^9.0.9",
-    "@types/node": "^22.15.18",
-    "tsup": "^8.4.0",
+    "@types/node": "^22.15.21",
+    "tsup": "^8.5.0",
     "typescript": "^5.8.3"
   },
   "license": "MIT",

@@ -1,11 +1,11 @@
 import type { Request, Response } from 'express';
 import { OAuthError } from '~/error';
-import { cookieNameRegex, cookieValueRegex } from '~/utils/regex';
+import { base64urlWithDotRegex } from '~/utils/zod';
 import type { CookieParserOptions } from './types';
 
 export function getCookie(req: Request, name: string): string | undefined {
   const cookies = req.get('cookie');
-  if (!cookieNameRegex.test(name)) {
+  if (!base64urlWithDotRegex.test(name)) {
     return undefined;
   }
 
@@ -35,7 +35,7 @@ export function getCookie(req: Request, name: string): string | undefined {
       cookieValue = cookieValue.slice(1, -1);
     }
 
-    if (!cookieValueRegex.test(cookieValue)) {
+    if (!base64urlWithDotRegex.test(cookieValue)) {
       return undefined;
     }
 
@@ -46,14 +46,14 @@ export function getCookie(req: Request, name: string): string | undefined {
 }
 
 export function setCookie(res: Response, name: string, value: string, options: CookieParserOptions) {
-  if (!cookieNameRegex.test(name)) {
+  if (!base64urlWithDotRegex.test(name)) {
     throw new OAuthError('bad_request', {
       error: 'Invalid cookie name',
       description: 'Cookie name does not match the required pattern',
     });
   }
 
-  if (value !== '' && !cookieValueRegex.test(value)) {
+  if (value !== '' && !base64urlWithDotRegex.test(value)) {
     throw new OAuthError('bad_request', {
       error: 'Invalid cookie value',
       description: 'Cookie value does not match the required pattern',
