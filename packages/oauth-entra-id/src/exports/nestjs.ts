@@ -51,7 +51,7 @@ export function authConfig(config: OAuthConfig) {
 export async function handleAuthentication(req: Request, res: Response) {
   try {
     if (!req.oauthProvider || req.serverType !== 'nestjs') {
-      throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE }, 500);
+      throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE, status: 500 });
     }
     await sharedHandleAuthentication(req, res);
   } catch (err) {
@@ -74,7 +74,7 @@ export async function handleAuthentication(req: Request, res: Response) {
 export async function handleCallback(req: Request, res: Response) {
   try {
     if (!req.oauthProvider || req.serverType !== 'nestjs') {
-      throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE }, 500);
+      throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE, status: 500 });
     }
     await sharedHandleCallback(req, res);
   } catch (err) {
@@ -95,7 +95,7 @@ export async function handleCallback(req: Request, res: Response) {
 export function handleLogout(req: Request, res: Response) {
   try {
     if (!req.oauthProvider || req.serverType !== 'nestjs') {
-      throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE }, 500);
+      throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE, status: 500 });
     }
     sharedHandleLogout(req, res);
   } catch (err) {
@@ -116,7 +116,7 @@ export function handleLogout(req: Request, res: Response) {
 export async function handleOnBehalfOf(req: Request, res: Response) {
   try {
     if (!req.oauthProvider || req.serverType !== 'nestjs') {
-      throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE }, 500);
+      throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE, status: 500 });
     }
     await sharedHandleOnBehalfOf(req, res);
   } catch (err) {
@@ -149,7 +149,7 @@ export async function handleOnBehalfOf(req: Request, res: Response) {
 export async function isAuthenticated(req: Request, res: Response, cb?: CallbackFunction) {
   try {
     if (!req.oauthProvider || req.serverType !== 'nestjs') {
-      throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE }, 500);
+      throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE, status: 500 });
     }
     const { userInfo, injectData } = await sharedIsAuthenticated(req, res);
     if (cb) await cb({ userInfo, injectData });

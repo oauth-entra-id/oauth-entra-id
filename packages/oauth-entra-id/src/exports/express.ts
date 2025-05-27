@@ -51,7 +51,7 @@ export function authConfig(config: OAuthConfig) {
 export async function handleAuthentication(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.oauthProvider || req.serverType !== 'express') {
-      throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE }, 500);
+      throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE, status: 500 });
     }
     await sharedHandleAuthentication(req, res);
   } catch (err) {
@@ -72,7 +72,7 @@ export async function handleAuthentication(req: Request, res: Response, next: Ne
 export async function handleCallback(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.oauthProvider || req.serverType !== 'express') {
-      throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE }, 500);
+      throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE, status: 500 });
     }
     await sharedHandleCallback(req, res);
   } catch (err) {
@@ -91,7 +91,7 @@ export async function handleCallback(req: Request, res: Response, next: NextFunc
 export function handleLogout(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.oauthProvider || req.serverType !== 'express') {
-      throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE }, 500);
+      throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE, status: 500 });
     }
     sharedHandleLogout(req, res);
   } catch (err) {
@@ -110,7 +110,7 @@ export function handleLogout(req: Request, res: Response, next: NextFunction) {
 export async function handleOnBehalfOf(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.oauthProvider || req.serverType !== 'express') {
-      throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE }, 500);
+      throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE, status: 500 });
     }
     await sharedHandleOnBehalfOf(req, res);
   } catch (err) {
@@ -141,7 +141,7 @@ export function protectRoute(cb?: CallbackFunction) {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.oauthProvider || req.serverType !== 'express') {
-        throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE }, 500);
+        throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE, status: 500 });
       }
       const { userInfo, injectData } = await sharedIsAuthenticated(req, res);
       if (cb) await cb({ userInfo, injectData });

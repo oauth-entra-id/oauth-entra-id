@@ -8,25 +8,25 @@ export function $logger({ condition, funcName, message }: { condition: boolean; 
 
 export function $getB2BInfo(
   b2bConfig: B2BApp[] | undefined,
-): Result<{ map: Map<string, B2BApp>; names: string[] } | null> {
-  if (!b2bConfig) return $ok(null);
+): Result<{ b2bMap: Map<string, B2BApp> | undefined; b2bNames: string[] | undefined }> {
+  if (!b2bConfig) return $ok({ b2bMap: undefined, b2bNames: undefined });
 
-  const map = new Map(b2bConfig.map((app) => [app.appName, app]));
-  const names = Array.from(map.keys());
+  const b2bMap = new Map(b2bConfig.map((app) => [app.appName, app]));
+  const b2bNames = Array.from(b2bMap.keys());
 
-  if (names.length !== b2bConfig.length) {
-    return $err('misconfiguration', { error: 'Invalid config', description: 'B2B has duplicate names' }, 500);
+  if (b2bNames.length !== b2bConfig.length) {
+    return $err('misconfiguration', { error: 'Invalid config', description: 'B2B has duplicate names', status: 500 });
   }
 
-  return $ok({ map, names });
+  return $ok({ b2bMap, b2bNames });
 }
 
 export function $getOboInfo(
   oboConfig: NonNullable<OAuthConfig['advanced']>['downstreamServices'] | undefined,
-): Result<{ map: Map<string, OboService>; names: string[] } | null> {
-  if (!oboConfig) return $ok(null);
+): Result<{ oboMap: Map<string, OboService> | undefined; oboNames: string[] | undefined }> {
+  if (!oboConfig) return $ok({ oboMap: undefined, oboNames: undefined });
 
-  const map = new Map(
+  const oboMap = new Map(
     oboConfig.services.map((service) => [
       service.serviceName,
       {
@@ -37,13 +37,17 @@ export function $getOboInfo(
     ]),
   );
 
-  const names = Array.from(map.keys());
+  const oboNames = Array.from(oboMap.keys());
 
-  if (names.length !== oboConfig.services.length) {
-    return $err('misconfiguration', { error: 'Invalid config', description: 'OBO has duplicate client IDs' }, 500);
+  if (oboNames.length !== oboConfig.services.length) {
+    return $err('misconfiguration', {
+      error: 'Invalid config',
+      description: 'OBO has duplicate client IDs',
+      status: 500,
+    });
   }
 
-  return $ok({ map, names });
+  return $ok({ oboMap, oboNames });
 }
 
 export function $filterCoreErrors(
@@ -53,20 +57,24 @@ export function $filterCoreErrors(
   }[keyof OAuthProvider],
 ): Result<never, ResultErr> {
   if (err instanceof Error) {
-    return $err(
-      'internal',
-      { error: 'An Error occurred', description: `method: ${method}, message: ${err.message}, stack : ${err.stack}` },
-      500,
-    );
+    return $err('internal', {
+      error: 'An Error occurred',
+      description: `method: ${method}, message: ${err.message}, stack : ${err.stack}`,
+      status: 500,
+    });
   }
 
   if (typeof err === 'string') {
-    return $err('internal', { error: 'An Error occurred', description: `method: ${method}, message: ${err}` }, 500);
+    return $err('internal', {
+      error: 'An Error occurred',
+      description: `method: ${method}, message: ${err}`,
+      status: 500,
+    });
   }
 
-  return $err(
-    'internal',
-    { error: 'Unknown error', description: `method: ${method}, error: ${JSON.stringify(err)}` },
-    500,
-  );
+  return $err('internal', {
+    error: 'Unknown error',
+    description: `method: ${method}, error: ${JSON.stringify(err)}`,
+    status: 500,
+  });
 }

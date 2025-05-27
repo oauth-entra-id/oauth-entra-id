@@ -8,15 +8,15 @@ export async function sharedHandleAuthentication(req: Request, res: Response) {
     throw new OAuthError('misconfiguration', {
       error: 'Invalid session type',
       description: 'Session type must be cookie-session',
+      status: 500,
     });
   }
 
   const body = req.body as Endpoints['Authenticate'] | undefined;
   const params = body ? { loginPrompt: body.loginPrompt, email: body.email, frontendUrl: body.frontendUrl } : {};
 
-  const { result, error } = await req.oauthProvider.getAuthUrl(params);
+  const { authUrl, error } = await req.oauthProvider.getAuthUrl(params);
   if (error) throw new OAuthError(error);
-  const { authUrl } = result;
 
   res.status(200).json({ url: authUrl });
 }
@@ -26,6 +26,7 @@ export async function sharedHandleCallback(req: Request, res: Response) {
     throw new OAuthError('misconfiguration', {
       error: 'Invalid session type',
       description: 'Session type must be cookie-session',
+      status: 500,
     });
   }
 
@@ -34,9 +35,11 @@ export async function sharedHandleCallback(req: Request, res: Response) {
     throw new OAuthError('bad_request', { error: 'Invalid params', description: 'Body must contain code and state' });
   }
 
-  const { result, error } = await req.oauthProvider.getTokenByCode({ code: body.code, state: body.state });
+  const { accessToken, refreshToken, frontendUrl, error } = await req.oauthProvider.getTokenByCode({
+    code: body.code,
+    state: body.state,
+  });
   if (error) throw new OAuthError(error);
-  const { accessToken, refreshToken, frontendUrl } = result;
 
   setCookie(res, accessToken.name, accessToken.value, accessToken.options);
   if (refreshToken) setCookie(res, refreshToken.name, refreshToken.value, refreshToken.options);
@@ -48,15 +51,15 @@ export function sharedHandleLogout(req: Request, res: Response) {
     throw new OAuthError('misconfiguration', {
       error: 'Invalid session type',
       description: 'Session type must be cookie-session',
+      status: 500,
     });
   }
 
   const body = req.body as Endpoints['Logout'] | undefined;
   const params = body ? { frontendUrl: body.frontendUrl } : {};
 
-  const { result, error } = req.oauthProvider.getLogoutUrl(params);
+  const { logoutUrl, deleteAccessToken, deleteRefreshToken, error } = req.oauthProvider.getLogoutUrl(params);
   if (error) throw new OAuthError(error);
-  const { logoutUrl, deleteAccessToken, deleteRefreshToken } = result;
 
   setCookie(res, deleteAccessToken.name, deleteAccessToken.value, deleteAccessToken.options);
   setCookie(res, deleteRefreshToken.name, deleteRefreshToken.value, deleteRefreshToken.options);
@@ -68,6 +71,7 @@ export async function sharedHandleOnBehalfOf(req: Request, res: Response) {
     throw new OAuthError('misconfiguration', {
       error: 'Invalid session type',
       description: 'Session type must be cookie-session',
+      status: 500,
     });
   }
 
@@ -90,7 +94,7 @@ export async function sharedHandleOnBehalfOf(req: Request, res: Response) {
     });
   }
 
-  const { result: results, error } = await req.oauthProvider.getTokenOnBehalfOf({
+  const { results, error } = await req.oauthProvider.getTokenOnBehalfOf({
     serviceNames: body.serviceNames,
     accessToken: req.accessTokenInfo.jwt,
   });

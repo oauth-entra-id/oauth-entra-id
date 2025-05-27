@@ -28,10 +28,10 @@ protectedRouter.get('/user-info', (c) => {
 });
 
 protectedRouter.post('/on-behalf-of', zValidator('json', zSchemas.onBehalfOf), async (c) => {
-  if (c.get('userInfo')?.isB2B === true) throw new HTTPException(401, { message: 'B2B users cannot use OBO' });
+  if (c.get('userInfo')?.isApp === true) throw new HTTPException(401, { message: 'B2B users cannot use OBO' });
 
   const { serviceNames } = c.req.valid('json');
-  const { result: results, error } = await oauthProvider.getTokenOnBehalfOf({
+  const { results, error } = await oauthProvider.getTokenOnBehalfOf({
     accessToken: c.get('accessTokenInfo').jwt,
     serviceNames,
   });
@@ -61,7 +61,7 @@ protectedRouter.post('/get-b2b-info', zValidator('json', zSchemas.getB2BInfo), a
 });
 
 protectedRouter.get('/b2b-info', (c) => {
-  if (c.get('userInfo')?.isB2B === false) throw new HTTPException(401, { message: 'Unauthorized' });
+  if (c.get('userInfo')?.isApp === false) throw new HTTPException(401, { message: 'Unauthorized' });
   const randomPokemon = pokemon[Math.floor(Math.random() * pokemon.length)];
   return c.json({ pokemon: randomPokemon, server: 'honojs' });
 });

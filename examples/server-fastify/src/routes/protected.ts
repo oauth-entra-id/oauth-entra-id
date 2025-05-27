@@ -24,11 +24,11 @@ export const protectedRouter: FastifyPluginAsyncTypebox = async (app) => {
   });
 
   app.post('/on-behalf-of', { schema: { body: tSchemas.onBehalfOf } }, async (req, reply) => {
-    if (req.userInfo?.isB2B === true) throw new HttpException('B2B users cannot use OBO', 401);
+    if (req.userInfo?.isApp === true) throw new HttpException('B2B users cannot use OBO', 401);
 
     const { serviceNames } = req.body;
 
-    const { result: results, error } = await oauthProvider.getTokenOnBehalfOf({
+    const { results, error } = await oauthProvider.getTokenOnBehalfOf({
       accessToken: req.accessTokenInfo.jwt,
       serviceNames,
     });
@@ -58,7 +58,7 @@ export const protectedRouter: FastifyPluginAsyncTypebox = async (app) => {
   });
 
   app.get('/b2b-info', (req, reply) => {
-    if (req.userInfo?.isB2B === false) throw new HttpException('Unauthorized', 401);
+    if (req.userInfo?.isApp === false) throw new HttpException('Unauthorized', 401);
     const randomPokemon = pokemon[Math.floor(Math.random() * pokemon.length)];
     return { pokemon: randomPokemon, server: 'fastify' };
   });
