@@ -2,7 +2,6 @@ import type { Request, Response } from 'express';
 import type { JwtPayload } from 'jsonwebtoken';
 import { OAuthError } from '~/error';
 import type { InjectedData } from '~/types';
-import { debugLog } from '~/utils/misc';
 import { getCookie, setCookie } from './cookie-parser';
 import type { InjectDataFunction, UserInfo } from './types';
 
@@ -10,88 +9,94 @@ export async function sharedIsAuthenticated(
   req: Request,
   res: Response,
 ): Promise<{ userInfo: UserInfo; injectData: InjectDataFunction }> {
-  const localDebug = (message: string) => {
-    debugLog({
-      condition: req.oauthProvider.settings.debug,
-      funcName: req.serverType === 'express' ? 'protectRoute' : 'isAuthenticated',
-      message,
+  if (req.oauthProvider.settings.sessionType !== 'cookie-session') {
+    throw new OAuthError('misconfiguration', {
+      error: 'Invalid session type',
+      description: 'Session type must be cookie-session',
+      status: 500,
     });
-  };
-
-  const oauthProvider = req.oauthProvider;
-  if (oauthProvider.settings.sessionType !== 'cookie-session') {
-    throw new OAuthError(500, { message: 'Invalid session type', description: 'Session type must be cookie-session' });
   }
 
+  const oauthProvider = req.oauthProvider;
+
   const InjectDataFunction = (accessToken: string, data: InjectedData) => {
-    const newAccessToken = oauthProvider.injectData({ accessToken, data });
-    if (newAccessToken) setCookie(res, newAccessToken.name, newAccessToken.value, newAccessToken.options);
-    if (req.userInfo?.isB2B === false) req.userInfo = { ...req.userInfo, injectedData: data };
+    const { injectedAccessToken, success } = oauthProvider.injectData({ accessToken, data });
+    if (success) setCookie(res, injectedAccessToken.name, injectedAccessToken.value, injectedAccessToken.options);
+    if (req.userInfo?.isApp === false) {
+      req.userInfo = { ...req.userInfo, injectedData: data };
+    }
   };
 
+  // Check for Bearer token in Authorization header for B2B requests
   const authorizationHeader = req.headers.authorization;
-
   if (oauthProvider.settings.acceptB2BRequests && authorizationHeader) {
     const bearerAccessToken = authorizationHeader.startsWith('Bearer ') ? authorizationHeader.split(' ')[1] : undefined;
     const bearerInfo = await oauthProvider.verifyAccessToken(bearerAccessToken);
-    if (!bearerInfo) throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid access token' });
+    if (bearerInfo.error) throw new OAuthError(bearerInfo.error);
 
-    const userInfo = getUserInfo({ payload: bearerInfo.payload, isB2B: true });
+    const userInfo = getUserInfo({ payload: bearerInfo.payload, isApp: true });
 
-    req.accessTokenInfo = { jwt: bearerInfo.jwtAccessToken, payload: bearerInfo.payload };
+    req.accessTokenInfo = { jwt: bearerInfo.rawAccessToken, payload: bearerInfo.payload };
     req.userInfo = userInfo;
 
     return { userInfo, injectData: (data) => null };
   }
 
+  // Check for access and refresh tokens in cookies
   const { accessTokenName, refreshTokenName } = oauthProvider.getCookieNames();
   const cookieAccessToken = getCookie(req, accessTokenName);
   const cookieRefreshToken = getCookie(req, refreshTokenName);
-  localDebug(`Cookies: ${accessTokenName}=${!!cookieAccessToken}, ${refreshTokenName}=${!!cookieRefreshToken}`);
 
   if (!cookieAccessToken && !cookieRefreshToken) {
-    throw new OAuthError(401, { message: 'Unauthorized', description: 'No access token and refresh token' });
+    throw new OAuthError('nullish_value', {
+      error: 'Unauthorized',
+      description: 'Access token and refresh token are required for authentication',
+      status: 401,
+    });
   }
 
-  const tokenInfo = await oauthProvider.verifyAccessToken(cookieAccessToken);
+  const accessTokenInfo = await oauthProvider.verifyAccessToken(cookieAccessToken);
 
-  if (tokenInfo) {
-    const userInfo = getUserInfo({ payload: tokenInfo.payload, injectedData: tokenInfo.injectedData });
+  if (!accessTokenInfo.error) {
+    const userInfo = getUserInfo({ payload: accessTokenInfo.payload, injectedData: accessTokenInfo.injectedData });
 
-    req.accessTokenInfo = { jwt: tokenInfo.jwtAccessToken, payload: tokenInfo.payload };
+    req.accessTokenInfo = { jwt: accessTokenInfo.rawAccessToken, payload: accessTokenInfo.payload };
     req.userInfo = userInfo;
 
-    return { userInfo, injectData: (data) => InjectDataFunction(tokenInfo.jwtAccessToken, data) };
+    return { userInfo, injectData: (data) => InjectDataFunction(accessTokenInfo.rawAccessToken, data) };
   }
 
-  const newTokensInfo = await oauthProvider.getTokenByRefresh(cookieRefreshToken);
-  if (!newTokensInfo) throw new OAuthError(401, { message: 'Unauthorized', description: 'Invalid refresh token' });
-  const { jwtAccessToken, payload, newAccessToken, newRefreshToken } = newTokensInfo;
+  const refreshTokenInfo = await oauthProvider.getTokenByRefresh(cookieRefreshToken);
+  //TODO: check this error
+  if (refreshTokenInfo.error) throw new OAuthError(refreshTokenInfo.error);
+  const { newTokens } = refreshTokenInfo;
 
-  setCookie(res, newAccessToken.name, newAccessToken.value, newAccessToken.options);
-  if (newRefreshToken) setCookie(res, newRefreshToken.name, newRefreshToken.value, newRefreshToken.options);
+  setCookie(res, newTokens.accessToken.name, newTokens.accessToken.value, newTokens.accessToken.options);
+  if (newTokens.refreshToken) {
+    setCookie(res, newTokens.refreshToken.name, newTokens.refreshToken.value, newTokens.refreshToken.options);
+  }
 
-  const userInfo = getUserInfo({ payload, isB2B: false });
-  req.accessTokenInfo = { jwt: jwtAccessToken, payload };
+  const userInfo = getUserInfo({ payload: refreshTokenInfo.payload, isApp: false });
+  req.accessTokenInfo = { jwt: refreshTokenInfo.rawAccessToken, payload: refreshTokenInfo.payload };
   req.userInfo = userInfo;
 
-  return { userInfo, injectData: (data) => InjectDataFunction(newAccessToken.value, data) };
+  return { userInfo, injectData: (data) => InjectDataFunction(refreshTokenInfo.rawAccessToken, data) };
 }
 
 function getUserInfo({
   payload,
   injectedData,
-  isB2B,
-}: { payload: JwtPayload; injectedData?: InjectedData; isB2B?: boolean }) {
-  return isB2B
+  isApp,
+}: { payload: JwtPayload; injectedData?: InjectedData; isApp?: boolean }) {
+  return isApp
     ? ({
-        isB2B: true,
+        isApp: true,
         uniqueId: payload.oid,
         roles: payload.roles,
         appId: payload.azp,
       } as const)
     : ({
-        isB2B: false,
+        isApp: false,
         uniqueId: payload.oid,
         roles: payload.roles,
         name: payload.name,

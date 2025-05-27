@@ -24,12 +24,12 @@ export const oauthProvider = new OAuthProvider({
       areSameOrigin: env.NODE_ENV !== 'development',
       services: [
         {
-          clientId: env.AZURE_YELLOW_CLIENT_ID,
+          serviceName: 'yellow',
           scope: env.AZURE_YELLOW_EXPOSED_SCOPE,
           secretKey: env.YELLOW_SECRET_KEY,
         },
         {
-          clientId: env.AZURE_RED_CLIENT_ID,
+          serviceName: 'red',
           scope: env.AZURE_RED_EXPOSED_SCOPE,
           secretKey: env.RED_SECRET_KEY,
         },

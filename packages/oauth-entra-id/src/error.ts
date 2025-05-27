@@ -1,4 +1,61 @@
-type ErrorHttpCodes = 400 | 401 | 403 | 500;
+export type HttpErrorCodes = 400 | 401 | 403 | 500;
+
+export type ErrorTypes =
+  | 'internal'
+  | 'nullish_value'
+  | 'bad_request'
+  | 'invalid_format'
+  | 'misconfiguration'
+  | 'crypto_error'
+  | 'jwt_error';
+
+export interface ResultErr {
+  readonly type: ErrorTypes;
+  readonly message: string;
+  readonly description?: string;
+  readonly statusCode: HttpErrorCodes;
+}
+
+export type Result<T, E = ResultErr> = T extends object
+  ?
+      | ({ readonly [K in keyof T]: T[K] } & { readonly success: true; readonly error?: undefined })
+      | ({ readonly [K in keyof T]?: undefined } & { readonly success: false; readonly error: E })
+  :
+      | { readonly success: true; readonly result: T; readonly error?: undefined }
+      | { readonly success: false; readonly error: E; readonly result?: undefined };
+
+function $isPlainObject(value: unknown): value is Record<string, unknown> {
+  return Object.prototype.toString.call(value) === '[object Object]';
+}
+
+export function $ok<T>(result: T): Result<T> {
+  if ($isPlainObject(result)) return { success: true, ...(result as T & object) } as Result<T>;
+  return { success: true, result } as Result<T>;
+}
+
+export function $err(
+  type: ErrorTypes,
+  details: { error: string; description?: string; status?: HttpErrorCodes },
+): Result<never, ResultErr>;
+export function $err(err: ResultErr): Result<never, ResultErr>;
+export function $err(
+  typeOrErr: ErrorTypes | ResultErr,
+  details?: { error: string; description?: string; status?: HttpErrorCodes },
+): Result<never, ResultErr> {
+  if (typeof typeOrErr === 'string') {
+    return {
+      success: false,
+      error: {
+        type: typeOrErr,
+        message: details?.error ?? 'An error occurred',
+        description: details?.description,
+        statusCode: details?.status ?? 400,
+      },
+    } as Result<never, ResultErr>;
+  }
+
+  return { success: false, error: typeOrErr } as Result<never, ResultErr>;
+}
 
 /**
  * Custom error class for handling OAuth-related errors.
@@ -9,35 +66,30 @@ type ErrorHttpCodes = 400 | 401 | 403 | 500;
  * @extends {Error}
  */
 export class OAuthError extends Error {
-  /**
-   * The HTTP status code representing the type of OAuth error.
-   * @readonly
-   * @type {400 | 401 | 403 | 500}
-   */
-  readonly statusCode: ErrorHttpCodes;
-
-  /**
-   * A more detailed description of the error (if provided).
-   * Shouldn't be sent to the client in a production environment.
-   * @readonly
-   * @type {string | undefined}
-   */
+  readonly type: ErrorTypes;
+  readonly statusCode: HttpErrorCodes;
   readonly description: string | undefined;
 
-  /**
-   * Creates an instance of `OAuthError`.
-   *
-   * @param {400 | 401 | 403 | 500} statusCode - The HTTP status code for the error.
-   * @param {string | { message: string; description?: string }} errMessage - The error message or an object containing message and optional description.
-   */
-  constructor(statusCode: ErrorHttpCodes, errMessage: string | { message: string; description: string }) {
-    super(typeof errMessage === 'string' ? errMessage : errMessage.message);
+  constructor(err: ResultErr);
+  constructor(type: ErrorTypes, details: { error: string; description?: string; status?: HttpErrorCodes });
+  constructor(
+    typeOrErr: ErrorTypes | ResultErr,
+    details?: { error: string; description?: string; status?: HttpErrorCodes },
+  ) {
+    if (typeof typeOrErr === 'string') {
+      super(details?.error ?? 'An error occurred');
+      this.type = typeOrErr;
+      this.statusCode = details?.status ?? 400;
+      this.description = details?.description;
+    } else {
+      super(typeOrErr.message);
+      this.type = typeOrErr.type;
+      this.statusCode = typeOrErr.statusCode;
+      this.description = typeOrErr.description;
+    }
+    this.name = 'OAuthError';
 
     Object.setPrototypeOf(this, new.target.prototype);
     Error.captureStackTrace(this, this.constructor);
-
-    this.name = 'OAuthError';
-    this.statusCode = statusCode;
-    this.description = typeof errMessage === 'string' ? undefined : errMessage.description;
   }
 }

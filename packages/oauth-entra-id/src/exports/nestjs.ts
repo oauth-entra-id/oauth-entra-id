@@ -50,12 +50,14 @@ export function authConfig(config: OAuthConfig) {
  */
 export async function handleAuthentication(req: Request, res: Response) {
   try {
-    if (!req.oauthProvider || req.serverType !== 'nestjs') throw new OAuthError(500, ERROR_MESSAGE);
+    if (!req.oauthProvider || req.serverType !== 'nestjs') {
+      throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE, status: 500 });
+    }
     await sharedHandleAuthentication(req, res);
   } catch (err) {
     if (err instanceof OAuthError) throw err;
-    if (err instanceof Error) throw new OAuthError(500, err.message);
-    throw new OAuthError(500, { message: 'Something went wrong', description: err as string });
+    if (err instanceof Error) throw new OAuthError('internal', { error: err.message });
+    throw new OAuthError('internal', { error: 'Something went wrong', description: err as string });
   }
 }
 
@@ -71,12 +73,14 @@ export async function handleAuthentication(req: Request, res: Response) {
  */
 export async function handleCallback(req: Request, res: Response) {
   try {
-    if (!req.oauthProvider || req.serverType !== 'nestjs') throw new OAuthError(500, ERROR_MESSAGE);
+    if (!req.oauthProvider || req.serverType !== 'nestjs') {
+      throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE, status: 500 });
+    }
     await sharedHandleCallback(req, res);
   } catch (err) {
     if (err instanceof OAuthError) throw err;
-    if (err instanceof Error) throw new OAuthError(500, err.message);
-    throw new OAuthError(500, { message: 'Something went wrong', description: err as string });
+    if (err instanceof Error) throw new OAuthError('internal', { error: err.message });
+    throw new OAuthError('internal', { error: 'Something went wrong', description: err as string });
   }
 }
 
@@ -90,12 +94,14 @@ export async function handleCallback(req: Request, res: Response) {
  */
 export function handleLogout(req: Request, res: Response) {
   try {
-    if (!req.oauthProvider || req.serverType !== 'nestjs') throw new OAuthError(500, ERROR_MESSAGE);
+    if (!req.oauthProvider || req.serverType !== 'nestjs') {
+      throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE, status: 500 });
+    }
     sharedHandleLogout(req, res);
   } catch (err) {
     if (err instanceof OAuthError) throw err;
-    if (err instanceof Error) throw new OAuthError(500, err.message);
-    throw new OAuthError(500, { message: 'Something went wrong', description: err as string });
+    if (err instanceof Error) throw new OAuthError('internal', { error: err.message });
+    throw new OAuthError('internal', { error: 'Something went wrong', description: err as string });
   }
 }
 
@@ -109,12 +115,14 @@ export function handleLogout(req: Request, res: Response) {
  */
 export async function handleOnBehalfOf(req: Request, res: Response) {
   try {
-    if (!req.oauthProvider || req.serverType !== 'nestjs') throw new OAuthError(500, ERROR_MESSAGE);
+    if (!req.oauthProvider || req.serverType !== 'nestjs') {
+      throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE, status: 500 });
+    }
     await sharedHandleOnBehalfOf(req, res);
   } catch (err) {
     if (err instanceof OAuthError) throw err;
-    if (err instanceof Error) throw new OAuthError(500, err.message);
-    throw new OAuthError(500, { message: 'Something went wrong', description: err as string });
+    if (err instanceof Error) throw new OAuthError('internal', { error: err.message });
+    throw new OAuthError('internal', { error: 'Something went wrong', description: err as string });
   }
 }
 
@@ -140,13 +148,15 @@ export async function handleOnBehalfOf(req: Request, res: Response) {
  */
 export async function isAuthenticated(req: Request, res: Response, cb?: CallbackFunction) {
   try {
-    if (!req.oauthProvider || req.serverType !== 'nestjs') throw new OAuthError(500, ERROR_MESSAGE);
+    if (!req.oauthProvider || req.serverType !== 'nestjs') {
+      throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE, status: 500 });
+    }
     const { userInfo, injectData } = await sharedIsAuthenticated(req, res);
     if (cb) await cb({ userInfo, injectData });
     return true;
   } catch (err) {
     if (err instanceof OAuthError) throw err;
-    if (err instanceof Error) throw new OAuthError(500, err.message);
-    throw new OAuthError(500, { message: 'Something went wrong', description: err as string });
+    if (err instanceof Error) throw new OAuthError('internal', { error: err.message });
+    throw new OAuthError('internal', { error: 'Something went wrong', description: err as string });
   }
 }

@@ -9,7 +9,7 @@ import { oauthProvider } from '~/oauth';
 
 const tSchemas = {
   onBehalfOf: t.Object({
-    clientIds: t.Array(t.String(), { minItems: 1 }),
+    serviceNames: t.Array(t.String(), { minItems: 1 }),
   }),
   getB2BInfo: t.Object({
     appName: t.Union([t.Literal('express'), t.Literal('nestjs'), t.Literal('honojs')]),
@@ -24,14 +24,15 @@ export const protectedRouter: FastifyPluginAsyncTypebox = async (app) => {
   });
 
   app.post('/on-behalf-of', { schema: { body: tSchemas.onBehalfOf } }, async (req, reply) => {
-    if (req.userInfo?.isB2B === true) throw new HttpException('B2B users cannot use OBO', 401);
+    if (req.userInfo?.isApp === true) throw new HttpException('B2B users cannot use OBO', 401);
 
-    const { clientIds } = req.body;
+    const { serviceNames } = req.body;
 
-    const results = await oauthProvider.getTokenOnBehalfOf({
+    const { results, error } = await oauthProvider.getTokenOnBehalfOf({
       accessToken: req.accessTokenInfo.jwt,
-      clientIds,
+      serviceNames,
     });
+    if (error) throw new HttpException(error.message, error.statusCode);
 
     for (const { accessToken } of results) {
       reply.setCookie(accessToken.name, accessToken.value, accessToken.options);
@@ -42,18 +43,22 @@ export const protectedRouter: FastifyPluginAsyncTypebox = async (app) => {
 
   app.post('/get-b2b-info', { schema: { body: tSchemas.getB2BInfo } }, async (req, reply) => {
     const { appName } = req.body;
-    const { accessToken } = await oauthProvider.getB2BToken({ appName });
+    const { result, error } = await oauthProvider.getB2BToken({ appName });
+    if (error) throw new HttpException(error.message, error.statusCode);
+    const { accessToken } = result;
+
     const serverUrl = serversMap[appName];
     const axiosResponse = await axios.get(`${serverUrl}/protected/b2b-info`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
-    const { data, error } = zB2BResponse.safeParse(axiosResponse.data);
-    if (error) throw new HttpException('Invalid response from B2B service', 500);
-    return data;
+
+    const { data: b2bRes, error: b2bResError } = zB2BResponse.safeParse(axiosResponse.data);
+    if (b2bResError) throw new HttpException('Invalid response from B2B service', 500);
+    return b2bRes;
   });
 
   app.get('/b2b-info', (req, reply) => {
-    if (req.userInfo?.isB2B === false) throw new HttpException('Unauthorized', 401);
+    if (req.userInfo?.isApp === false) throw new HttpException('Unauthorized', 401);
     const randomPokemon = pokemon[Math.floor(Math.random() * pokemon.length)];
     return { pokemon: randomPokemon, server: 'fastify' };
   });

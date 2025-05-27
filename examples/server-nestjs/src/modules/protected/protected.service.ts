@@ -7,14 +7,18 @@ import { env } from '~/env';
 @Injectable()
 export class ProtectedService {
   async fetchB2BInfo(oauthProvider: OAuthProvider, appName: string) {
-    const { accessToken } = await oauthProvider.getB2BToken({ appName });
+    const { result, error } = await oauthProvider.getB2BToken({ appName });
+    if (error) throw new HttpException(error.message, error.statusCode);
+    const { accessToken } = result;
+
     const serverUrl = serversMap[appName];
     const axiosResponse = await axios.get(`${serverUrl}/protected/b2b-info`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
-    const { data, error } = zB2BResponse.safeParse(axiosResponse.data);
-    if (error) throw new HttpException('Invalid B2B response', 500);
-    return data;
+
+    const { data: b2bRes, error: b2bResError } = zB2BResponse.safeParse(axiosResponse.data);
+    if (b2bResError) throw new HttpException('Invalid B2B response', 500);
+    return b2bRes;
   }
 
   generateRandomPokemon() {

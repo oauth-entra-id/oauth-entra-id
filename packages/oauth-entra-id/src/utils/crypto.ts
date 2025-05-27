@@ -1,68 +1,192 @@
-import crypto from 'node:crypto';
+import crypto, { type KeyObject } from 'node:crypto';
 import jwt from 'jsonwebtoken';
+import { $err, $ok, type Result } from '~/error';
+import type { InjectedData } from '~/types';
+import { zAccessTokenStructure } from './zod';
 
 const ALGORITHM = 'aes-256-gcm';
-const FORMAT = 'base64url';
+const ENCODE_FORMAT = 'base64url';
 
-export const encodeBase64 = (str: string) => Buffer.from(str, 'utf8').toString('base64url');
-export const decodeBase64 = (str: string) => Buffer.from(str, 'base64url').toString('utf8');
+const $isEmptyString = (str: string) => str.trim().length === 0;
 
-export const hash = (str: string): Buffer => crypto.createHash('sha256').update(str).digest();
-export const createSecretKey = (key: string): crypto.KeyObject => crypto.createSecretKey(hash(key));
+export function $encode(str: string): Result<string> {
+  if ($isEmptyString(str)) return $err('nullish_value', { error: 'Invalid data', description: 'Empty string' });
 
-export function encrypt(data: string, secretKey: crypto.KeyObject) {
+  try {
+    return $ok(Buffer.from(str, 'utf8').toString(ENCODE_FORMAT));
+  } catch {
+    return $err('invalid_format', { error: 'Invalid base64url format', description: `Input: ${str}` });
+  }
+}
+
+export function $decode(str: string): Result<string> {
+  //TODO: add regex for base64url
+  if ($isEmptyString(str)) return $err('nullish_value', { error: 'Invalid data', description: 'Empty string' });
+
+  try {
+    return $ok(Buffer.from(str, ENCODE_FORMAT).toString('utf8'));
+  } catch {
+    return $err('invalid_format', { error: 'Invalid base64url format', description: `Input: ${str}` });
+  }
+}
+
+export function $createSecretKey(key: string): Result<{ secretKey: KeyObject }> {
+  if ($isEmptyString(key)) {
+    return $err('nullish_value', { error: 'Invalid secret key', description: 'Empty string', status: 500 });
+  }
+
+  try {
+    return $ok({ secretKey: crypto.createSecretKey(crypto.createHash('sha256').update(key).digest()) });
+  } catch {
+    return $err('crypto_error', { error: 'Failed to create secret key', description: `Input: ${key}`, status: 500 });
+  }
+}
+
+export function $encrypt(str: string, secretKey: KeyObject): Result<string> {
+  if ($isEmptyString(str)) return $err('nullish_value', { error: 'Invalid data', description: 'Empty string' });
+
   try {
     const iv = crypto.randomBytes(12);
 
     const cipher = crypto.createCipheriv(ALGORITHM, secretKey, iv);
-    const encrypted = Buffer.concat([cipher.update(data, 'utf8'), cipher.final()]);
+    const encrypted = Buffer.concat([cipher.update(str, 'utf8'), cipher.final()]);
     const tag = cipher.getAuthTag();
 
-    return `${[iv, encrypted, tag].map((buffer) => buffer.toString(FORMAT)).join('.')}.`;
+    return $ok(`${iv.toString(ENCODE_FORMAT)}.${encrypted.toString(ENCODE_FORMAT)}.${tag.toString(ENCODE_FORMAT)}.`);
   } catch {
-    throw new Error('Failed to encrypt');
+    return $err('crypto_error', { error: 'Encryption failed', description: `Input: ${str}` });
   }
 }
 
-export function decrypt(encryptedData: string, secretKey: crypto.KeyObject) {
+export function $decrypt(encrypted: string, secretKey: KeyObject): Result<string> {
+  if ($isEmptyString(encrypted)) return $err('nullish_value', { error: 'Invalid data', description: 'Empty string' });
+
+  if (!encrypted.includes('.')) {
+    return $err('invalid_format', { error: 'Invalid data', description: 'Missing dot separator' });
+  }
+
   try {
-    const [ivBase64, encryptedBase64, tagBase64] = encryptedData.split('.');
-    if (!ivBase64 || !encryptedBase64 || !tagBase64) throw new Error('Invalid decrypt data format');
+    const [iv, encryptedData, tag] = encrypted.split('.');
+    if (!iv || !encryptedData || !tag) return $err('invalid_format', { error: 'Invalid encrypted data format' });
 
-    const decipher = crypto.createDecipheriv(ALGORITHM, secretKey, Buffer.from(ivBase64, FORMAT));
-    decipher.setAuthTag(Buffer.from(tagBase64, FORMAT));
+    const decipher = crypto.createDecipheriv(ALGORITHM, secretKey, Buffer.from(iv, ENCODE_FORMAT));
+    decipher.setAuthTag(Buffer.from(tag, ENCODE_FORMAT));
 
-    const decrypted = Buffer.concat([decipher.update(Buffer.from(encryptedBase64, FORMAT)), decipher.final()]);
-    return decrypted.toString('utf8');
+    return $ok(
+      Buffer.concat([decipher.update(Buffer.from(encryptedData, ENCODE_FORMAT)), decipher.final()]).toString('utf8'),
+    );
   } catch {
-    return null;
+    return $err('crypto_error', { error: 'Invalid encrypted data format', description: `Input: ${encrypted}` });
   }
 }
 
-export function encryptObject(data: Record<string, unknown>, secretKey: crypto.KeyObject): string {
+export function $encryptObj(obj: Record<string, unknown> | null, secretKey: KeyObject): Result<string> {
+  if (!obj) return $err('nullish_value', { error: 'Invalid data' });
+
   try {
-    return encrypt(JSON.stringify(data), secretKey);
+    return $encrypt(JSON.stringify(obj), secretKey);
   } catch {
-    throw new Error('Failed to encrypt object');
+    return $err('invalid_format', { error: 'Encryption failed', description: 'Failed to stringify object' });
   }
 }
 
-export function decryptObject(data: string, secretKey: crypto.KeyObject): Record<string, unknown> | null {
-  const decryptedData = decrypt(data, secretKey);
-  if (!decryptedData) return null;
+export function $decryptObj(data: string | null, secretKey: KeyObject): Result<{ result: Record<string, unknown> }> {
+  if (!data) return $err('nullish_value', { error: 'Invalid data' });
+  const { result: decrypted, error: decryptedError } = $decrypt(data, secretKey);
+  if (decryptedError) return $err(decryptedError);
+
   try {
-    return JSON.parse(decryptedData);
+    return $ok({ result: JSON.parse(decrypted) });
   } catch {
-    return null;
+    return $err('invalid_format', { error: 'Invalid data', description: `Failed to parse JSON, input: ${decrypted}` });
   }
 }
 
-export function getAudFromJwt(jwtToken: string) {
-  const payload = jwt.decode(jwtToken, { json: true });
-  if (!payload) return null;
+export function $encryptToken(
+  tokenType: 'accessToken' | 'refreshToken',
+  value: string | null,
+  secretKey: KeyObject,
+  injectedData?: InjectedData,
+): Result<string> {
+  if (!value) return $err('nullish_value', { error: 'Invalid data' });
 
-  const aud = payload.aud;
-  if (typeof aud !== 'string') return null;
+  const { result: token, error: tokenError } =
+    tokenType === 'accessToken' ? $encryptObj({ at: value, inj: injectedData }, secretKey) : $encrypt(value, secretKey);
 
-  return aud;
+  if (tokenError) return $err(tokenError);
+  if (token.length > 4096) {
+    return $err('invalid_format', { error: 'Token too long', description: 'Encrypted token exceeds 4096 characters' });
+  }
+
+  return $ok(token);
+}
+
+export function $decryptToken<T extends object = Record<string, any>>(
+  tokenType: 'accessToken' | 'refreshToken',
+  encryptedToken: string | null,
+  secretKey: KeyObject,
+): Result<{ rawToken: string; injectedData?: T }> {
+  if (!encryptedToken || $isEmptyString(encryptedToken)) return $err('nullish_value', { error: 'Invalid data' });
+
+  if (tokenType === 'accessToken') {
+    const decryptedAccessToken = $decryptObj(encryptedToken, secretKey);
+    if (decryptedAccessToken.error) return $err(decryptedAccessToken.error);
+
+    const parsedAccessToken = zAccessTokenStructure.safeParse(decryptedAccessToken.result);
+    if (parsedAccessToken.error) {
+      return $err('invalid_format', { error: 'Invalid data', description: 'Invalid access token structure' });
+    }
+
+    return $ok({ rawToken: parsedAccessToken.data.at, injectedData: parsedAccessToken.data.inj as T });
+  }
+
+  const decryptedRefreshToken = $decrypt(encryptedToken, secretKey);
+  if (decryptedRefreshToken.error) return $err(decryptedRefreshToken.error);
+
+  return $ok({ rawToken: decryptedRefreshToken.result });
+}
+
+function $decodeJwt(jwtToken: string): Result<{ decodedJwt: jwt.Jwt }> {
+  if ($isEmptyString(jwtToken)) return $err('nullish_value', { error: 'Invalid data', description: 'Empty string' });
+
+  try {
+    const decodedJwt = jwt.decode(jwtToken, { complete: true });
+    if (!decodedJwt) return $err('jwt_error', { error: 'Invalid JWT token', description: "Couldn't decode JWT token" });
+
+    return $ok({ decodedJwt });
+  } catch {
+    return $err('jwt_error', { error: 'Invalid JWT token', description: "Couldn't decode JWT token" });
+  }
+}
+
+export function $getAud(jwtToken: string): Result<string> {
+  const { decodedJwt, error } = $decodeJwt(jwtToken);
+  if (error) return $err(error);
+
+  if (typeof decodedJwt.payload === 'string') {
+    return $err('jwt_error', { error: 'Invalid JWT token', description: "Couldn't get the JWT payload" });
+  }
+
+  const aud = decodedJwt.payload.aud;
+  if (typeof aud !== 'string')
+    return $err('jwt_error', {
+      error: 'Invalid JWT token',
+      description: `Invalid audience (aud) claim, payload: ${JSON.stringify(decodedJwt.payload)}`,
+    });
+
+  return $ok(aud);
+}
+
+export function $getKid(jwtToken: string): Result<string> {
+  const { decodedJwt, error } = $decodeJwt(jwtToken);
+  if (error) return $err(error);
+
+  const kid = decodedJwt.header.kid;
+  if (typeof kid !== 'string')
+    return $err('jwt_error', {
+      error: 'Invalid JWT token',
+      description: `Invalid key ID (kid) claim, header: ${JSON.stringify(decodedJwt.header)}`,
+    });
+
+  return $ok(kid);
 }

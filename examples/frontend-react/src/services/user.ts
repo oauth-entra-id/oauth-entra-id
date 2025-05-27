@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { axiosFetch } from '~/lib/axios';
 import { zStr } from '~/lib/zod';
-import { useServerStore } from '~/stores/server-store';
+import { type Color, useServerStore } from '~/stores/server-store';
 
 const zGetUserData = z.object({
   user: z.object({
@@ -52,10 +52,10 @@ const zGetTokensOnBehalfOf = z.object({
   tokensSet: z.number(),
 });
 
-export async function getTokensOnBehalfOf(clientIds: string[] | undefined) {
-  if (!clientIds || clientIds.length === 0) throw new Error('No client IDs provided');
+export async function getTokensOnBehalfOf(serviceNames: Color[]) {
+  if (!serviceNames || serviceNames.length === 0) throw new Error('No client IDs provided');
   const serverUrl = useServerStore.getState().serverUrl;
-  const res = await axiosFetch.post(`${serverUrl}/protected/on-behalf-of`, { clientIds });
+  const res = await axiosFetch.post(`${serverUrl}/protected/on-behalf-of`, { serviceNames });
   const parsed = zGetTokensOnBehalfOf.safeParse(res?.data);
   if (parsed.error) throw new Error('Invalid on-behalf-of tokens');
   return parsed.data.tokensSet;

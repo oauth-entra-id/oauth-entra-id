@@ -6,7 +6,7 @@ import type { CookieParserOptions } from './types';
 export function getCookie(req: Request, name: string): string | undefined {
   const cookies = req.get('cookie');
   if (!cookieNameRegex.test(name)) {
-    throw new OAuthError(400, { message: 'Bad cookie name', description: 'Invalid cookie name' });
+    return undefined;
   }
 
   if (!cookies || cookies.length === 0 || cookies.indexOf(name) === -1) {
@@ -47,11 +47,17 @@ export function getCookie(req: Request, name: string): string | undefined {
 
 export function setCookie(res: Response, name: string, value: string, options: CookieParserOptions) {
   if (!cookieNameRegex.test(name)) {
-    throw new OAuthError(400, { message: 'Bad cookie name', description: 'Invalid cookie name' });
+    throw new OAuthError('bad_request', {
+      error: 'Invalid cookie name',
+      description: 'Cookie name does not match the required pattern',
+    });
   }
 
   if (value !== '' && !cookieValueRegex.test(value)) {
-    throw new OAuthError(400, { message: 'Bad cookie value', description: 'Invalid cookie value' });
+    throw new OAuthError('bad_request', {
+      error: 'Invalid cookie value',
+      description: 'Cookie value does not match the required pattern',
+    });
   }
 
   let cookieOptions = {
