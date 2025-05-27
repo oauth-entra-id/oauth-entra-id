@@ -1,7 +1,6 @@
 import crypto, { type KeyObject } from 'node:crypto';
 import jwt from 'jsonwebtoken';
 import { $err, $ok, type Result } from '~/error';
-import type { InjectedData } from '~/types';
 import { zAccessTokenStructure } from './zod';
 
 const ALGORITHM = 'aes-256-gcm';
@@ -102,11 +101,11 @@ export function $decryptObj(data: string | null, secretKey: KeyObject): Result<{
   }
 }
 
-export function $encryptToken(
+export function $encryptToken<T extends object = Record<string, any>>(
   tokenType: 'accessToken' | 'refreshToken',
   value: string | null,
   secretKey: KeyObject,
-  injectedData?: InjectedData,
+  injectedData?: T,
 ): Result<string> {
   if (!value) return $err('nullish_value', { error: 'Invalid data' });
 

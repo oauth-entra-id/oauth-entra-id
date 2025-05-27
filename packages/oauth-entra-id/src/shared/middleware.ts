@@ -1,7 +1,6 @@
 import type { Request, Response } from 'express';
 import type { JwtPayload } from 'jsonwebtoken';
 import { OAuthError } from '~/error';
-import type { InjectedData } from '~/types';
 import { getCookie, setCookie } from './cookie-parser';
 import type { InjectDataFunction, UserInfo } from './types';
 
@@ -19,7 +18,7 @@ export async function sharedIsAuthenticated(
 
   const oauthProvider = req.oauthProvider;
 
-  const InjectDataFunction = (accessToken: string, data: InjectedData) => {
+  const InjectDataFunction = <T extends object = Record<any, string>>(accessToken: string, data: T) => {
     const { injectedAccessToken, success } = oauthProvider.injectData({ accessToken, data });
     if (success) setCookie(res, injectedAccessToken.name, injectedAccessToken.value, injectedAccessToken.options);
     if (req.userInfo?.isApp === false) {
@@ -83,11 +82,11 @@ export async function sharedIsAuthenticated(
   return { userInfo, injectData: (data) => InjectDataFunction(refreshTokenInfo.rawAccessToken, data) };
 }
 
-function getUserInfo({
+function getUserInfo<T extends object = Record<any, string>>({
   payload,
   injectedData,
   isApp,
-}: { payload: JwtPayload; injectedData?: InjectedData; isApp?: boolean }) {
+}: { payload: JwtPayload; injectedData?: T; isApp?: boolean }) {
   return isApp
     ? ({
         isApp: true,

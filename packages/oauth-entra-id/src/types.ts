@@ -6,12 +6,6 @@ export type TimeUnit = 'ms' | 'sec';
 export type SessionType = 'cookie-session' | 'bearer-token';
 
 /**
- * Optional custom data to embed in access tokens.
- * Should not contain sensitive information.
- */
-export type InjectedData<T = any> = Record<string, T>;
-
-/**
  * Configuration for acquiring client credentials for a B2B service.
  */
 export interface B2BApp {

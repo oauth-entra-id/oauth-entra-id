@@ -8,7 +8,6 @@ import type {
   Cookies,
   GetB2BTokenResult,
   GetTokenOnBehalfOfResult,
-  InjectedData,
   LoginPrompt,
   MsalResponse,
   OAuthConfig,
@@ -668,7 +667,7 @@ export class OAuthProvider {
   }
 
   /** Injects data into the access token. Useful for embedding non-sensitive metadata into token structure. */
-  injectData<TData extends InjectedData<unknown>>(params: { accessToken: string; data: TData }): Result<{
+  injectData<TData extends object = Record<string, any>>(params: { accessToken: string; data: TData }): Result<{
     injectedAccessToken: Cookies['AccessToken'];
   }> {
     const { error, rawAccessToken } = this.$decryptAccessToken(params.accessToken);

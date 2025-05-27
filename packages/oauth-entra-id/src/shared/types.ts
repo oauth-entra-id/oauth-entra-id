@@ -1,28 +1,25 @@
 import type { JwtPayload } from 'jsonwebtoken';
 import type { OAuthProvider } from '~/core';
-import type { InjectedData } from '~/types';
 
 export type ServerType = 'express' | 'nestjs';
 
-export interface User {
-  isApp: false;
-  uniqueId: string;
-  roles: string[];
-  name: string;
-  email: string;
-  injectedData?: InjectedData;
-}
+export type UserInfo<T extends object = Record<string, any>> =
+  | {
+      isApp: false;
+      uniqueId: string;
+      roles: string[];
+      name: string;
+      email: string;
+      injectedData?: T;
+    }
+  | {
+      isApp: true;
+      uniqueId: string;
+      roles: string[];
+      appId: string;
+    };
 
-export interface AppUser {
-  isApp: true;
-  uniqueId: string;
-  roles: string[];
-  appId: string;
-}
-
-export type UserInfo = User | AppUser;
-
-export type InjectDataFunction<T = any> = (data: InjectedData<T>) => void;
+export type InjectDataFunction<T extends object = Record<string, any>> = (data: T) => void;
 
 export type CallbackFunction = (params: {
   userInfo: UserInfo;
