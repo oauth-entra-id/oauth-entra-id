@@ -1,4 +1,4 @@
-import crypto from 'node:crypto';
+import crypto, { type KeyObject } from 'node:crypto';
 import jwt from 'jsonwebtoken';
 import { $err, $ok, type Result } from '~/error';
 import type { InjectedData } from '~/types';
@@ -30,25 +30,25 @@ export function $decode(str: string): Result<string> {
   }
 }
 
-export function $createSecretKey(key: string): Result<string> {
+export function $createSecretKey(key: string): Result<{ secretKey: KeyObject }> {
   if ($isEmptyString(key)) {
     return $err('nullish_value', { error: 'Invalid secret key', description: 'Empty string', status: 500 });
   }
 
   try {
-    return $ok(crypto.createHash('sha256').update(key).digest(ENCODE_FORMAT));
+    return $ok({ secretKey: crypto.createSecretKey(crypto.createHash('sha256').update(key).digest()) });
   } catch {
     return $err('crypto_error', { error: 'Failed to create secret key', description: `Input: ${key}`, status: 500 });
   }
 }
 
-export function $encrypt(str: string, secretKey: string): Result<string> {
+export function $encrypt(str: string, secretKey: KeyObject): Result<string> {
   if ($isEmptyString(str)) return $err('nullish_value', { error: 'Invalid data', description: 'Empty string' });
 
   try {
     const iv = crypto.randomBytes(12);
 
-    const cipher = crypto.createCipheriv(ALGORITHM, crypto.createSecretKey(secretKey, ENCODE_FORMAT), iv);
+    const cipher = crypto.createCipheriv(ALGORITHM, secretKey, iv);
     const encrypted = Buffer.concat([cipher.update(str, 'utf8'), cipher.final()]);
     const tag = cipher.getAuthTag();
 
@@ -58,7 +58,7 @@ export function $encrypt(str: string, secretKey: string): Result<string> {
   }
 }
 
-export function $decrypt(encrypted: string, secretKey: string): Result<string> {
+export function $decrypt(encrypted: string, secretKey: KeyObject): Result<string> {
   if ($isEmptyString(encrypted)) return $err('nullish_value', { error: 'Invalid data', description: 'Empty string' });
 
   if (!encrypted.includes('.')) {
@@ -69,11 +69,7 @@ export function $decrypt(encrypted: string, secretKey: string): Result<string> {
     const [iv, encryptedData, tag] = encrypted.split('.');
     if (!iv || !encryptedData || !tag) return $err('invalid_format', { error: 'Invalid encrypted data format' });
 
-    const decipher = crypto.createDecipheriv(
-      ALGORITHM,
-      crypto.createSecretKey(secretKey, ENCODE_FORMAT),
-      Buffer.from(iv, ENCODE_FORMAT),
-    );
+    const decipher = crypto.createDecipheriv(ALGORITHM, secretKey, Buffer.from(iv, ENCODE_FORMAT));
     decipher.setAuthTag(Buffer.from(tag, ENCODE_FORMAT));
 
     return $ok(
@@ -84,7 +80,7 @@ export function $decrypt(encrypted: string, secretKey: string): Result<string> {
   }
 }
 
-export function $encryptObj(obj: Record<string, unknown> | null, secretKey: string): Result<string> {
+export function $encryptObj(obj: Record<string, unknown> | null, secretKey: KeyObject): Result<string> {
   if (!obj) return $err('nullish_value', { error: 'Invalid data' });
 
   try {
@@ -94,13 +90,13 @@ export function $encryptObj(obj: Record<string, unknown> | null, secretKey: stri
   }
 }
 
-export function $decryptObj(data: string | null, secretKey: string): Result<Record<string, unknown>> {
+export function $decryptObj(data: string | null, secretKey: KeyObject): Result<{ result: Record<string, unknown> }> {
   if (!data) return $err('nullish_value', { error: 'Invalid data' });
   const { result: decrypted, error: decryptedError } = $decrypt(data, secretKey);
   if (decryptedError) return $err(decryptedError);
 
   try {
-    return JSON.parse(decrypted);
+    return $ok({ result: JSON.parse(decrypted) });
   } catch {
     return $err('invalid_format', { error: 'Invalid data', description: `Failed to parse JSON, input: ${decrypted}` });
   }
@@ -109,7 +105,7 @@ export function $decryptObj(data: string | null, secretKey: string): Result<Reco
 export function $encryptToken(
   tokenType: 'accessToken' | 'refreshToken',
   value: string | null,
-  secretKey: string,
+  secretKey: KeyObject,
   injectedData?: InjectedData,
 ): Result<string> {
   if (!value) return $err('nullish_value', { error: 'Invalid data' });
@@ -118,33 +114,36 @@ export function $encryptToken(
     tokenType === 'accessToken' ? $encryptObj({ at: value, inj: injectedData }, secretKey) : $encrypt(value, secretKey);
 
   if (tokenError) return $err(tokenError);
+  if (token.length > 4096) {
+    return $err('invalid_format', { error: 'Token too long', description: 'Encrypted token exceeds 4096 characters' });
+  }
 
   return $ok(token);
 }
 
-export function $decryptToken(
+export function $decryptToken<T extends object = Record<string, any>>(
   tokenType: 'accessToken' | 'refreshToken',
   encryptedToken: string | null,
-  secretKey: string,
-): Result<{ rawToken: string; injectedData?: InjectedData }> {
+  secretKey: KeyObject,
+): Result<{ rawToken: string; injectedData?: T }> {
   if (!encryptedToken || $isEmptyString(encryptedToken)) return $err('nullish_value', { error: 'Invalid data' });
 
   if (tokenType === 'accessToken') {
-    const { result: decryptedAt, error: decryptedAtError } = $decryptObj(encryptedToken, secretKey);
-    if (decryptedAtError) return $err(decryptedAtError);
+    const decryptedAccessToken = $decryptObj(encryptedToken, secretKey);
+    if (decryptedAccessToken.error) return $err(decryptedAccessToken.error);
 
-    const { data: atObj, error: atObjError } = zAccessTokenStructure.safeParse(decryptedAt);
-    if (atObjError) {
+    const parsedAccessToken = zAccessTokenStructure.safeParse(decryptedAccessToken.result);
+    if (parsedAccessToken.error) {
       return $err('invalid_format', { error: 'Invalid data', description: 'Invalid access token structure' });
     }
 
-    return $ok({ rawToken: atObj.at, injectedData: atObj.inj });
+    return $ok({ rawToken: parsedAccessToken.data.at, injectedData: parsedAccessToken.data.inj as T });
   }
 
-  const { result: rt, error: rtError } = $decrypt(encryptedToken, secretKey);
-  if (rtError) return $err(rtError);
+  const decryptedRefreshToken = $decrypt(encryptedToken, secretKey);
+  if (decryptedRefreshToken.error) return $err(decryptedRefreshToken.error);
 
-  return $ok({ rawToken: rt });
+  return $ok({ rawToken: decryptedRefreshToken.result });
 }
 
 function $decodeJwt(jwtToken: string): Result<{ decodedJwt: jwt.Jwt }> {

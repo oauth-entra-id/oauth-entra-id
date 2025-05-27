@@ -42,7 +42,10 @@ authRouter.post('/authenticate', zValidator('json', zSchemas.authenticate), asyn
 authRouter.post('/callback', zValidator('form', zSchemas.callback), async (c) => {
   const { code, state } = c.req.valid('form');
   const { accessToken, refreshToken, frontendUrl, error } = await oauthProvider.getTokenByCode({ code, state });
-  if (error) throw new HTTPException(error.statusCode, { message: error.message });
+  if (error) {
+    console.error('Error during OAuth callback:', error);
+    throw new HTTPException(error.statusCode, { message: error.message });
+  }
 
   setCookie(c, accessToken.name, accessToken.value, accessToken.options);
   if (refreshToken) setCookie(c, refreshToken.name, refreshToken.value, refreshToken.options);

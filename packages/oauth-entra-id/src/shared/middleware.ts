@@ -20,30 +20,29 @@ export async function sharedIsAuthenticated(
   const oauthProvider = req.oauthProvider;
 
   const InjectDataFunction = (accessToken: string, data: InjectedData) => {
-    const { injectedAccessToken, error } = oauthProvider.injectData({ accessToken, data });
-    if (!error) setCookie(res, injectedAccessToken.name, injectedAccessToken.value, injectedAccessToken.options);
-    if (req.userInfo?.isApp === false) req.userInfo = { ...req.userInfo, injectedData: data };
+    const { injectedAccessToken, success } = oauthProvider.injectData({ accessToken, data });
+    if (success) setCookie(res, injectedAccessToken.name, injectedAccessToken.value, injectedAccessToken.options);
+    if (req.userInfo?.isApp === false) {
+      req.userInfo = { ...req.userInfo, injectedData: data };
+    }
   };
 
+  // Check for Bearer token in Authorization header for B2B requests
   const authorizationHeader = req.headers.authorization;
-
   if (oauthProvider.settings.acceptB2BRequests && authorizationHeader) {
     const bearerAccessToken = authorizationHeader.startsWith('Bearer ') ? authorizationHeader.split(' ')[1] : undefined;
-    const {
-      error: bearerError,
-      payload: bearerPayload,
-      rawAccessToken: bearerRawAt,
-    } = await oauthProvider.verifyAccessToken(bearerAccessToken);
-    if (bearerError) throw new OAuthError(bearerError);
+    const bearerInfo = await oauthProvider.verifyAccessToken(bearerAccessToken);
+    if (bearerInfo.error) throw new OAuthError(bearerInfo.error);
 
-    const userInfo = getUserInfo({ payload: bearerPayload, isApp: true });
+    const userInfo = getUserInfo({ payload: bearerInfo.payload, isApp: true });
 
-    req.accessTokenInfo = { jwt: bearerRawAt, payload: bearerPayload };
+    req.accessTokenInfo = { jwt: bearerInfo.rawAccessToken, payload: bearerInfo.payload };
     req.userInfo = userInfo;
 
     return { userInfo, injectData: (data) => null };
   }
 
+  // Check for access and refresh tokens in cookies
   const { accessTokenName, refreshTokenName } = oauthProvider.getCookieNames();
   const cookieAccessToken = getCookie(req, accessTokenName);
   const cookieRefreshToken = getCookie(req, refreshTokenName);
@@ -56,41 +55,32 @@ export async function sharedIsAuthenticated(
     });
   }
 
-  const {
-    error: accessTokenError,
-    rawAccessToken: cookieRawAt,
-    payload: cookiePayload,
-    injectedData: cookieInjectedData,
-  } = await oauthProvider.verifyAccessToken(cookieAccessToken);
+  const accessTokenInfo = await oauthProvider.verifyAccessToken(cookieAccessToken);
 
-  if (!accessTokenError) {
-    const userInfo = getUserInfo({ payload: cookiePayload, injectedData: cookieInjectedData });
+  if (!accessTokenInfo.error) {
+    const userInfo = getUserInfo({ payload: accessTokenInfo.payload, injectedData: accessTokenInfo.injectedData });
 
-    req.accessTokenInfo = { jwt: cookieRawAt, payload: cookiePayload };
+    req.accessTokenInfo = { jwt: accessTokenInfo.rawAccessToken, payload: accessTokenInfo.payload };
     req.userInfo = userInfo;
 
-    return { userInfo, injectData: (data) => InjectDataFunction(cookieRawAt, data) };
+    return { userInfo, injectData: (data) => InjectDataFunction(accessTokenInfo.rawAccessToken, data) };
   }
 
-  const {
-    error: newTokensError,
-    newTokens,
-    rawAccessToken,
-    payload,
-  } = await oauthProvider.getTokenByRefresh(cookieRefreshToken);
+  const refreshTokenInfo = await oauthProvider.getTokenByRefresh(cookieRefreshToken);
   //TODO: check this error
-  if (newTokensError) throw new OAuthError(newTokensError);
+  if (refreshTokenInfo.error) throw new OAuthError(refreshTokenInfo.error);
+  const { newTokens } = refreshTokenInfo;
 
   setCookie(res, newTokens.accessToken.name, newTokens.accessToken.value, newTokens.accessToken.options);
   if (newTokens.refreshToken) {
     setCookie(res, newTokens.refreshToken.name, newTokens.refreshToken.value, newTokens.refreshToken.options);
   }
 
-  const userInfo = getUserInfo({ payload, isApp: false });
-  req.accessTokenInfo = { jwt: rawAccessToken, payload };
+  const userInfo = getUserInfo({ payload: refreshTokenInfo.payload, isApp: false });
+  req.accessTokenInfo = { jwt: refreshTokenInfo.rawAccessToken, payload: refreshTokenInfo.payload };
   req.userInfo = userInfo;
 
-  return { userInfo, injectData: (data) => InjectDataFunction(rawAccessToken, data) };
+  return { userInfo, injectData: (data) => InjectDataFunction(refreshTokenInfo.rawAccessToken, data) };
 }
 
 function getUserInfo({

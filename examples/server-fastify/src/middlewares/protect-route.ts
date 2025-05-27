@@ -8,10 +8,10 @@ export async function protectRoute(req: FastifyRequest, reply: FastifyReply) {
 
   if (oauthProvider.settings.acceptB2BRequests && authorizationHeader) {
     const bearerAccessToken = authorizationHeader.startsWith('Bearer ') ? authorizationHeader.split(' ')[1] : undefined;
-    const { error: bearerError, payload: bearerPayload } = await oauthProvider.verifyAccessToken(bearerAccessToken);
-    if (bearerError) throw new HttpException(bearerError.message, bearerError.statusCode);
+    const bearerInfo = await oauthProvider.verifyAccessToken(bearerAccessToken);
+    if (bearerInfo.error) throw new HttpException(bearerInfo.error.message, bearerInfo.error.statusCode);
 
-    setUserInfo(req, { payload: bearerPayload, isApp: true });
+    setUserInfo(req, { payload: bearerInfo.payload, isApp: true });
 
     return;
   }
@@ -21,55 +21,52 @@ export async function protectRoute(req: FastifyRequest, reply: FastifyReply) {
   const refreshToken = req.cookies[refreshTokenName];
   if (!accessToken && !refreshToken) throw new HttpException('Unauthorized', 401);
 
-  const {
-    error: accessTokenError,
-    rawAccessToken: cookieRawAt,
-    payload: cookiePayload,
-    injectedData: cookieInjectedData,
-  } = await oauthProvider.verifyAccessToken(accessToken);
-  if (!accessTokenError) {
-    req.accessTokenInfo = { jwt: cookieRawAt, payload: cookiePayload };
-    const injectedData = cookieInjectedData
-      ? (cookieInjectedData as { randomNumber: number })
-      : { randomNumber: getRandomNumber() };
+  const accessTokenInfo = await oauthProvider.verifyAccessToken<{ randomNumber: number }>(accessToken);
+  if (!accessTokenInfo.error) {
+    req.accessTokenInfo = { jwt: accessTokenInfo.rawAccessToken, payload: accessTokenInfo.payload };
+    const injectedData = accessTokenInfo.injectedData ?? { randomNumber: getRandomNumber() };
 
-    if (!cookieInjectedData) {
-      const { error: injectedError, injectedAccessToken } = oauthProvider.injectData({
-        accessToken: cookieRawAt,
-        data: injectedData,
-      });
-      if (injectedError) {
-        setUserInfo(req, { payload: cookiePayload });
-        return;
-      }
-      reply.setCookie(injectedAccessToken.name, injectedAccessToken.value, injectedAccessToken.options);
+    if (accessTokenInfo.injectedData) {
+      setUserInfo(req, { payload: accessTokenInfo.payload, injectedData });
+      return;
     }
 
-    setUserInfo(req, { payload: cookiePayload, injectedData });
+    const { injectedAccessToken, success } = oauthProvider.injectData({
+      accessToken: accessTokenInfo.rawAccessToken,
+      data: injectedData,
+    });
 
+    if (success) {
+      reply.setCookie(injectedAccessToken.name, injectedAccessToken.value, injectedAccessToken.options);
+      setUserInfo(req, { payload: accessTokenInfo.payload, injectedData });
+      return;
+    }
+
+    setUserInfo(req, { payload: accessTokenInfo.payload, injectedData });
     return;
   }
 
-  const {
-    error: newTokensError,
-    newTokens,
-    rawAccessToken,
-    payload,
-  } = await oauthProvider.getTokenByRefresh(refreshToken);
-  if (newTokensError) throw new HttpException(newTokensError.message, newTokensError.statusCode);
+  const refreshTokenInfo = await oauthProvider.getTokenByRefresh(refreshToken);
+  if (refreshTokenInfo.error) {
+    throw new HttpException(refreshTokenInfo.error.message, refreshTokenInfo.error.statusCode);
+  }
+  const { newTokens } = refreshTokenInfo;
 
-  req.accessTokenInfo = { jwt: rawAccessToken, payload };
+  req.accessTokenInfo = { jwt: refreshTokenInfo.rawAccessToken, payload: refreshTokenInfo.payload };
 
   const injectedData = { randomNumber: getRandomNumber() };
-  const { injectedAccessToken } = oauthProvider.injectData({ accessToken: rawAccessToken, data: injectedData });
+  const { injectedAccessToken, success } = oauthProvider.injectData({
+    accessToken: refreshTokenInfo.rawAccessToken,
+    data: injectedData,
+  });
 
-  const finalAccessToken = injectedAccessToken ?? newTokens.accessToken;
+  const finalAccessToken = success ? injectedAccessToken : newTokens.accessToken;
 
   reply.setCookie(finalAccessToken.name, finalAccessToken.value, finalAccessToken.options);
   if (newTokens.refreshToken) {
     reply.setCookie(newTokens.refreshToken.name, newTokens.refreshToken.value, newTokens.refreshToken.options);
   }
-  setUserInfo(req, { payload, injectedData: injectedAccessToken ? injectedData : undefined });
+  setUserInfo(req, { payload: refreshTokenInfo.payload, injectedData });
 
   return;
 }

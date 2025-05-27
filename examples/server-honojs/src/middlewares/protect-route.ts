@@ -10,10 +10,10 @@ export const protectRoute = createMiddleware<ProtectRoute>(async (c, next) => {
 
   if (oauthProvider.settings.acceptB2BRequests && authorizationHeader) {
     const bearerAccessToken = authorizationHeader.startsWith('Bearer ') ? authorizationHeader.split(' ')[1] : undefined;
-    const { error: bearerError, payload: bearerPayload } = await oauthProvider.verifyAccessToken(bearerAccessToken);
-    if (bearerError) throw new HTTPException(bearerError.statusCode, { message: bearerError.message });
+    const bearerInfo = await oauthProvider.verifyAccessToken(bearerAccessToken);
+    if (bearerInfo.error) throw new HTTPException(bearerInfo.error.statusCode, { message: bearerInfo.error.message });
 
-    setUserInfo(c, { payload: bearerPayload, isApp: true });
+    setUserInfo(c, { payload: bearerInfo.payload, isApp: true });
 
     return await next();
   }
@@ -23,55 +23,53 @@ export const protectRoute = createMiddleware<ProtectRoute>(async (c, next) => {
   const refreshToken = getCookie(c, refreshTokenName);
   if (!accessToken && !refreshToken) throw new HTTPException(401, { message: 'Unauthorized' });
 
-  const {
-    error: accessTokenError,
-    rawAccessToken: cookieRawAt,
-    payload: cookiePayload,
-    injectedData: cookieInjectedData,
-  } = await oauthProvider.verifyAccessToken(accessToken);
-  if (!accessTokenError) {
-    c.set('accessTokenInfo', { jwt: cookieRawAt, payload: cookiePayload });
-    const injectedData = cookieInjectedData
-      ? (cookieInjectedData as { randomNumber: number })
-      : { randomNumber: getRandomNumber() };
+  const accessTokenInfo = await oauthProvider.verifyAccessToken<{ randomNumber: number }>(accessToken);
+  if (!accessTokenInfo.error) {
+    c.set('accessTokenInfo', { jwt: accessTokenInfo.rawAccessToken, payload: accessTokenInfo.payload });
+    const injectedData = accessTokenInfo.injectedData ?? { randomNumber: getRandomNumber() };
 
-    if (!cookieInjectedData) {
-      const { error: injectedError, injectedAccessToken } = oauthProvider.injectData({
-        accessToken: cookieRawAt,
-        data: injectedData,
-      });
-      if (injectedError) {
-        setUserInfo(c, { payload: cookiePayload });
-        return await next();
-      }
-      setCookie(c, injectedAccessToken.name, injectedAccessToken.value, injectedAccessToken.options);
+    if (accessTokenInfo.injectedData) {
+      setUserInfo(c, { payload: accessTokenInfo.payload, injectedData });
+      return await next();
     }
 
-    setUserInfo(c, { payload: cookiePayload, injectedData });
+    const { injectedAccessToken, success } = oauthProvider.injectData({
+      accessToken: accessTokenInfo.rawAccessToken,
+      data: injectedData,
+    });
+
+    if (success) {
+      setCookie(c, injectedAccessToken.name, injectedAccessToken.value, injectedAccessToken.options);
+      setUserInfo(c, { payload: accessTokenInfo.payload, injectedData });
+      return await next();
+    }
+
+    setUserInfo(c, { payload: accessTokenInfo.payload, injectedData });
     return await next();
   }
 
-  const {
-    error: newTokensError,
-    newTokens,
-    rawAccessToken,
-    payload,
-  } = await oauthProvider.getTokenByRefresh(refreshToken);
-  if (newTokensError) throw new HTTPException(newTokensError.statusCode, { message: newTokensError.message });
+  const refreshTokenInfo = await oauthProvider.getTokenByRefresh(refreshToken);
+  if (refreshTokenInfo.error) {
+    throw new HTTPException(refreshTokenInfo.error.statusCode, { message: refreshTokenInfo.error.message });
+  }
+  const { newTokens } = refreshTokenInfo;
 
-  c.set('accessTokenInfo', { jwt: rawAccessToken, payload });
+  c.set('accessTokenInfo', { jwt: refreshTokenInfo.rawAccessToken, payload: refreshTokenInfo.payload });
 
   const injectedData = { randomNumber: getRandomNumber() };
-  const { injectedAccessToken } = oauthProvider.injectData({ accessToken: rawAccessToken, data: injectedData });
+  const { injectedAccessToken, success } = oauthProvider.injectData({
+    accessToken: refreshTokenInfo.rawAccessToken,
+    data: injectedData,
+  });
 
-  const finalAccessToken = injectedAccessToken ?? newTokens.accessToken;
+  const finalAccessToken = success ? injectedAccessToken : newTokens.accessToken;
 
   setCookie(c, finalAccessToken.name, finalAccessToken.value, finalAccessToken.options);
   if (newTokens.refreshToken) {
     setCookie(c, newTokens.refreshToken.name, newTokens.refreshToken.value, newTokens.refreshToken.options);
   }
 
-  setUserInfo(c, { payload, injectedData: injectedAccessToken ? injectedData : undefined });
+  setUserInfo(c, { payload: refreshTokenInfo.payload, injectedData });
   return await next();
 });
 

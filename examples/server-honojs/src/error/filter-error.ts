@@ -17,6 +17,7 @@ export function errorFilter(err: unknown): { statusCode: StatusCode; message: st
     case err instanceof OAuthError: {
       message = err.message;
       statusCode = err.statusCode as StatusCode;
+      console.log(err.description);
       description = env.NODE_ENV === 'development' ? err.description : undefined;
       break;
     }
