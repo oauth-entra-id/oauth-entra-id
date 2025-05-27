@@ -1,13 +1,13 @@
-import { z } from 'zod';
+import { z } from 'zod/v4';
 import { axiosFetch } from '~/lib/axios';
 import { zStr } from '~/lib/zod';
 import { type Color, useServerStore } from '~/stores/server-store';
 
 const zGetUserData = z.object({
   user: z.object({
-    uniqueId: zStr.uuid(),
+    uniqueId: z.uuid(),
     name: zStr,
-    email: zStr.email(),
+    email: z.email({ pattern: z.regexes.html5Email }),
     injectedData: z
       .object({
         randomNumber: z.number(),
@@ -25,7 +25,7 @@ export async function getUserData() {
 }
 
 const zGetAUthUrl = z.object({
-  url: zStr.url(),
+  url: z.url(),
 });
 
 export async function getAuthUrl({ email, loginPrompt }: { email?: string; loginPrompt?: string }) {
@@ -37,7 +37,7 @@ export async function getAuthUrl({ email, loginPrompt }: { email?: string; login
 }
 
 const zGetLogoutUrl = z.object({
-  url: zStr.url(),
+  url: z.url(),
 });
 
 export async function logoutAndGetLogoutUrl() {

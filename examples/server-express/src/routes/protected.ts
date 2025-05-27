@@ -1,7 +1,7 @@
 import axios from 'axios';
 import express, { type Router } from 'express';
 import { handleOnBehalfOf } from 'oauth-entra-id/express';
-import { z } from 'zod';
+import { z } from 'zod/v4';
 import { env } from '~/env';
 import { HttpException } from '~/error/HttpException';
 

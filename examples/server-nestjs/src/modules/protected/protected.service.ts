@@ -1,7 +1,7 @@
 import { HttpException, Injectable } from '@nestjs/common';
 import axios from 'axios';
 import type { OAuthProvider } from 'oauth-entra-id';
-import z from 'zod';
+import z from 'zod/v4';
 import { env } from '~/env';
 
 @Injectable()
