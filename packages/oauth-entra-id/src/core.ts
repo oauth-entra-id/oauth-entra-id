@@ -1,7 +1,7 @@
-import type { KeyObject } from 'node:crypto';
 import * as msal from '@azure/msal-node';
 import jwt from 'jsonwebtoken';
 import jwks from 'jwks-rsa';
+import type { z } from 'zod/v4';
 import { $err, $ok, OAuthError, type Result } from './error';
 import type {
   B2BApp,
@@ -15,17 +15,18 @@ import type {
   OboService,
 } from './types';
 import { $cookieOptions } from './utils/cookie-options';
-import {
-  $createSecretKey,
-  $decryptObj,
-  $decryptToken,
-  $encryptObj,
-  $encryptToken,
-  $getAud,
-  $getKid,
-} from './utils/crypto';
+import { $decrypt, $decryptObj, $encrypt, $encryptObj, $getAud, $getKid, type SecretKey } from './utils/crypto';
 import { $filterCoreErrors, $getB2BInfo, $getOboInfo } from './utils/misc';
-import { $prettyError, zAccessTokenStructure, zConfig, zEncrypted, zJwt, zMethods, zState } from './utils/zod';
+import {
+  $prettyError,
+  zAccessTokenStructure,
+  zConfig,
+  zEncrypted,
+  zJwt,
+  zLooseBase64,
+  zMethods,
+  zState,
+} from './utils/zod';
 
 /**
  * The core authentication class that handles OAuth 2.0 flows using Microsoft Entra ID (Azure AD).
@@ -46,7 +47,7 @@ export class OAuthProvider {
   private readonly azure: OAuthConfig['azure'];
   private readonly frontendUrls: [string, ...string[]];
   private readonly serverCallbackUrl: string;
-  private readonly secretKeys: { at: KeyObject; rt: KeyObject; state: KeyObject };
+  private readonly secretKeys: { at: SecretKey; rt: SecretKey; state: SecretKey };
   private readonly frontendWhitelist: Set<string>;
   private readonly defaultCookieOptions: Cookies['DefaultCookieOptions'];
   private readonly b2bMap: Map<string, B2BApp> | undefined;
@@ -85,14 +86,11 @@ export class OAuthProvider {
     const secure = !cookies.disableHttps && [serverHost, ...frontHosts].every((url) => url.startsWith('https'));
     const sameSite = !cookies.disableSameSite && frontHosts.size === 1 ? frontHosts.has(serverHost) : false;
 
-    const { secretKey: atSecretKey, error: atSecretKeyError } = $createSecretKey(`access-token-${secretKey}`);
-    if (atSecretKeyError) throw new OAuthError(atSecretKeyError);
-
-    const { secretKey: rtSecretKey, error: rtSecretKeyError } = $createSecretKey(`refresh-token-${secretKey}`);
-    if (rtSecretKeyError) throw new OAuthError(rtSecretKeyError);
-
-    const { secretKey: stateSecretKey, error: stateSecretKeyError } = $createSecretKey(`state-${secretKey}`);
-    if (stateSecretKeyError) throw new OAuthError(stateSecretKeyError);
+    const secretKeys = {
+      at: `access-token-${secretKey}`,
+      rt: `refresh-token-${secretKey}`,
+      state: `state-${secretKey}`,
+    };
 
     const { error: b2bError, b2bMap, b2bNames } = $getB2BInfo(b2bTargetedApps);
     if (b2bError) throw new OAuthError(b2bError);
@@ -113,13 +111,17 @@ export class OAuthProvider {
       sessionType,
       loginPrompt,
       acceptB2BRequests,
-      isHttps: secure,
-      isSameSite: sameSite,
-      cookiesTimeUnit: cookies.timeUnit,
-      accessTokenCookieExpiry: cookies.accessTokenExpiry,
-      refreshTokenCookieExpiry: cookies.refreshTokenExpiry,
       b2bApps: b2bNames,
       downstreamServices: oboNames,
+      cookies: {
+        timeUnit: cookies.timeUnit,
+        isSecure: secure,
+        isSameSite: sameSite,
+        accessTokenExpiry: cookies.accessTokenExpiry,
+        refreshTokenExpiry: cookies.refreshTokenExpiry,
+        accessTokenName: defaultCookieOptions.accessToken.name,
+        refreshTokenName: defaultCookieOptions.refreshToken.name,
+      },
     } satisfies OAuthSettings;
 
     const cca = new msal.ConfidentialClientApplication({
@@ -141,7 +143,7 @@ export class OAuthProvider {
     this.azure = azure;
     this.frontendUrls = frontendUrl as [string, ...string[]];
     this.serverCallbackUrl = serverCallbackUrl;
-    this.secretKeys = { at: atSecretKey, rt: rtSecretKey, state: stateSecretKey };
+    this.secretKeys = secretKeys;
     this.frontendWhitelist = frontHosts;
     this.defaultCookieOptions = defaultCookieOptions;
     this.b2bMap = b2bMap;
@@ -150,132 +152,6 @@ export class OAuthProvider {
     this.cca = cca;
     this.msalCryptoProvider = new msal.CryptoProvider();
     this.jwksClient = jwksClient;
-  }
-
-  /** Removes the account from the MSAL cache, if it exists. */
-  private async $removeFromCache(account: msal.AccountInfo | null) {
-    const cache = this.cca.getTokenCache();
-    if (account) await cache.removeAccount(account);
-  }
-
-  /** Extracts the refresh token from the cache that msal created, and removes the account from the cache. */
-  private async $extractRefreshToken(msalResponse: MsalResponse): Promise<string | null> {
-    try {
-      const serializedCache = JSON.parse(this.cca.getTokenCache().serialize());
-      const refreshTokens = serializedCache.RefreshToken;
-      const refreshTokenKey = Object.keys(refreshTokens).find((key) => key.startsWith(msalResponse.uniqueId));
-      await this.$removeFromCache(msalResponse.account);
-      return refreshTokenKey ? (refreshTokens[refreshTokenKey].secret as string) : null;
-    } catch {
-      return null;
-    }
-  }
-
-  /** Encrypts both tokens */
-  private async $encryptTokens(
-    msalResponse: MsalResponse,
-  ): Promise<Result<{ accessTokenValue: string; refreshTokenValue: string | null }>> {
-    const accessToken = $encryptToken('accessToken', msalResponse.accessToken, this.secretKeys.at);
-    if (accessToken.error) return accessToken;
-
-    const rawRefreshToken = await this.$extractRefreshToken(msalResponse);
-    const refreshToken = $encryptToken('refreshToken', rawRefreshToken, this.secretKeys.rt);
-    if (refreshToken.error) return refreshToken;
-
-    return $ok({ accessTokenValue: accessToken.result, refreshTokenValue: refreshToken.result });
-  }
-
-  /**Decrypts the access token and returns its raw value.*/
-  private $decryptAccessToken<T extends object = Record<string, any>>(
-    accessToken: string,
-  ): Result<{
-    rawAccessToken: string;
-    injectedData?: T;
-    wasEncrypted: boolean;
-  }> {
-    const { data: jwtToken, success: jwtSuccess } = zJwt.safeParse(accessToken);
-    if (jwtSuccess) return $ok({ rawAccessToken: jwtToken, injectedData: undefined, wasEncrypted: false });
-
-    const { data: token, error: tokenError } = zEncrypted.safeParse(accessToken);
-    if (tokenError) {
-      return $err('invalid_format', {
-        error: 'Unauthorized',
-        description: 'Invalid access token format',
-        status: 401,
-      });
-    }
-
-    const { error: decryptError, rawToken, injectedData } = $decryptToken<T>('accessToken', token, this.secretKeys.at);
-    if (decryptError) {
-      return $err('invalid_format', { error: 'Unauthorized', description: decryptError.description, status: 401 });
-    }
-
-    return $ok({ rawAccessToken: rawToken, injectedData, wasEncrypted: true });
-  }
-
-  /**Decrypts the refresh token and returns its raw value and OBO status. */
-  private $decryptRefreshToken(refreshToken: string): Result<{ rawRefreshToken: string }> {
-    const token = zEncrypted.safeParse(refreshToken);
-    if (token.error) {
-      return $err('invalid_format', {
-        error: 'Unauthorized',
-        description: 'Invalid refresh token format',
-        status: 401,
-      });
-    }
-
-    const { error, rawToken } = $decryptToken('refreshToken', token.data, this.secretKeys.rt);
-    if (error) return $err('invalid_format', { error: 'Unauthorized', description: error.description, status: 401 });
-
-    return $ok({ rawRefreshToken: rawToken });
-  }
-
-  /** Retrieves and caches the public key for a given key ID (kid) from the JWKS endpoint. */
-  private $getPublicKey(keyId: string): Promise<string> {
-    return new Promise((resolve, reject) => {
-      this.jwksClient.getSigningKey(keyId, (err, key) => {
-        if (err || !key) {
-          reject(new Error('Error retrieving signing key'));
-          return;
-        }
-        const publicKey = key.getPublicKey();
-        if (!publicKey) {
-          reject(new Error('Public key not found'));
-          return;
-        }
-        resolve(publicKey);
-      });
-    });
-  }
-
-  /** Verifies the JWT token and returns its payload. */
-  private async $verifyJwt(jwtToken: string): Promise<Result<{ payload: jwt.JwtPayload }>> {
-    const kid = $getKid(jwtToken);
-    if (kid.error) return $err('jwt_error', { error: 'Unauthorized', description: kid.error.description, status: 401 });
-
-    try {
-      const publicKey = await this.$getPublicKey(kid.result);
-
-      const decodedJwt = jwt.verify(jwtToken, publicKey, {
-        algorithms: ['RS256'],
-        audience: this.azure.clientId,
-        issuer: `https://login.microsoftonline.com/${this.azure.tenantId}/v2.0`,
-        complete: true,
-      });
-
-      if (typeof decodedJwt.payload === 'string') {
-        return $err('jwt_error', { error: 'Unauthorized', description: 'Payload is a string', status: 401 });
-      }
-
-      return $ok({ payload: decodedJwt.payload });
-    } catch {
-      return $err('jwt_error', {
-        error: 'Unauthorized',
-        description:
-          "Failed to verify JWT token. Check your Azure Portal, make sure the 'accessTokenAcceptedVersion' is set to '2' in the 'Manifest' area",
-        status: 401,
-      });
-    }
   }
 
   /** Generates an OAuth2 authorization URL with PKCE, login hints, and encrypted state. */
@@ -304,12 +180,15 @@ export class OAuthProvider {
             : undefined;
 
       const params = { nonce: this.msalCryptoProvider.createNewGuid(), loginHint: parsedParams.email, prompt };
-      const state = $encryptObj({ frontendUrl, codeVerifier: verifier, ...params }, this.secretKeys.state);
-      if (state.error) return state;
+      const { encryptedState, error: encryptError } = await this.$encrypt('state', {
+        value: { frontendUrl, codeVerifier: verifier, ...params },
+      });
+
+      if (encryptError) return $err(encryptError);
 
       const authUrl = await this.cca.getAuthCodeUrl({
         ...params,
-        state: state.result,
+        state: encryptedState,
         scopes: this.azure.scopes,
         redirectUri: this.serverCallbackUrl,
         responseMode: 'form_post',
@@ -339,11 +218,8 @@ export class OAuthProvider {
     const { data: parsedParams, error: paramsError } = zMethods.getTokenByCode.safeParse(params);
     if (paramsError) return $err('bad_request', { error: 'Invalid params', description: $prettyError(paramsError) });
 
-    const { result: decryptedState, error: decryptError } = $decryptObj(parsedParams.state, this.secretKeys.state);
-    if (decryptError) return $err('bad_request', { error: 'Invalid state', description: decryptError.description });
-
-    const { data: state, error: stateError } = zState.safeParse(decryptedState);
-    if (stateError) return $err('bad_request', { error: 'Invalid state', description: $prettyError(stateError) });
+    const { state, error: decryptError } = await this.$decrypt('state', parsedParams.state);
+    if (decryptError) return $err(decryptError);
 
     if (!this.frontendWhitelist.has(new URL(state.frontendUrl).host)) {
       return $err('bad_request', { error: 'Invalid params: Unlisted host frontend URL', status: 403 });
@@ -357,13 +233,13 @@ export class OAuthProvider {
         ...state,
       });
 
-      const { error: tokensError, accessTokenValue, refreshTokenValue } = await this.$encryptTokens(msalResponse);
-      if (tokensError) return $err(tokensError);
+      const { encryptedAccessToken, encryptedRefreshToken, error } = await this.$extractTokens(msalResponse);
+      if (error) return $err(error);
 
       return $ok({
-        accessToken: { value: accessTokenValue, ...this.defaultCookieOptions.accessToken },
-        refreshToken: refreshTokenValue
-          ? { value: refreshTokenValue, ...this.defaultCookieOptions.refreshToken }
+        accessToken: { value: encryptedAccessToken, ...this.defaultCookieOptions.accessToken },
+        refreshToken: encryptedRefreshToken
+          ? { value: encryptedRefreshToken, ...this.defaultCookieOptions.refreshToken }
           : null,
         frontendUrl: state.frontendUrl,
         msalResponse,
@@ -404,16 +280,6 @@ export class OAuthProvider {
     });
   }
 
-  /** Returns the cookie names used to store the access and refresh tokens.
-   * @returns Object containing `accessTokenName` and `refreshTokenName`.
-   */
-  getCookieNames() {
-    return {
-      accessTokenName: this.defaultCookieOptions.accessToken.name,
-      refreshTokenName: this.defaultCookieOptions.refreshToken.name,
-    } as const;
-  }
-
   /** Verifies an access token, either as a raw JWT or encrypted string. */
   async verifyAccessToken<T extends object = Record<string, any>>(
     accessToken: string | undefined,
@@ -425,16 +291,21 @@ export class OAuthProvider {
       isApp: boolean;
     }>
   > {
-    if (!accessToken) {
-      return $err('nullish_value', { error: 'Unauthorized', description: 'Access token is required', status: 401 });
+    const {
+      rawAccessToken,
+      injectedData,
+      wasEncrypted,
+      error: decryptError,
+    } = await this.$decrypt<T>('accessToken', accessToken);
+
+    if (decryptError) {
+      return $err(decryptError.type, {
+        error: 'Unauthorized',
+        description: decryptError.description,
+      });
     }
 
-    const { error: atError, rawAccessToken, injectedData, wasEncrypted } = this.$decryptAccessToken<T>(accessToken);
-    if (atError) {
-      return $err('invalid_format', { error: 'Unauthorized', description: atError.description, status: 401 });
-    }
-
-    const { error: payloadError, payload } = await this.$verifyJwt(rawAccessToken);
+    const { payload, error: payloadError } = await this.$verifyJwt(rawAccessToken);
     if (payloadError) return $err(payloadError);
 
     const isApp = payload.sub === payload.oid;
@@ -466,13 +337,7 @@ export class OAuthProvider {
     return $ok({ rawAccessToken, payload, injectedData, isApp });
   }
 
-  /**
-   * Rotates tokens using a previously stored refresh token.
-   *
-   * @param refreshToken - Encrypted refresh token.
-   * @returns New access and refresh token cookies, raw MSAL response, and payload.
-   * @throws {OAuthError} If the refresh token is invalid or decryption fails.
-   */
+  /** Rotates tokens using a previously stored refresh token.*/
   async getTokenByRefresh(refreshToken: string | undefined): Promise<
     Result<{
       rawAccessToken: string;
@@ -488,8 +353,14 @@ export class OAuthProvider {
       return $err('nullish_value', { error: 'Unauthorized', description: 'Refresh token is required', status: 401 });
     }
 
-    const { error: rtError, rawRefreshToken } = this.$decryptRefreshToken(refreshToken);
-    if (rtError) return $err(rtError);
+    const { rawRefreshToken, error } = await this.$decrypt('refreshToken', refreshToken);
+    if (error) {
+      return $err(error.type, {
+        error: 'Unauthorized',
+        description: error.description,
+        status: 401,
+      });
+    }
 
     try {
       const msalResponse = await this.cca.acquireTokenByRefreshToken({
@@ -505,19 +376,35 @@ export class OAuthProvider {
         });
       }
 
-      const { error: payloadError, payload } = await this.$verifyJwt(msalResponse.accessToken);
-      if (payloadError) return $err(payloadError);
+      const { payload, error: payloadError } = await this.$verifyJwt(msalResponse.accessToken);
+      if (payloadError) {
+        return $err(payloadError.type, {
+          error: 'Unauthorized',
+          description: payloadError.description,
+          status: 401,
+        });
+      }
 
-      const { error: tokensError, accessTokenValue, refreshTokenValue } = await this.$encryptTokens(msalResponse);
-      if (tokensError) return $err(tokensError);
+      const {
+        encryptedAccessToken,
+        encryptedRefreshToken,
+        error: tokensError,
+      } = await this.$extractTokens(msalResponse);
+      if (tokensError) {
+        return $err(tokensError.type, {
+          error: 'Unauthorized',
+          description: tokensError.description,
+          status: 401,
+        });
+      }
 
       return $ok({
         rawAccessToken: msalResponse.accessToken,
         payload,
         newTokens: {
-          accessToken: { value: accessTokenValue, ...this.defaultCookieOptions.accessToken },
-          refreshToken: refreshTokenValue
-            ? { value: refreshTokenValue, ...this.defaultCookieOptions.refreshToken }
+          accessToken: { value: encryptedAccessToken, ...this.defaultCookieOptions.accessToken },
+          refreshToken: encryptedRefreshToken
+            ? { value: encryptedRefreshToken, ...this.defaultCookieOptions.refreshToken }
             : null,
         },
         msalResponse,
@@ -602,8 +489,8 @@ export class OAuthProvider {
       return $err('bad_request', { error: 'Invalid params', description: 'OBO service not found' });
     }
 
-    const { error: atError, rawAccessToken } = this.$decryptAccessToken(parsedParams.accessToken);
-    if (atError) return $err(atError);
+    const { rawAccessToken, error } = await this.$decrypt('accessToken', parsedParams.accessToken);
+    if (error) return $err(error);
 
     try {
       const results = (
@@ -620,17 +507,11 @@ export class OAuthProvider {
               const { result: clientId, error: clientIdError } = $getAud(msalResponse.accessToken);
               if (clientIdError) return null;
 
-              const { secretKey: serviceSecretKey, error: serviceSecretKeyError } = $createSecretKey(
-                `access-token-${service.secretKey}`,
-              );
-              if (serviceSecretKeyError) return null;
-
-              const { result: accessTokenValue, error: accessTokenValueError } = $encryptToken(
-                'accessToken',
-                msalResponse.accessToken,
-                serviceSecretKey,
-              );
-              if (accessTokenValueError) return null;
+              const { encryptedAccessToken, error } = await this.$encrypt('accessToken', {
+                value: msalResponse.accessToken,
+                secretKey: `access-token-${service.secretKey}`,
+              });
+              if (error) return null;
 
               await this.$removeFromCache(msalResponse.account);
 
@@ -638,15 +519,15 @@ export class OAuthProvider {
                 clientId,
                 secure: service.secure,
                 sameSite: service.sameSite,
-                timeUnit: this.settings.cookiesTimeUnit,
-                atExp: service.atExp ?? this.settings.accessTokenCookieExpiry,
-                rtExp: service.atExp ?? this.settings.refreshTokenCookieExpiry,
+                timeUnit: this.settings.cookies.timeUnit,
+                atExp: service.atExp ?? this.settings.cookies.accessTokenExpiry,
+                rtExp: service.atExp ?? this.settings.cookies.refreshTokenExpiry,
               });
 
               return {
                 serviceName: service.serviceName,
                 clientId,
-                accessToken: { value: accessTokenValue, ...cookieOptions.accessToken },
+                accessToken: { value: encryptedAccessToken, ...cookieOptions.accessToken },
                 msalResponse,
               } satisfies GetTokenOnBehalfOfResult;
             } catch {
@@ -667,10 +548,10 @@ export class OAuthProvider {
   }
 
   /** Injects data into the access token. Useful for embedding non-sensitive metadata into token structure. */
-  injectData<TData extends object = Record<string, any>>(params: { accessToken: string; data: TData }): Result<{
-    injectedAccessToken: Cookies['AccessToken'];
-  }> {
-    const { error, rawAccessToken } = this.$decryptAccessToken(params.accessToken);
+  async injectData<T extends object = Record<string, any>>(params: { accessToken: string; data: T }): Promise<
+    Result<{ injectedAccessToken: Cookies['AccessToken'] }>
+  > {
+    const { rawAccessToken, error } = await this.$decrypt<T>('accessToken', params.accessToken);
     if (error) return $err(error);
 
     const { data: accessTokenStruct, error: accessTokenStructError } = zAccessTokenStructure.safeParse({
@@ -682,14 +563,305 @@ export class OAuthProvider {
       return $err('invalid_format', { error: 'Invalid data', description: $prettyError(accessTokenStructError) });
     }
 
-    const { result: accessToken, error: accessTokenError } = $encryptToken(
-      'accessToken',
-      accessTokenStruct.at,
-      this.secretKeys.at,
-      accessTokenStruct.inj,
-    );
-    if (accessTokenError) return $err(accessTokenError);
+    const { encryptedAccessToken, error: encryptError } = await this.$encrypt('accessToken', {
+      value: accessTokenStruct.at,
+      injectedData: accessTokenStruct.inj,
+    });
+    if (encryptError) return $err(encryptError);
 
-    return $ok({ injectedAccessToken: { value: accessToken, ...this.defaultCookieOptions.accessToken } });
+    return $ok({ injectedAccessToken: { value: encryptedAccessToken, ...this.defaultCookieOptions.accessToken } });
+  }
+
+  /** Retrieves and caches the public key for a given key ID (kid) from the JWKS endpoint. */
+  private $getPublicKey(keyId: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      this.jwksClient.getSigningKey(keyId, (err, key) => {
+        if (err || !key) {
+          reject(new Error('Error retrieving signing key'));
+          return;
+        }
+        const publicKey = key.getPublicKey();
+        if (!publicKey) {
+          reject(new Error('Public key not found'));
+          return;
+        }
+        resolve(publicKey);
+      });
+    });
+  }
+
+  /** Verifies the JWT token and returns its payload. */
+  private async $verifyJwt(jwtToken: string): Promise<Result<{ payload: jwt.JwtPayload }>> {
+    const kid = $getKid(jwtToken);
+    if (kid.error) return $err('jwt_error', { error: 'Unauthorized', description: kid.error.description, status: 401 });
+
+    try {
+      const publicKey = await this.$getPublicKey(kid.result);
+
+      const decodedJwt = jwt.verify(jwtToken, publicKey, {
+        algorithms: ['RS256'],
+        audience: this.azure.clientId,
+        issuer: `https://login.microsoftonline.com/${this.azure.tenantId}/v2.0`,
+        complete: true,
+      });
+
+      if (typeof decodedJwt.payload === 'string') {
+        return $err('jwt_error', { error: 'Unauthorized', description: 'Payload is a string', status: 401 });
+      }
+
+      return $ok({ payload: decodedJwt.payload });
+    } catch {
+      return $err('jwt_error', {
+        error: 'Unauthorized',
+        description:
+          "Failed to verify JWT token. Check your Azure Portal, make sure the 'accessTokenAcceptedVersion' is set to '2' in the 'Manifest' area",
+        status: 401,
+      });
+    }
+  }
+
+  /** Removes the account from the MSAL cache, if it exists. */
+  private async $removeFromCache(account: msal.AccountInfo | null) {
+    const cache = this.cca.getTokenCache();
+    if (account) await cache.removeAccount(account);
+  }
+
+  /** Extracts the refresh token from the cache that msal created, and removes the account from the cache. */
+  private async $obtainRefreshToken(msalResponse: MsalResponse): Promise<string | null> {
+    try {
+      const serializedCache = JSON.parse(this.cca.getTokenCache().serialize());
+      const refreshTokens = serializedCache.RefreshToken;
+      const refreshTokenKey = Object.keys(refreshTokens).find((key) => key.startsWith(msalResponse.uniqueId));
+      await this.$removeFromCache(msalResponse.account);
+      return refreshTokenKey ? (refreshTokens[refreshTokenKey].secret as string) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private async $encrypt<T extends object = Record<string, any>>(
+    type: 'accessToken',
+    params: { value: string | null; secretKey?: string; injectedData?: T },
+  ): Promise<Result<{ encryptedAccessToken: string }>>;
+  private async $encrypt(
+    type: 'refreshToken',
+    params: { value: string | null },
+  ): Promise<Result<{ encryptedRefreshToken: string }>>;
+  private async $encrypt(type: 'state', params: { value: object | null }): Promise<Result<{ encryptedState: string }>>;
+  private async $encrypt<T extends object = Record<string, any>>(
+    type: 'accessToken' | 'refreshToken' | 'state',
+    params: {
+      value: object | string | null;
+      secretKey?: SecretKey;
+      injectedData?: T;
+    },
+  ): Promise<
+    Result<{ encryptedAccessToken: string } | { encryptedRefreshToken: string } | { encryptedState: string }>
+  > {
+    if (!params.value) {
+      return $err('nullish_value', { error: 'Invalid data' });
+    }
+    switch (type) {
+      case 'accessToken': {
+        const { data, error: parseError } = zAccessTokenStructure.safeParse({
+          at: params.value,
+          inj: params.injectedData,
+        });
+        if (parseError) {
+          return $err('invalid_format', {
+            error: 'Invalid access token format',
+            description: $prettyError(parseError),
+          });
+        }
+        const { encrypted, secretKey, error } = await $encryptObj(data, params.secretKey ?? this.secretKeys.at);
+        if (error) {
+          return $err('crypto_error', { error: 'Failed to encrypt access token', description: error.description });
+        }
+        if (encrypted.length > 4096) {
+          return $err('invalid_format', {
+            error: 'Token too long',
+            description: 'Encrypted access token exceeds 4096 characters',
+          });
+        }
+
+        if (!params.secretKey && typeof this.secretKeys.at === 'string') {
+          this.secretKeys.at = secretKey;
+        }
+
+        return $ok({ encryptedAccessToken: encrypted });
+      }
+      case 'refreshToken': {
+        const { data, error: parseError } = zLooseBase64.safeParse(params.value);
+        if (parseError) {
+          return $err('invalid_format', {
+            error: 'Invalid refresh token format',
+            description: $prettyError(parseError),
+          });
+        }
+
+        const { encrypted, secretKey, error } = await $encrypt(data, this.secretKeys.rt);
+        if (error) {
+          return $err('crypto_error', { error: 'Failed to encrypt refresh token', description: error.description });
+        }
+
+        if (encrypted.length > 4096) {
+          return $err('invalid_format', {
+            error: 'Token too long',
+            description: 'Encrypted refresh token exceeds 4096 characters',
+          });
+        }
+
+        if (typeof this.secretKeys.rt === 'string') {
+          this.secretKeys.rt = secretKey;
+        }
+
+        return $ok({ encryptedRefreshToken: encrypted });
+      }
+      case 'state': {
+        const { data, error: parseError } = zState.safeParse(params.value);
+        if (parseError) {
+          return $err('invalid_format', {
+            error: 'Invalid state format',
+            description: $prettyError(parseError),
+          });
+        }
+
+        const { encrypted, secretKey, error } = await $encryptObj(data, this.secretKeys.state);
+        if (error) {
+          return $err('crypto_error', { error: 'Failed to encrypt state', description: error.description });
+        }
+
+        if (encrypted.length > 4096) {
+          return $err('invalid_format', {
+            error: 'State too long',
+            description: 'Encrypted state exceeds 4096 characters',
+          });
+        }
+
+        if (typeof this.secretKeys.state === 'string') {
+          this.secretKeys.state = secretKey;
+        }
+
+        return $ok({ encryptedState: encrypted });
+      }
+      default: {
+        return $err('misconfiguration', { error: 'Invalid encrypt type', description: `Unknown type: ${type}` });
+      }
+    }
+  }
+
+  private async $decrypt<T extends object = Record<string, any>>(
+    type: 'accessToken',
+    value: string | undefined,
+  ): Promise<Result<{ rawAccessToken: string; injectedData?: T; wasEncrypted: boolean }>>;
+  private async $decrypt(type: 'refreshToken', value: string | undefined): Promise<Result<{ rawRefreshToken: string }>>;
+  private async $decrypt(type: 'state', value: string | undefined): Promise<Result<{ state: z.infer<typeof zState> }>>;
+  private async $decrypt<T extends object = Record<string, any>>(
+    type: 'accessToken' | 'refreshToken' | 'state',
+    value: string | undefined,
+  ): Promise<
+    Result<
+      | { rawAccessToken: string; injectedData?: T; wasEncrypted: boolean }
+      | { rawRefreshToken: string }
+      | { state: z.infer<typeof zState> }
+    >
+  > {
+    if (!value) return $err('nullish_value', { error: 'Invalid data' });
+
+    switch (type) {
+      case 'accessToken': {
+        const { data: jwtToken, success: jwtSuccess } = zJwt.safeParse(value);
+        if (jwtSuccess) return $ok({ rawAccessToken: jwtToken, injectedData: undefined, wasEncrypted: false });
+
+        const { data: encryptedAccessToken, error: encryptedAccessTokenError } = zEncrypted.safeParse(value);
+        if (encryptedAccessTokenError) {
+          return $err('invalid_format', { error: 'Unauthorized', description: 'Invalid access token format' });
+        }
+
+        const { data, secretKey, error } = await $decryptObj(encryptedAccessToken, this.secretKeys.at);
+        if (error) {
+          return $err('crypto_error', { error: 'Failed to decrypt access token', description: error.description });
+        }
+
+        if (typeof this.secretKeys.at === 'string') {
+          this.secretKeys.at = secretKey;
+        }
+
+        const { data: accessTokenStruct, error: accessTokenStructError } = zAccessTokenStructure.safeParse(data);
+        if (accessTokenStructError) {
+          return $err('invalid_format', {
+            error: 'Invalid access token format',
+            description: $prettyError(accessTokenStructError),
+          });
+        }
+
+        return $ok({
+          rawAccessToken: accessTokenStruct.at,
+          injectedData: accessTokenStruct.inj as T,
+          wasEncrypted: true,
+        });
+      }
+      case 'refreshToken': {
+        const { data: encryptedRefreshToken, error: encryptedRefreshTokenError } = zEncrypted.safeParse(value);
+        if (encryptedRefreshTokenError) {
+          return $err('invalid_format', { error: 'Unauthorized', description: 'Invalid refresh token format' });
+        }
+
+        const { data: rawRefreshToken, secretKey, error } = await $decrypt(encryptedRefreshToken, this.secretKeys.rt);
+        if (error) {
+          return $err('crypto_error', { error: 'Failed to decrypt refresh token', description: error.description });
+        }
+
+        if (typeof this.secretKeys.rt === 'string') {
+          this.secretKeys.rt = secretKey;
+        }
+
+        return $ok({ rawRefreshToken });
+      }
+      case 'state': {
+        const { data: encryptedState, error: encryptedStateError } = zEncrypted.safeParse(value);
+        if (encryptedStateError) {
+          return $err('invalid_format', { error: 'Unauthorized', description: 'Invalid state format' });
+        }
+
+        const { data, secretKey, error } = await $decryptObj(encryptedState, this.secretKeys.state);
+        if (error) {
+          return $err('crypto_error', { error: 'Failed to decrypt state', description: error.description });
+        }
+
+        if (typeof this.secretKeys.state === 'string') {
+          this.secretKeys.state = secretKey;
+        }
+
+        const { data: state, error: stateError } = zState.safeParse(data);
+        if (stateError) {
+          return $err('invalid_format', {
+            error: 'Invalid state format',
+            description: $prettyError(stateError),
+          });
+        }
+
+        return $ok({ state });
+      }
+      default: {
+        return $err('misconfiguration', { error: 'Invalid decrypt type', description: `Unknown type: ${type}` });
+      }
+    }
+  }
+
+  /** Extracts and encrypts both tokens */
+  private async $extractTokens(
+    msalResponse: MsalResponse,
+  ): Promise<Result<{ encryptedAccessToken: string; encryptedRefreshToken: string | null }>> {
+    const { encryptedAccessToken, error: atError } = await this.$encrypt('accessToken', {
+      value: msalResponse.accessToken,
+    });
+    if (atError) return $err(atError);
+
+    const rawRefreshToken = await this.$obtainRefreshToken(msalResponse);
+    const { encryptedRefreshToken, error: rtError } = await this.$encrypt('refreshToken', { value: rawRefreshToken });
+    if (rtError) return $err(rtError);
+
+    return $ok({ encryptedAccessToken, encryptedRefreshToken });
   }
 }

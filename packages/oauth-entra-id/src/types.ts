@@ -119,13 +119,17 @@ export interface OAuthSettings {
   readonly sessionType: SessionType;
   readonly loginPrompt: LoginPrompt;
   readonly acceptB2BRequests: boolean;
-  readonly isHttps: boolean;
-  readonly isSameSite: boolean;
-  readonly cookiesTimeUnit: TimeUnit;
   readonly b2bApps?: string[];
   readonly downstreamServices?: string[];
-  readonly accessTokenCookieExpiry: number;
-  readonly refreshTokenCookieExpiry: number;
+  readonly cookies: {
+    readonly timeUnit: TimeUnit;
+    readonly isSecure: boolean;
+    readonly isSameSite: boolean;
+    readonly accessTokenExpiry: number;
+    readonly refreshTokenExpiry: number;
+    readonly accessTokenName: AccessTokenName;
+    readonly refreshTokenName: RefreshTokenName;
+  };
 }
 
 export type MsalResponse = AuthenticationResult;

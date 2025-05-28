@@ -1,7 +1,7 @@
 import { type ZodError, z } from 'zod/v4';
 
 export const base64urlWithDotRegex = /^[A-Za-z0-9._-]+$/;
-export const encryptedRegex = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.$/;
+export const encryptedRegex = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.$/;
 
 export const $prettyError = (error: ZodError) => {
   //TODO: Implement the new Zod 4 pretty error formatting
