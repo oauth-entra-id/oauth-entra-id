@@ -18,8 +18,8 @@ export async function sharedIsAuthenticated(
 
   const oauthProvider = req.oauthProvider;
 
-  const InjectDataFunction = <T extends object = Record<any, string>>(accessToken: string, data: T) => {
-    const { injectedAccessToken, success } = oauthProvider.injectData({ accessToken, data });
+  const InjectDataFunction = async <T extends object = Record<any, string>>(accessToken: string, data: T) => {
+    const { injectedAccessToken, success } = await oauthProvider.injectData({ accessToken, data });
     if (success) setCookie(res, injectedAccessToken.name, injectedAccessToken.value, injectedAccessToken.options);
     if (req.userInfo?.isApp === false) {
       req.userInfo = { ...req.userInfo, injectedData: data };
@@ -38,11 +38,11 @@ export async function sharedIsAuthenticated(
     req.accessTokenInfo = { jwt: bearerInfo.rawAccessToken, payload: bearerInfo.payload };
     req.userInfo = userInfo;
 
-    return { userInfo, injectData: (data) => null };
+    return { userInfo, injectData: (data) => Promise.resolve() };
   }
 
   // Check for access and refresh tokens in cookies
-  const { accessTokenName, refreshTokenName } = oauthProvider.getCookieNames();
+  const { accessTokenName, refreshTokenName } = oauthProvider.settings.cookies;
   const cookieAccessToken = getCookie(req, accessTokenName);
   const cookieRefreshToken = getCookie(req, refreshTokenName);
 

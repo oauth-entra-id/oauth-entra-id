@@ -10,9 +10,9 @@ routesRouter.use('/', publicRouter);
 routesRouter.use('/auth', authRouter);
 routesRouter.use(
   '/protected',
-  protectRoute(({ userInfo, injectData }) => {
+  protectRoute(async ({ userInfo, injectData }) => {
     if (!userInfo.isApp && !userInfo.injectedData) {
-      injectData({ randomNumber: getRandomNumber() });
+      await injectData({ randomNumber: getRandomNumber() });
     }
   }),
   protectedRouter,

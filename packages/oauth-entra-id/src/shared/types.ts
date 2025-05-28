@@ -19,12 +19,12 @@ export type UserInfo<T extends object = Record<string, any>> =
       appId: string;
     };
 
-export type InjectDataFunction<T extends object = Record<string, any>> = (data: T) => void;
+export type InjectDataFunction<T extends object = Record<string, any>> = (data: T) => Promise<void>;
 
 export type CallbackFunction = (params: {
   userInfo: UserInfo;
   injectData: InjectDataFunction;
-}) => void | Promise<void>;
+}) => Promise<void> | void;
 
 export interface Endpoints {
   Authenticate: {

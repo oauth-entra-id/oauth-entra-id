@@ -18,7 +18,7 @@ export const protectRoute = createMiddleware<ProtectRoute>(async (c, next) => {
     return await next();
   }
 
-  const { accessTokenName, refreshTokenName } = oauthProvider.getCookieNames();
+  const { accessTokenName, refreshTokenName } = oauthProvider.settings.cookies;
   const accessToken = getCookie(c, accessTokenName);
   const refreshToken = getCookie(c, refreshTokenName);
   if (!accessToken && !refreshToken) throw new HTTPException(401, { message: 'Unauthorized' });
@@ -33,7 +33,7 @@ export const protectRoute = createMiddleware<ProtectRoute>(async (c, next) => {
       return await next();
     }
 
-    const { injectedAccessToken, success } = oauthProvider.injectData({
+    const { injectedAccessToken, success } = await oauthProvider.injectData({
       accessToken: accessTokenInfo.rawAccessToken,
       data: injectedData,
     });
@@ -57,7 +57,7 @@ export const protectRoute = createMiddleware<ProtectRoute>(async (c, next) => {
   c.set('accessTokenInfo', { jwt: refreshTokenInfo.rawAccessToken, payload: refreshTokenInfo.payload });
 
   const injectedData = { randomNumber: getRandomNumber() };
-  const { injectedAccessToken, success } = oauthProvider.injectData({
+  const { injectedAccessToken, success } = await oauthProvider.injectData({
     accessToken: refreshTokenInfo.rawAccessToken,
     data: injectedData,
   });
