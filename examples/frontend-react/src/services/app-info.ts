@@ -1,13 +1,12 @@
-import { z } from 'zod';
+import { z } from 'zod/v4';
 import { axiosFetch } from '~/lib/axios';
-import { zStr } from '~/lib/zod';
 import { type Server, useServerStore } from '~/stores/server-store';
 
 const zGetAppInfo = z.object({
   current: z.enum(['blue', 'red', 'yellow']),
-  blue: zStr.uuid(),
-  red: zStr.uuid(),
-  yellow: zStr.uuid(),
+  blue: z.uuid(),
+  red: z.uuid(),
+  yellow: z.uuid(),
 });
 
 export async function getAppInfo() {

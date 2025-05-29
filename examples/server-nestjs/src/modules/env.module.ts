@@ -7,7 +7,7 @@ export const EnvModule = ConfigModule.forRoot({
     const parsedEnv = zEnv.safeParse(config);
     if (!parsedEnv.success) {
       console.error('❌ Nestjs App environment variables are invalid');
-      throw new Error(parsedEnv.error.errors.join('\n'));
+      throw new Error('Invalid environment variables');
     }
     return parsedEnv.data;
   },

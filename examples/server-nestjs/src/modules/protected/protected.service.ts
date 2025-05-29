@@ -1,8 +1,30 @@
 import { HttpException, Injectable } from '@nestjs/common';
 import axios from 'axios';
 import type { OAuthProvider } from 'oauth-entra-id';
-import z from 'zod';
+import z from 'zod/v4';
 import { env } from '~/env';
+
+@Injectable()
+export class ProtectedService {
+  async fetchB2BInfo(oauthProvider: OAuthProvider, appName: string) {
+    const { result, error } = await oauthProvider.getB2BToken({ appName });
+    if (error) throw new HttpException(error.message, error.statusCode);
+    const { accessToken } = result;
+
+    const serverUrl = serversMap[appName];
+    const axiosResponse = await axios.get(`${serverUrl}/protected/b2b-info`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+
+    const { data: b2bRes, error: b2bResError } = zB2BResponse.safeParse(axiosResponse.data);
+    if (b2bResError) throw new HttpException('Invalid B2B response', 500);
+    return b2bRes;
+  }
+
+  generateRandomPokemon() {
+    return pokemon[Math.floor(Math.random() * pokemon.length)];
+  }
+}
 
 const zB2BResponse = z.object({
   pokemon: z.string().trim().min(1).max(32),
@@ -43,21 +65,3 @@ const pokemon = [
   'Snorlax',
   'Mew',
 ];
-
-@Injectable()
-export class ProtectedService {
-  async fetchB2BInfo(oauthProvider: OAuthProvider, appName: string) {
-    const { accessToken } = await oauthProvider.getB2BToken({ appName });
-    const serverUrl = serversMap[appName];
-    const axiosResponse = await axios.get(`${serverUrl}/protected/b2b-info`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
-    const { data, error } = zB2BResponse.safeParse(axiosResponse.data);
-    if (error) throw new HttpException('Invalid B2B response', 500);
-    return data;
-  }
-
-  generateRandomPokemon() {
-    return pokemon[Math.floor(Math.random() * pokemon.length)];
-  }
-}

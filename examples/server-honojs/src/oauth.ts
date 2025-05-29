@@ -23,8 +23,16 @@ export const oauthProvider = new OAuthProvider({
       areHttps: env.NODE_ENV !== 'development',
       areSameOrigin: env.NODE_ENV !== 'development',
       services: [
-        { serviceName: 'yellow', scope: env.AZURE_YELLOW_EXPOSED_SCOPE, secretKey: env.YELLOW_SECRET_KEY },
-        { serviceName: 'red', scope: env.AZURE_RED_EXPOSED_SCOPE, secretKey: env.RED_SECRET_KEY },
+        {
+          serviceName: 'yellow',
+          scope: env.AZURE_YELLOW_EXPOSED_SCOPE,
+          secretKey: env.YELLOW_SECRET_KEY,
+        },
+        {
+          serviceName: 'red',
+          scope: env.AZURE_RED_EXPOSED_SCOPE,
+          secretKey: env.RED_SECRET_KEY,
+        },
       ],
     },
   },

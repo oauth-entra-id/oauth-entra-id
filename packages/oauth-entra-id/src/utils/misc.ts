@@ -1,49 +1,76 @@
-import { OAuthError } from '~/error';
-import type { B2BApp, OAuthConfig } from '~/types';
+import type { OAuthProvider } from '~/core';
+import { $err, $ok, type Result, type ResultErr } from '~/error';
+import type { B2BApp, OAuthConfig, OboService } from '~/types';
 
-export function debugLog({ condition, funcName, message }: { condition: boolean; funcName: string; message: string }) {
-  if (condition) {
-    console.log(`[oauth-entra-id] ${funcName}: ${message}`);
+export function $getB2BInfo(
+  b2bConfig: B2BApp[] | undefined,
+): Result<{ b2bMap: Map<string, B2BApp> | undefined; b2bNames: string[] | undefined }> {
+  if (!b2bConfig) return $ok({ b2bMap: undefined, b2bNames: undefined });
+
+  const b2bMap = new Map(b2bConfig.map((app) => [app.appName, app]));
+  const b2bNames = Array.from(b2bMap.keys());
+
+  if (b2bNames.length !== b2bConfig.length) {
+    return $err('misconfiguration', { error: 'Invalid config', description: 'B2B has duplicate names', status: 500 });
   }
+
+  return $ok({ b2bMap, b2bNames });
 }
 
-export function getB2BAppsInfo(b2bClient: B2BApp[] | undefined) {
-  if (!b2bClient) {
-    return { b2bAppsMap: undefined, b2bAppsNames: undefined };
-  }
+export function $getOboInfo(
+  oboConfig: NonNullable<OAuthConfig['advanced']>['downstreamServices'] | undefined,
+): Result<{ oboMap: Map<string, OboService> | undefined; oboNames: string[] | undefined }> {
+  if (!oboConfig) return $ok({ oboMap: undefined, oboNames: undefined });
 
-  const b2bAppsMap = new Map(b2bClient.map((app) => [app.appName, app]));
-  const b2bAppsNames = Array.from(b2bAppsMap?.keys());
-
-  if (b2bAppsNames.length !== b2bClient.length) {
-    throw new OAuthError(500, { message: 'Invalid OAuthProvider config', description: 'Duplicate services found' });
-  }
-
-  return { b2bAppsMap, b2bAppsNames };
-}
-
-export function getDownstreamServicesInfo(
-  onBehalfOfConfig: NonNullable<OAuthConfig['advanced']>['downstreamServices'] | undefined,
-) {
-  if (!onBehalfOfConfig) {
-    return { downstreamServicesMap: undefined, downstreamServicesNames: undefined };
-  }
-
-  const downstreamServicesMap = new Map(
-    onBehalfOfConfig.services.map((service) => [
+  const oboMap = new Map(
+    oboConfig.services.map((service) => [
       service.serviceName,
       {
         ...service,
-        isHttps: service.isHttps ?? onBehalfOfConfig.areHttps,
-        isSameSite: service.isSameOrigin ?? onBehalfOfConfig.areSameOrigin,
-      },
+        secure: service.isHttps ?? oboConfig.areHttps,
+        sameSite: service.isSameOrigin ?? oboConfig.areSameOrigin,
+      } satisfies OboService,
     ]),
   );
-  const downstreamServicesNames = Array.from(downstreamServicesMap.keys());
 
-  if (downstreamServicesNames.length !== onBehalfOfConfig.services.length) {
-    throw new OAuthError(500, { message: 'Invalid OAuthProvider config', description: 'Duplicate services found' });
+  const oboNames = Array.from(oboMap.keys());
+
+  if (oboNames.length !== oboConfig.services.length) {
+    return $err('misconfiguration', {
+      error: 'Invalid config',
+      description: 'OBO has duplicate client IDs',
+      status: 500,
+    });
   }
 
-  return { downstreamServicesMap, downstreamServicesNames };
+  return $ok({ oboMap, oboNames });
+}
+
+export function $filterCoreErrors(
+  err: unknown,
+  method: {
+    [K in keyof OAuthProvider]: OAuthProvider[K] extends (...args: any[]) => any ? K : never;
+  }[keyof OAuthProvider],
+): Result<never, ResultErr> {
+  if (err instanceof Error) {
+    return $err('internal', {
+      error: 'An Error occurred',
+      description: `method: ${method}, message: ${err.message}, stack : ${err.stack}`,
+      status: 500,
+    });
+  }
+
+  if (typeof err === 'string') {
+    return $err('internal', {
+      error: 'An Error occurred',
+      description: `method: ${method}, message: ${err}`,
+      status: 500,
+    });
+  }
+
+  return $err('internal', {
+    error: 'Unknown error',
+    description: `method: ${method}, error: ${JSON.stringify(err)}`,
+    status: 500,
+  });
 }

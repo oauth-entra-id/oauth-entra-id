@@ -64,6 +64,7 @@
     "msal",
     "partialize",
     "PKCE",
+    "prefault",
     "Regs",
     "Sonner",
     "typebox",

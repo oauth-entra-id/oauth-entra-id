@@ -1,13 +1,13 @@
-import { z } from 'zod';
+import { z } from 'zod/v4';
 import { axiosFetch } from '~/lib/axios';
 import { zStr } from '~/lib/zod';
 import { type Color, useServerStore } from '~/stores/server-store';
 
 const zGetUserData = z.object({
   user: z.object({
-    uniqueId: zStr.uuid(),
+    uniqueId: z.uuid(),
     name: zStr,
-    email: zStr.email(),
+    email: z.email({ pattern: z.regexes.html5Email }),
     injectedData: z
       .object({
         randomNumber: z.number(),
@@ -25,7 +25,7 @@ export async function getUserData() {
 }
 
 const zGetAUthUrl = z.object({
-  url: zStr.url(),
+  url: z.url(),
 });
 
 export async function getAuthUrl({ email, loginPrompt }: { email?: string; loginPrompt?: string }) {
@@ -37,7 +37,7 @@ export async function getAuthUrl({ email, loginPrompt }: { email?: string; login
 }
 
 const zGetLogoutUrl = z.object({
-  url: zStr.url(),
+  url: z.url(),
 });
 
 export async function logoutAndGetLogoutUrl() {
@@ -52,9 +52,10 @@ const zGetTokensOnBehalfOf = z.object({
   tokensSet: z.number(),
 });
 
-export async function getTokensOnBehalfOf(servicesNames: Color[]) {
+export async function getTokensOnBehalfOf(serviceNames: Color[]) {
+  if (!serviceNames || serviceNames.length === 0) throw new Error('No client IDs provided');
   const serverUrl = useServerStore.getState().serverUrl;
-  const res = await axiosFetch.post(`${serverUrl}/protected/on-behalf-of`, { servicesNames });
+  const res = await axiosFetch.post(`${serverUrl}/protected/on-behalf-of`, { serviceNames });
   const parsed = zGetTokensOnBehalfOf.safeParse(res?.data);
   if (parsed.error) throw new Error('Invalid on-behalf-of tokens');
   return parsed.data.tokensSet;

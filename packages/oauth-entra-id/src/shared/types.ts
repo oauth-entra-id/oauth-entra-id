@@ -1,25 +1,34 @@
 import type { JwtPayload } from 'jsonwebtoken';
 import type { OAuthProvider } from '~/core';
-import type { InjectedData } from '~/types';
+import type { Result } from '~/error';
 
 export type ServerType = 'express' | 'nestjs';
-export type UserInfo =
-  | {
-      isB2B: false;
-      uniqueId: string;
-      roles: string[];
-      name: string;
-      email: string;
-      injectedData?: InjectedData;
-    }
-  | { isB2B: true; uniqueId: string; roles: string[]; appId: string };
 
-export type InjectDataFunction = (data: InjectedData) => void;
+export type UserInfo<T extends object = Record<string, any>> =
+  | {
+      readonly isApp: false;
+      readonly name: string;
+      readonly email: string;
+      readonly injectedData?: T;
+      readonly uniqueId: string;
+      readonly roles: string[];
+    }
+  | {
+      readonly isApp: true;
+      readonly appId: string;
+      readonly name?: undefined;
+      readonly email?: undefined;
+      readonly injectedData?: undefined;
+      readonly uniqueId: string;
+      readonly roles: string[];
+    };
+
+export type InjectDataFunction<T extends object = Record<string, any>> = (data: T) => Promise<Result<void>>;
 
 export type CallbackFunction = (params: {
   userInfo: UserInfo;
   injectData: InjectDataFunction;
-}) => void | Promise<void>;
+}) => Promise<void> | void;
 
 export interface Endpoints {
   Authenticate: {
@@ -35,7 +44,7 @@ export interface Endpoints {
     frontendUrl?: string;
   };
   OnBehalfOf: {
-    servicesNames: string[];
+    serviceNames: string[];
   };
 }
 
@@ -60,15 +69,15 @@ declare global {
        * Stores the raw Microsoft access token and its decoded payload.
        */
       accessTokenInfo?: {
-        jwt: string;
-        payload: JwtPayload;
+        readonly jwt: string;
+        readonly payload: JwtPayload;
       };
 
       /**
        * Stores user authentication details.
        *
-       * - If `isB2B` is `false`, the user is authenticated locally.
-       * - If `isB2B` is `true`, the token was issued by another service.
+       * - If `isApp` is `false`, the user is authenticated locally.
+       * - If `isApp` is `true`, the token was issued by another service.
        */
       userInfo?: UserInfo;
     }
