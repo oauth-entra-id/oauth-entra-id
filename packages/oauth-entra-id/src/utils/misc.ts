@@ -2,10 +2,6 @@ import type { OAuthProvider } from '~/core';
 import { $err, $ok, type Result, type ResultErr } from '~/error';
 import type { B2BApp, OAuthConfig, OboService } from '~/types';
 
-export function $logger({ condition, funcName, message }: { condition: boolean; funcName: string; message: string }) {
-  if (condition) console.log(`[oauth-entra-id] ${funcName}: ${message}`);
-}
-
 export function $getB2BInfo(
   b2bConfig: B2BApp[] | undefined,
 ): Result<{ b2bMap: Map<string, B2BApp> | undefined; b2bNames: string[] | undefined }> {

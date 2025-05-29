@@ -1,3 +1,4 @@
+import type { webcrypto } from 'node:crypto';
 import * as msal from '@azure/msal-node';
 import jwt from 'jsonwebtoken';
 import jwks from 'jwks-rsa';
@@ -15,7 +16,7 @@ import type {
   OboService,
 } from './types';
 import { $cookieOptions } from './utils/cookie-options';
-import { $decrypt, $decryptObj, $encrypt, $encryptObj, $getAud, $getKid, type SecretKey } from './utils/crypto';
+import { $decrypt, $decryptObj, $encrypt, $encryptObj, $getAud, $getKid } from './utils/crypto';
 import { $filterCoreErrors, $getB2BInfo, $getOboInfo } from './utils/misc';
 import {
   $prettyError,
@@ -47,7 +48,11 @@ export class OAuthProvider {
   private readonly azure: OAuthConfig['azure'];
   private readonly frontendUrls: [string, ...string[]];
   private readonly serverCallbackUrl: string;
-  private readonly secretKeys: { at: SecretKey; rt: SecretKey; state: SecretKey };
+  private readonly secretKeys: {
+    at: string | webcrypto.CryptoKey;
+    rt: string | webcrypto.CryptoKey;
+    state: string | webcrypto.CryptoKey;
+  };
   private readonly frontendWhitelist: Set<string>;
   private readonly defaultCookieOptions: Cookies['DefaultCookieOptions'];
   private readonly b2bMap: Map<string, B2BApp> | undefined;
@@ -58,10 +63,13 @@ export class OAuthProvider {
   private readonly jwksClient: jwks.JwksClient;
 
   /**
-   * Creates a new OAuthProvider instance.
-   *
-   * @param configuration - The full OAuth configuration including Azure client credentials, frontend redirect URIs, server callback URL, secret keys, and advanced options.
-   * @throws {OAuthError} If the configuration is invalid or contains duplicate service definitions.
+   * @param configuration The OAuth configuration object:
+   * - `azure`: clientId, tenantId, scopes, clientSecret
+   * - `frontendUrl`: allowed redirect URIs
+   * - `serverCallbackUrl`: your server’s Azure callback endpoint
+   * - `secretKey`: 32-byte base encryption secret
+   * - `advanced`: optional behaviors (cookies, B2B, OBO, prompts)
+   * @throws {OAuthError} if the config fails validation or has duplicate service names
    */
   constructor(configuration: OAuthConfig) {
     const { data: config, error: configError } = zConfig.safeParse(configuration);
@@ -154,7 +162,15 @@ export class OAuthProvider {
     this.jwksClient = jwksClient;
   }
 
-  /** Generates an OAuth2 authorization URL with PKCE, login hints, and encrypted state. */
+  /**
+   * Generate an OAuth2 authorization URL for user login (PKCE-backed).
+   *
+   * @param params (optional) - Parameters to customize the auth URL:
+   * - `loginPrompt` - Override the default prompt (`sso`|`email`|`select-account`)
+   * - `email` - Login hint email address (if using `email` prompt)
+   * - `frontendUrl` - Which frontend host to return to
+   * @returns A result containing the authorization URL or an error.
+   */
   async getAuthUrl(params?: { loginPrompt?: LoginPrompt; email?: string; frontendUrl?: string }): Promise<
     Result<{ authUrl: string }>
   > {
@@ -206,7 +222,14 @@ export class OAuthProvider {
     }
   }
 
-  /**  Handles authorization code exchange to return encrypted tokens and redirect metadata. */
+  /**
+   * Exchange an authorization code for encrypted tokens and metadata.
+   *
+   * @param params - The parameters containing the authorization code and state.
+   * - `code` - The authorization code received from the OAuth flow.
+   * - `state` - The encrypted state object containing the frontend URL and other parameters.
+   * @returns A result containing the access token, refresh token (if available), frontend URL, and MSAL response.
+   */
   async getTokenByCode(params: { code: string; state: string }): Promise<
     Result<{
       accessToken: Cookies['AccessToken'];
@@ -249,7 +272,13 @@ export class OAuthProvider {
     }
   }
 
-  /** Generates a logout URL and the cookie deletion configuration. */
+  /**
+   * Build a logout URL and cookie-deletion instructions.
+   *
+   * @param params (optional) - Parameters to customize the logout URL:
+   * - `frontendUrl` - Optional frontend to redirect to after logout
+   * @returns A result containing the logout URL and cookie deletion instructions.
+   */
   getLogoutUrl(params?: { frontendUrl?: string }): Result<{
     logoutUrl: string;
     deleteAccessToken: Cookies['DeleteAccessToken'];
@@ -280,7 +309,14 @@ export class OAuthProvider {
     });
   }
 
-  /** Verifies an access token, either as a raw JWT or encrypted string. */
+  /**
+   * Verify an access token (raw or encrypted), and return its payload.
+   * Make sure that user access tokens are encrypted and app tokens aren't
+   *
+   * @template T - Type of any injected data in the encrypted token
+   * @param accessToken - The raw JWT string or encrypted
+   * @returns A result containing the raw access token, its payload, any injected data, and whether it is an app token.
+   */
   async verifyAccessToken<T extends object = Record<string, any>>(
     accessToken: string | undefined,
   ): Promise<
@@ -299,10 +335,7 @@ export class OAuthProvider {
     } = await this.$decrypt<T>('accessToken', accessToken);
 
     if (decryptError) {
-      return $err(decryptError.type, {
-        error: 'Unauthorized',
-        description: decryptError.description,
-      });
+      return $err(decryptError.type, { error: 'Unauthorized', description: decryptError.description });
     }
 
     const { payload, error: payloadError } = await this.$verifyJwt(rawAccessToken);
@@ -318,18 +351,10 @@ export class OAuthProvider {
       });
     }
 
-    if (isApp === true && wasEncrypted === true) {
-      return $err('jwt_error', {
+    if (isApp === wasEncrypted) {
+      return $err('bad_request', {
         error: 'Unauthorized',
-        description: 'App token cannot be encrypted',
-        status: 401,
-      });
-    }
-
-    if (isApp === false && wasEncrypted === false) {
-      return $err('jwt_error', {
-        error: 'Unauthorized',
-        description: 'Normal user token cannot be unencrypted',
+        description: 'User tokens must be encrypted, app tokens must not be encrypted',
         status: 401,
       });
     }
@@ -337,7 +362,12 @@ export class OAuthProvider {
     return $ok({ rawAccessToken, payload, injectedData, isApp });
   }
 
-  /** Rotates tokens using a previously stored refresh token.*/
+  /**
+   * Rotates tokens using a previously stored refresh token.
+   *
+   * @param refreshToken - Encrypted refresh-token value
+   * @returns A result containing the new access token, optional new refresh token, the raw access token, its payload, and the MSAL response.
+   */
   async getTokenByRefresh(refreshToken: string | undefined): Promise<
     Result<{
       rawAccessToken: string;
@@ -353,13 +383,9 @@ export class OAuthProvider {
       return $err('nullish_value', { error: 'Unauthorized', description: 'Refresh token is required', status: 401 });
     }
 
-    const { rawRefreshToken, error } = await this.$decrypt('refreshToken', refreshToken);
-    if (error) {
-      return $err(error.type, {
-        error: 'Unauthorized',
-        description: error.description,
-        status: 401,
-      });
+    const { rawRefreshToken, error: decryptError } = await this.$decrypt('refreshToken', refreshToken);
+    if (decryptError) {
+      return $err(decryptError.type, { error: 'Unauthorized', description: decryptError.description, status: 401 });
     }
 
     try {
@@ -385,17 +411,9 @@ export class OAuthProvider {
         });
       }
 
-      const {
-        encryptedAccessToken,
-        encryptedRefreshToken,
-        error: tokensError,
-      } = await this.$extractTokens(msalResponse);
-      if (tokensError) {
-        return $err(tokensError.type, {
-          error: 'Unauthorized',
-          description: tokensError.description,
-          status: 401,
-        });
+      const { encryptedAccessToken, encryptedRefreshToken, error } = await this.$extractTokens(msalResponse);
+      if (error) {
+        return $err(error.type, { error: 'Unauthorized', description: error.description, status: 401 });
       }
 
       return $ok({
@@ -414,7 +432,17 @@ export class OAuthProvider {
     }
   }
 
-  /** Acquires tokens for B2B apps using client credentials. */
+  /**
+   * Acquire client-credential tokens for one or multiple B2B apps.
+   *
+   * @overload
+   * @param params.appName - The name of the B2B app to get the token for.
+   * @returns A result containing the B2B app token and metadata.
+   *
+   * @overload
+   * @param params.appsNames - An array of B2B app names to get tokens for.
+   * @returns Results containing an array of B2B app tokens and metadata.
+   */
   async getB2BToken(params: { appName: string }): Promise<Result<{ result: GetB2BTokenResult }>>;
   async getB2BToken(params: { appsNames: string[] }): Promise<Result<{ results: GetB2BTokenResult[] }>>;
   async getB2BToken(
@@ -466,7 +494,19 @@ export class OAuthProvider {
     }
   }
 
-  /** Acquires tokens for trusted downstream services via the On-Behalf-Of (OBO) flow. */
+  /**
+   * Acquire On-Behalf-Of tokens for downstream services.
+   *
+   * @overload
+   * @param params.accessToken - The encrypted access token to use for OBO.
+   * @param params.serviceName - The name of the service to get the token for.
+   * @returns A result containing the OBO token and metadata for the specified service.
+   *
+   * @overload
+   * @param params.accessToken - The encrypted access token to use for OBO.
+   * @param params.serviceNames - An array of service names to get tokens for.
+   * @returns Results containing an array of OBO tokens and metadata for the specified services.
+   */
   async getTokenOnBehalfOf(params: { accessToken: string; serviceName: string }): Promise<
     Result<{ result: GetTokenOnBehalfOfResult }>
   >;
@@ -547,7 +587,15 @@ export class OAuthProvider {
     }
   }
 
-  /** Injects data into the access token. Useful for embedding non-sensitive metadata into token structure. */
+  /**
+   * Embed arbitrary and non-sensitive metadata into an encrypted access token.
+   *
+   * @template T - Type of the data to inject into the access token.
+   * @param params - The parameters containing the access token and data to inject.
+   * - `accessToken` - The encrypted access token to inject data into.
+   * - `data` - The data to inject into the access token.
+   * @returns A result containing the new encrypted access token with injected data.
+   */
   async injectData<T extends object = Record<string, any>>(params: { accessToken: string; data: T }): Promise<
     Result<{ injectedAccessToken: Cookies['AccessToken'] }>
   > {
@@ -639,6 +687,7 @@ export class OAuthProvider {
     }
   }
 
+  /** Encrypt access token, refresh token, or state with the configured secret key. */
   private async $encrypt<T extends object = Record<string, any>>(
     type: 'accessToken',
     params: { value: string | null; secretKey?: string; injectedData?: T },
@@ -650,11 +699,7 @@ export class OAuthProvider {
   private async $encrypt(type: 'state', params: { value: object | null }): Promise<Result<{ encryptedState: string }>>;
   private async $encrypt<T extends object = Record<string, any>>(
     type: 'accessToken' | 'refreshToken' | 'state',
-    params: {
-      value: object | string | null;
-      secretKey?: SecretKey;
-      injectedData?: T;
-    },
+    params: { value: object | string | null; secretKey?: string; injectedData?: T },
   ): Promise<
     Result<{ encryptedAccessToken: string } | { encryptedRefreshToken: string } | { encryptedState: string }>
   > {
@@ -677,15 +722,14 @@ export class OAuthProvider {
         if (error) {
           return $err('crypto_error', { error: 'Failed to encrypt access token', description: error.description });
         }
+
+        if (!params.secretKey) this.$updateSecretKey('accessToken', secretKey);
+
         if (encrypted.length > 4096) {
           return $err('invalid_format', {
             error: 'Token too long',
             description: 'Encrypted access token exceeds 4096 characters',
           });
-        }
-
-        if (!params.secretKey && typeof this.secretKeys.at === 'string') {
-          this.secretKeys.at = secretKey;
         }
 
         return $ok({ encryptedAccessToken: encrypted });
@@ -704,15 +748,13 @@ export class OAuthProvider {
           return $err('crypto_error', { error: 'Failed to encrypt refresh token', description: error.description });
         }
 
+        this.$updateSecretKey('refreshToken', secretKey);
+
         if (encrypted.length > 4096) {
           return $err('invalid_format', {
             error: 'Token too long',
             description: 'Encrypted refresh token exceeds 4096 characters',
           });
-        }
-
-        if (typeof this.secretKeys.rt === 'string') {
-          this.secretKeys.rt = secretKey;
         }
 
         return $ok({ encryptedRefreshToken: encrypted });
@@ -731,15 +773,13 @@ export class OAuthProvider {
           return $err('crypto_error', { error: 'Failed to encrypt state', description: error.description });
         }
 
+        this.$updateSecretKey('state', secretKey);
+
         if (encrypted.length > 4096) {
           return $err('invalid_format', {
             error: 'State too long',
             description: 'Encrypted state exceeds 4096 characters',
           });
-        }
-
-        if (typeof this.secretKeys.state === 'string') {
-          this.secretKeys.state = secretKey;
         }
 
         return $ok({ encryptedState: encrypted });
@@ -750,6 +790,7 @@ export class OAuthProvider {
     }
   }
 
+  /** Decrypts access token, refresh token, or state with the configured secret key. */
   private async $decrypt<T extends object = Record<string, any>>(
     type: 'accessToken',
     value: string | undefined,
@@ -783,9 +824,7 @@ export class OAuthProvider {
           return $err('crypto_error', { error: 'Failed to decrypt access token', description: error.description });
         }
 
-        if (typeof this.secretKeys.at === 'string') {
-          this.secretKeys.at = secretKey;
-        }
+        this.$updateSecretKey('accessToken', secretKey);
 
         const { data: accessTokenStruct, error: accessTokenStructError } = zAccessTokenStructure.safeParse(data);
         if (accessTokenStructError) {
@@ -812,9 +851,7 @@ export class OAuthProvider {
           return $err('crypto_error', { error: 'Failed to decrypt refresh token', description: error.description });
         }
 
-        if (typeof this.secretKeys.rt === 'string') {
-          this.secretKeys.rt = secretKey;
-        }
+        this.$updateSecretKey('refreshToken', secretKey);
 
         return $ok({ rawRefreshToken });
       }
@@ -829,9 +866,7 @@ export class OAuthProvider {
           return $err('crypto_error', { error: 'Failed to decrypt state', description: error.description });
         }
 
-        if (typeof this.secretKeys.state === 'string') {
-          this.secretKeys.state = secretKey;
-        }
+        this.$updateSecretKey('state', secretKey);
 
         const { data: state, error: stateError } = zState.safeParse(data);
         if (stateError) {
@@ -846,6 +881,32 @@ export class OAuthProvider {
       default: {
         return $err('misconfiguration', { error: 'Invalid decrypt type', description: `Unknown type: ${type}` });
       }
+    }
+  }
+
+  /** Updates the secret key for a specific token type if it is a string. */
+  private $updateSecretKey(type: 'accessToken' | 'refreshToken' | 'state', secretKey: webcrypto.CryptoKey): void {
+    switch (type) {
+      case 'accessToken':
+        if (typeof this.secretKeys.at === 'string') {
+          this.secretKeys.at = secretKey;
+        }
+        break;
+      case 'refreshToken':
+        if (typeof this.secretKeys.rt === 'string') {
+          this.secretKeys.rt = secretKey;
+        }
+        break;
+      case 'state':
+        if (typeof this.secretKeys.state === 'string') {
+          this.secretKeys.state = secretKey;
+        }
+        break;
+      default:
+        throw new OAuthError('misconfiguration', {
+          error: 'Invalid secret key type',
+          description: `Unknown type: ${type}`,
+        });
     }
   }
 

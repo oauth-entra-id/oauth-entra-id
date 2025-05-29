@@ -4,8 +4,12 @@ export const base64urlWithDotRegex = /^[A-Za-z0-9._-]+$/;
 export const encryptedRegex = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.$/;
 
 export const $prettyError = (error: ZodError) => {
-  //TODO: Implement the new Zod 4 pretty error formatting
-  return error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join(', ');
+  return error.issues
+    .map((issue) => {
+      const path = issue.path.length > 0 ? issue.path.join('.') : 'root';
+      return `${path}: ${issue.message}`;
+    })
+    .join('. ');
 };
 
 export const zStr = z.string().trim();

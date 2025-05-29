@@ -9,8 +9,6 @@ const FORMAT = 'base64url';
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
-export type SecretKey = string | webcrypto.CryptoKey;
-
 export async function $createSecretKey(
   key: string | webcrypto.CryptoKey,
 ): Promise<Result<{ secretKey: webcrypto.CryptoKey }>> {
@@ -26,7 +24,11 @@ export async function $createSecretKey(
       ]);
       return $ok({ secretKey });
     } catch (error) {
-      return $err('crypto_error', { error: 'Failed to create secret key', status: 500 });
+      return $err('crypto_error', {
+        error: 'Failed to create secret key',
+        description: error instanceof Error ? error.message : String(error),
+        status: 500,
+      });
     }
   }
 
@@ -60,7 +62,10 @@ export async function $encrypt(
       secretKey,
     });
   } catch (error) {
-    return $err('crypto_error', { error: 'Failed to generate IV', description: `Input: ${data}` });
+    return $err('crypto_error', {
+      error: 'Failed to generate IV',
+      description: `Input: ${data}, ${error instanceof Error ? error.message : String(error)}`,
+    });
   }
 }
 
@@ -85,14 +90,17 @@ export async function $decrypt(
     }
 
     const decryptedData = await crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv: Buffer.from(iv, FORMAT) },
+      { name: ALGORITHM, iv: Buffer.from(iv, FORMAT) },
       secretKey,
       Buffer.from(encryptedData, FORMAT),
     );
 
     return $ok({ data: decoder.decode(decryptedData), secretKey });
   } catch (error) {
-    return $err('crypto_error', { error: 'Failed to decrypt data', description: `Input: ${encrypted}` });
+    return $err('crypto_error', {
+      error: 'Failed to decrypt data',
+      description: `Input: ${encrypted}, ${error instanceof Error ? error.message : String(error)}`,
+    });
   }
 }
 
