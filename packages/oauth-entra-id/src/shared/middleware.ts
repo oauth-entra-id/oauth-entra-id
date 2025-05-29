@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import type { JwtPayload } from 'jsonwebtoken';
-import { OAuthError } from '~/error';
+import { $err, $ok, OAuthError } from '~/error';
 import { getCookie, setCookie } from './cookie-parser';
 import type { InjectDataFunction, UserInfo } from './types';
 
@@ -19,9 +19,17 @@ export async function sharedIsAuthenticated(
   const oauthProvider = req.oauthProvider;
 
   const InjectDataFunction = async <T extends object = Record<any, string>>(accessToken: string, data: T) => {
-    const { injectedAccessToken, success } = await oauthProvider.injectData({ accessToken, data });
-    if (success) setCookie(res, injectedAccessToken.name, injectedAccessToken.value, injectedAccessToken.options);
-    if (req.userInfo?.type === 'user') req.userInfo = { ...req.userInfo, injectedData: data };
+    const { injectedAccessToken, error } = await oauthProvider.injectData({ accessToken, data });
+    if (error) return $err(error);
+    if (req.userInfo?.isApp === false) {
+      setCookie(res, injectedAccessToken.name, injectedAccessToken.value, injectedAccessToken.options);
+      req.userInfo = { ...req.userInfo, injectedData: data };
+      return $ok();
+    }
+    return $err('bad_request', {
+      error: 'Invalid user type',
+      description: 'Injecting data is only supported for user type',
+    });
   };
 
   // Check for Bearer token in Authorization header for B2B requests
@@ -36,7 +44,16 @@ export async function sharedIsAuthenticated(
     req.accessTokenInfo = { jwt: bearerInfo.rawAccessToken, payload: bearerInfo.payload };
     req.userInfo = userInfo;
 
-    return { userInfo, injectData: (data) => Promise.resolve() };
+    return {
+      userInfo,
+      injectData: (data) =>
+        Promise.resolve(
+          $err('bad_request', {
+            error: 'Injecting data is not supported for B2B requests',
+            description: 'Injecting data is only supported for user type',
+          }),
+        ),
+    };
   }
 
   // Check for access and refresh tokens in cookies
@@ -87,13 +104,13 @@ function getUserInfo<T extends object = Record<any, string>>({
 }: { payload: JwtPayload; injectedData?: T; isApp?: boolean }) {
   return isApp
     ? ({
-        type: 'app',
+        isApp: true,
         uniqueId: payload.oid,
         roles: payload.roles,
         appId: payload.azp,
       } as const)
     : ({
-        type: 'user',
+        isApp: false,
         uniqueId: payload.oid,
         roles: payload.roles,
         name: payload.name,

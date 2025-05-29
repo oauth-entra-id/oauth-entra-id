@@ -88,7 +88,7 @@ export async function sharedHandleOnBehalfOf(req: Request, res: Response) {
     });
   }
 
-  if (req.userInfo?.type === 'app') {
+  if (req.userInfo?.isApp === true) {
     throw new OAuthError('bad_request', {
       error: 'Forbidden',
       description: 'On-behalf-of requests are not allowed for app users',

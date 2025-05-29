@@ -16,19 +16,29 @@ export interface ResultErr {
   readonly statusCode: HttpErrorCodes;
 }
 
-export type Result<T, E = ResultErr> = T extends object
-  ?
-      | ({ readonly [K in keyof T]: T[K] } & { readonly success: true; readonly error?: undefined })
-      | ({ readonly [K in keyof T]?: undefined } & { readonly success: false; readonly error: E })
-  :
-      | { readonly success: true; readonly result: T; readonly error?: undefined }
-      | { readonly success: false; readonly error: E; readonly result?: undefined };
+export type Result<T, E = ResultErr> = T extends void
+  ? { readonly success: true; readonly error?: undefined } | { readonly success: false; readonly error: E }
+  : T extends object
+    ?
+        | ({ readonly [K in keyof T]: T[K] } & { readonly success: true; readonly error?: undefined })
+        | ({ readonly [K in keyof T]?: undefined } & { readonly success: false; readonly error: E })
+    :
+        | { readonly success: true; readonly result: T; readonly error?: undefined }
+        | { readonly success: false; readonly error: E; readonly result?: undefined };
 
 function $isPlainObject(value: unknown): value is Record<string, unknown> {
-  return Object.prototype.toString.call(value) === '[object Object]';
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null)
+  );
 }
 
-export function $ok<T>(result: T): Result<T> {
+export function $ok(): Result<void>;
+export function $ok<T>(result: T): Result<T>;
+// biome-ignore lint/suspicious/noConfusingVoidType: <explanation>
+export function $ok<T>(result?: T): Result<T | void> {
+  if (result === undefined) return { success: true } as Result<void>;
   if ($isPlainObject(result)) return { success: true, ...(result as T & object) } as Result<T>;
   return { success: true, result } as Result<T>;
 }

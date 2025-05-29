@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Hono } from 'hono';
 import { setCookie } from 'hono/cookie';
 import { HTTPException } from 'hono/http-exception';
+import { OAuthError } from 'oauth-entra-id';
 import { z } from 'zod/v4';
 import { env } from '~/env';
 import { type ProtectRoute, protectRoute } from '~/middlewares/protect-route';
@@ -32,7 +33,7 @@ protectedRouter.post('/on-behalf-of', zValidator('json', zSchemas.onBehalfOf), a
     serviceNames,
   });
 
-  if (error) throw new HTTPException(error.statusCode, { message: error.message });
+  if (error) throw new OAuthError(error);
 
   for (const { accessToken } of results) {
     setCookie(c, accessToken.name, accessToken.value, accessToken.options);

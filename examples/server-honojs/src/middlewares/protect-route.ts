@@ -2,7 +2,7 @@ import type { Context } from 'hono';
 import { getCookie, setCookie } from 'hono/cookie';
 import { createMiddleware } from 'hono/factory';
 import { HTTPException } from 'hono/http-exception';
-import type { JwtPayload } from 'oauth-entra-id';
+import { type JwtPayload, OAuthError } from 'oauth-entra-id';
 import { oauthProvider } from '~/oauth';
 
 export const protectRoute = createMiddleware<ProtectRoute>(async (c, next) => {
@@ -11,7 +11,7 @@ export const protectRoute = createMiddleware<ProtectRoute>(async (c, next) => {
   if (oauthProvider.settings.acceptB2BRequests && authorizationHeader) {
     const bearerAccessToken = authorizationHeader.startsWith('Bearer ') ? authorizationHeader.split(' ')[1] : undefined;
     const bearerInfo = await oauthProvider.verifyAccessToken(bearerAccessToken);
-    if (bearerInfo.error) throw new HTTPException(bearerInfo.error.statusCode, { message: bearerInfo.error.message });
+    if (bearerInfo.error) throw new OAuthError(bearerInfo.error);
 
     setUserInfo(c, { payload: bearerInfo.payload, isApp: true });
 
@@ -49,9 +49,7 @@ export const protectRoute = createMiddleware<ProtectRoute>(async (c, next) => {
   }
 
   const refreshTokenInfo = await oauthProvider.getTokenByRefresh(refreshToken);
-  if (refreshTokenInfo.error) {
-    throw new HTTPException(refreshTokenInfo.error.statusCode, { message: refreshTokenInfo.error.message });
-  }
+  if (refreshTokenInfo.error) throw new OAuthError(refreshTokenInfo.error);
   const { newTokens } = refreshTokenInfo;
 
   c.set('accessTokenInfo', { jwt: refreshTokenInfo.rawAccessToken, payload: refreshTokenInfo.payload });

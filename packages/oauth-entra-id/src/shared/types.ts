@@ -1,11 +1,12 @@
 import type { JwtPayload } from 'jsonwebtoken';
 import type { OAuthProvider } from '~/core';
+import type { Result } from '~/error';
 
 export type ServerType = 'express' | 'nestjs';
 
 export type UserInfo<T extends object = Record<string, any>> =
   | {
-      readonly type: 'user';
+      readonly isApp: false;
       readonly name: string;
       readonly email: string;
       readonly injectedData?: T;
@@ -13,7 +14,7 @@ export type UserInfo<T extends object = Record<string, any>> =
       readonly roles: string[];
     }
   | {
-      readonly type: 'app';
+      readonly isApp: true;
       readonly appId: string;
       readonly name?: undefined;
       readonly email?: undefined;
@@ -22,7 +23,7 @@ export type UserInfo<T extends object = Record<string, any>> =
       readonly roles: string[];
     };
 
-export type InjectDataFunction<T extends object = Record<string, any>> = (data: T) => Promise<void>;
+export type InjectDataFunction<T extends object = Record<string, any>> = (data: T) => Promise<Result<void>>;
 
 export type CallbackFunction = (params: {
   userInfo: UserInfo;

@@ -1,6 +1,7 @@
 import type { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox';
 import { Type as t } from '@sinclair/typebox';
 import axios from 'axios';
+import { OAuthError } from 'oauth-entra-id';
 import { z } from 'zod/v4';
 import { env } from '~/env';
 import { HttpException } from '~/error/HttpException';
@@ -32,7 +33,7 @@ export const protectedRouter: FastifyPluginAsyncTypebox = async (app) => {
       accessToken: req.accessTokenInfo.jwt,
       serviceNames,
     });
-    if (error) throw new HttpException(error.message, error.statusCode);
+    if (error) throw new OAuthError(error);
 
     for (const { accessToken } of results) {
       reply.setCookie(accessToken.name, accessToken.value, accessToken.options);

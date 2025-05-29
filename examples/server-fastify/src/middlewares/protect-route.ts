@@ -1,5 +1,5 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
-import type { JwtPayload } from 'oauth-entra-id/*';
+import { type JwtPayload, OAuthError } from 'oauth-entra-id';
 import { HttpException } from '~/error/HttpException';
 import { oauthProvider } from '../oauth';
 
@@ -9,7 +9,7 @@ export async function protectRoute(req: FastifyRequest, reply: FastifyReply) {
   if (oauthProvider.settings.acceptB2BRequests && authorizationHeader) {
     const bearerAccessToken = authorizationHeader.startsWith('Bearer ') ? authorizationHeader.split(' ')[1] : undefined;
     const bearerInfo = await oauthProvider.verifyAccessToken(bearerAccessToken);
-    if (bearerInfo.error) throw new HttpException(bearerInfo.error.message, bearerInfo.error.statusCode);
+    if (bearerInfo.error) throw new OAuthError(bearerInfo.error);
 
     setUserInfo(req, { payload: bearerInfo.payload, isApp: true });
 
@@ -47,9 +47,7 @@ export async function protectRoute(req: FastifyRequest, reply: FastifyReply) {
   }
 
   const refreshTokenInfo = await oauthProvider.getTokenByRefresh(refreshToken);
-  if (refreshTokenInfo.error) {
-    throw new HttpException(refreshTokenInfo.error.message, refreshTokenInfo.error.statusCode);
-  }
+  if (refreshTokenInfo.error) throw new OAuthError(refreshTokenInfo.error);
   const { newTokens } = refreshTokenInfo;
 
   req.accessTokenInfo = { jwt: refreshTokenInfo.rawAccessToken, payload: refreshTokenInfo.payload };
@@ -100,14 +98,22 @@ declare module 'fastify' {
     userInfo:
       | {
           isApp: false;
-          uniqueId: string;
-          roles: string[];
           name: string;
           email: string;
           injectedData?: {
             randomNumber: number;
           };
+          uniqueId: string;
+          roles: string[];
         }
-      | { isApp: true; uniqueId: string; roles: string[]; appId: string };
+      | {
+          isApp: true;
+          appId: string;
+          name?: undefined;
+          email?: undefined;
+          injectedData?: undefined;
+          uniqueId: string;
+          roles: string[];
+        };
   }
 }

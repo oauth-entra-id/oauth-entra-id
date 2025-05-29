@@ -1,5 +1,6 @@
 import { type CanActivate, type ExecutionContext, Injectable } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { OAuthError } from 'oauth-entra-id';
 import { isAuthenticated } from 'oauth-entra-id/nestjs';
 @Injectable()
 export class ProtectRouteGuard implements CanActivate {
@@ -9,7 +10,8 @@ export class ProtectRouteGuard implements CanActivate {
     const res = httpContext.getResponse<Response>();
     return await isAuthenticated(req, res, async ({ userInfo, injectData }) => {
       if (!userInfo.isApp && !userInfo.injectedData) {
-        await injectData({ randomNumber: getRandomNumber() });
+        const { error } = await injectData({ randomNumber: getRandomNumber() });
+        if (error) throw new OAuthError(error);
       }
     });
   }

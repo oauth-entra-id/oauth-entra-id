@@ -1,6 +1,6 @@
 import type { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox';
 import { Type as t } from '@sinclair/typebox';
-import { HttpException } from '~/error/HttpException';
+import { OAuthError } from 'oauth-entra-id';
 import { oauthProvider } from '~/oauth';
 
 const tSchemas = {
@@ -27,7 +27,7 @@ export const authRouter: FastifyPluginAsyncTypebox = async (app) => {
       email: body?.email,
       frontendUrl: body?.frontendUrl,
     });
-    if (error) throw new HttpException(error.message, error.statusCode);
+    if (error) throw new OAuthError(error);
 
     return { url: authUrl };
   });
@@ -36,7 +36,7 @@ export const authRouter: FastifyPluginAsyncTypebox = async (app) => {
     const { code, state } = req.body;
 
     const { accessToken, refreshToken, frontendUrl, error } = await oauthProvider.getTokenByCode({ code, state });
-    if (error) throw new HttpException(error.message, error.statusCode);
+    if (error) throw new OAuthError(error);
 
     reply.setCookie(accessToken.name, accessToken.value, accessToken.options);
     if (refreshToken) reply.setCookie(refreshToken.name, refreshToken.value, refreshToken.options);
@@ -49,7 +49,7 @@ export const authRouter: FastifyPluginAsyncTypebox = async (app) => {
     const { logoutUrl, deleteAccessToken, deleteRefreshToken, error } = oauthProvider.getLogoutUrl({
       frontendUrl: body?.frontendUrl,
     });
-    if (error) throw new HttpException(error.message, error.statusCode);
+    if (error) throw new OAuthError(error);
 
     reply.setCookie(deleteAccessToken.name, deleteAccessToken.value, deleteAccessToken.options);
     reply.setCookie(deleteRefreshToken.name, deleteRefreshToken.value, deleteRefreshToken.options);
