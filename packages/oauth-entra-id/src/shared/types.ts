@@ -2,8 +2,14 @@ import type { JwtPayload } from 'jsonwebtoken';
 import type { OAuthProvider } from '~/core';
 import type { Result } from '~/error';
 
+/** Supported server frameworks for binding the OAuthProvider */
 export type ServerType = 'express' | 'nestjs';
 
+/**
+ * Represents either an end-user or a service principal.
+ *
+ * @template T  Type of any injected metadata for a user.
+ */
 export type UserInfo<T extends object = Record<string, any>> =
   | {
       readonly isApp: false;
@@ -23,8 +29,21 @@ export type UserInfo<T extends object = Record<string, any>> =
       readonly roles: string[];
     };
 
+/**
+ * Adds metadata into an existing access token.
+ *
+ * @template T  Shape of the object to inject.
+ * @param data  Arbitrary JSON to embed.
+ * @returns A `Result<void>` indicating success or failure.
+ */
 export type InjectDataFunction<T extends object = Record<string, any>> = (data: T) => Promise<Result<void>>;
 
+/**
+ * Optional callback invoked once a request is authenticated.
+ *
+ * @param params.userInfo - Information about the authenticated user or service principal.
+ * @param params.injectData - Function to inject additional data into the access token.
+ */
 export type CallbackFunction = (params: {
   userInfo: UserInfo;
   injectData: InjectDataFunction;
@@ -60,25 +79,19 @@ export interface CookieParserOptions {
 declare global {
   namespace Express {
     export interface Request {
-      /** OAuthProvider instance bound to the request. */
+      /** Bound OAuthProvider instance. */
       oauthProvider: OAuthProvider;
-      /** The backend framework type. */
+
+      /** Which server adapter is in use. */
       serverType: ServerType;
 
-      /**
-       * Stores the raw Microsoft access token and its decoded payload.
-       */
+      /** Raw JWT and decoded payload, if present. */
       accessTokenInfo?: {
         readonly jwt: string;
         readonly payload: JwtPayload;
       };
 
-      /**
-       * Stores user authentication details.
-       *
-       * - If `isApp` is `false`, the user is authenticated locally.
-       * - If `isApp` is `true`, the token was issued by another service.
-       */
+      /** Information about the authenticated user or service principal. */
       userInfo?: UserInfo;
     }
   }

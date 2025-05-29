@@ -18,10 +18,10 @@
     "hono": "^4.7.10",
     "hono-rate-limiter": "^0.4.2",
     "oauth-entra-id": "workspace:*",
-    "zod": "^3.25.30"
+    "zod": "^3.25.36"
   },
   "devDependencies": {
-    "@types/node": "^22.15.21",
+    "@types/node": "^22.15.24",
     "tsup": "^8.5.0",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3"
