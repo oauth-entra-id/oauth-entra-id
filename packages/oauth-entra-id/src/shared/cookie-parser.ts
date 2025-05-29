@@ -3,7 +3,7 @@ import { OAuthError } from '~/error';
 import { base64urlWithDotRegex } from '~/utils/zod';
 import type { CookieParserOptions } from './types';
 
-export function getCookie(req: Request, name: string): string | undefined {
+export function $getCookie(req: Request, name: string): string | undefined {
   const cookies = req.get('cookie');
   if (!base64urlWithDotRegex.test(name)) {
     return undefined;
@@ -45,7 +45,7 @@ export function getCookie(req: Request, name: string): string | undefined {
   return undefined;
 }
 
-export function setCookie(res: Response, name: string, value: string, options: CookieParserOptions) {
+export function $setCookie(res: Response, name: string, value: string, options: CookieParserOptions) {
   if (!base64urlWithDotRegex.test(name)) {
     throw new OAuthError('bad_request', {
       error: 'Invalid cookie name',

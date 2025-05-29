@@ -3,12 +3,12 @@ import type { NextFunction, Request, Response } from 'express';
 import { OAuthProvider } from '~/core';
 import { OAuthError } from '~/error';
 import {
-  sharedHandleAuthentication,
-  sharedHandleCallback,
-  sharedHandleLogout,
-  sharedHandleOnBehalfOf,
+  $sharedHandleAuthentication,
+  $sharedHandleCallback,
+  $sharedHandleLogout,
+  $sharedHandleOnBehalfOf,
 } from '~/shared/endpoints';
-import { sharedIsAuthenticated } from '~/shared/middleware';
+import { $sharedMiddleware } from '~/shared/middleware';
 import type { CallbackFunction } from '~/shared/types';
 import type { OAuthConfig } from '~/types';
 
@@ -17,13 +17,9 @@ const ERROR_MESSAGE = 'Make sure you used NestJS export and you used authConfig'
 let globalNestjsOAuthProvider: OAuthProvider | null = null;
 
 /**
- * Configures and initializes the OAuthProvider for NestJS.
+ * Factory that binds a singleton OAuthProvider to every NestJS request.
  *
- * Attaches the OAuthProvider instance to the NestJS request object,
- * allowing route handlers and middleware to access it.
- *
- * @param config - The full configuration used to initialize the OAuthProvider.
- * @returns NestJS middleware function.
+ * @param config  OAuthConfig for your Microsoft Entra ID app.
  */
 export function authConfig(config: OAuthConfig) {
   return (req: Request, res: Response, next: NextFunction) => {
@@ -39,21 +35,21 @@ export function authConfig(config: OAuthConfig) {
 }
 
 /**
- * NestJS route handler to generate an authentication URL.
+ * Route handler that begins the OAuth flow by sending back authentication PKCE-based URL.
  *
- * Optional Request Body:
- * - `loginPrompt` (optional): `'email'` | `'select-account'` | `'sso'`
- * - `email` (optional): `string`
- * - `frontendUrl` (optional): `string`
+ * ### Body:
+ * - `loginPrompt` (optional) - Overrides the default login prompt behavior, can be `email`, `select_account`, or `sso`.
+ * - `email` (optional) - Pre-fills the email field in the login form.
+ * - `frontendUrl` (optional) - Redirects to this URL after successful login.
  *
- * @throws {OAuthError} If authentication setup fails, an error is thrown.
+ * @throws {OAuthError} if there is any issue.
  */
 export async function handleAuthentication(req: Request, res: Response) {
   try {
     if (!req.oauthProvider || req.serverType !== 'nestjs') {
       throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE, status: 500 });
     }
-    await sharedHandleAuthentication(req, res);
+    await $sharedHandleAuthentication(req, res);
   } catch (err) {
     if (err instanceof OAuthError) throw err;
     if (err instanceof Error) throw new OAuthError('internal', { error: err.message });
@@ -62,21 +58,20 @@ export async function handleAuthentication(req: Request, res: Response) {
 }
 
 /**
- * NestJS route handler to exchange an authorization code for tokens.
- * After the exchange, it stores the tokens in cookies and redirects the user back to the frontend.
+ * Route handler that processes the OAuth callback after user authentication.
  *
- * Expected Request Body:
- * - `code`: `string`
- * - `state`: `string`
+ * ### Body:
+ * - `code` (required) - The authorization code received from the OAuth provider.
+ * - `state` (required) - The state parameter to validate the request.
  *
- * @throws {OAuthError} If callback setup fails, an error is thrown.
+ * @throws {OAuthError} if there is any issue.
  */
 export async function handleCallback(req: Request, res: Response) {
   try {
     if (!req.oauthProvider || req.serverType !== 'nestjs') {
       throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE, status: 500 });
     }
-    await sharedHandleCallback(req, res);
+    await $sharedHandleCallback(req, res);
   } catch (err) {
     if (err instanceof OAuthError) throw err;
     if (err instanceof Error) throw new OAuthError('internal', { error: err.message });
@@ -85,19 +80,17 @@ export async function handleCallback(req: Request, res: Response) {
 }
 
 /**
- * NestJS route handler to log out a user by clearing cookies and generating a logout URL.
+ * Route handler that clears session cookies and returns the Azure logout URL.
  *
- * Optional Request Body:
- * - `frontendUrl` (optional): `string`
- *
- * @throws {OAuthError} If logout setup fails, an error is thrown.
+ * ### Body:
+ * - `frontendUrl` (optional) - Overrides the default redirect URL after logout.
  */
 export function handleLogout(req: Request, res: Response) {
   try {
     if (!req.oauthProvider || req.serverType !== 'nestjs') {
       throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE, status: 500 });
     }
-    sharedHandleLogout(req, res);
+    $sharedHandleLogout(req, res);
   } catch (err) {
     if (err instanceof OAuthError) throw err;
     if (err instanceof Error) throw new OAuthError('internal', { error: err.message });
@@ -106,19 +99,19 @@ export function handleLogout(req: Request, res: Response) {
 }
 
 /**
- * NestJS route handler to handle On-Behalf-Of token exchange.
+ * Route handler that processes on-behalf-of requests to obtain an access token for a service principal.
  *
- * Expected Request Body:
- * - `serviceNames`: `string[]`
+ * ### Body:
+ * - `serviceNames` - An array of service names for which the access token is requested.
  *
- * @throws {OAuthError} If On-Behalf-Of setup fails, an error is thrown.
+ * @throws {OAuthError} if there is any issue.
  */
 export async function handleOnBehalfOf(req: Request, res: Response) {
   try {
     if (!req.oauthProvider || req.serverType !== 'nestjs') {
       throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE, status: 500 });
     }
-    await sharedHandleOnBehalfOf(req, res);
+    await $sharedHandleOnBehalfOf(req, res);
   } catch (err) {
     if (err instanceof OAuthError) throw err;
     if (err instanceof Error) throw new OAuthError('internal', { error: err.message });
@@ -127,31 +120,30 @@ export async function handleOnBehalfOf(req: Request, res: Response) {
 }
 
 /**
- * Middleware to check and require authentication for NestJS routes.
+ * Middleware that protects a route by ensuring the user is authenticated.
  *
- * Authentication Flow:
- * - If `allowOtherSystems` is **enabled**:
- *   - Checks for a Bearer token in the `Authorization` header.
- *   - If the token is **valid** and from **another system**, the request proceeds.
- *   - If the token is **valid** but from the **same system**, an error is thrown.
- *   - If the token is **invalid**, an error is thrown.
- *   - If no token is present, it falls back to checking cookies.
+ * ### What it does:
+ * - If `acceptB2BRequests` is enabled:
+ *  - Checks for a Bearer token in the Authorization header.
+ *  - Verifies the token and attaches user info to the request.
+ * - If not:
+ *  - Validate the users access token cookie.
+ *  - If valid, attaches user info to the request.
+ *  - If invalid, it looks for a refresh token cookie and attempts to refresh the session.
+ *  - If the refresh is successful, it sets new cookies and attaches user info to the request.
+ *  - If the refresh fails, it throws an error.
  *
- * - If `allowOtherSystems` is **disabled** or no Bearer token is found:
- *   - If the user has a **valid access token**, the request proceeds.
- *   - If the user has an **invalid or missing access token** but a **valid refresh token**:
- *     - The tokens are refreshed, and the request proceeds.
- *   - If **both tokens are invalid or missing**, an error is thrown.
+ * @param cb (optional) - A callback function that gives access to user info and an inject data function. Fires after the user is authenticated.
+ * @returns True if the user is authenticated, otherwise throws an error.
  *
- * @returns `true` if authentication succeeded, otherwise throws an `OAuthError`.
- * @throws {OAuthError} If authentication fails.
+ * @throws {OAuthError} if there is any issue with the configuration or authentication.
  */
 export async function isAuthenticated(req: Request, res: Response, cb?: CallbackFunction) {
   try {
     if (!req.oauthProvider || req.serverType !== 'nestjs') {
       throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE, status: 500 });
     }
-    const { userInfo, injectData } = await sharedIsAuthenticated(req, res);
+    const { userInfo, injectData } = await $sharedMiddleware(req, res);
     if (cb) await cb({ userInfo, injectData });
     return true;
   } catch (err) {
