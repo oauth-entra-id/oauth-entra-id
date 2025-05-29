@@ -84,13 +84,15 @@ export async function sharedHandleOnBehalfOf(req: Request, res: Response) {
     throw new OAuthError('jwt_error', {
       error: 'Unauthorized',
       description: 'Access token is required for on-behalf-of requests',
+      status: 401,
     });
   }
 
-  if (req.userInfo?.isApp === true) {
+  if (req.userInfo?.type === 'app') {
     throw new OAuthError('bad_request', {
-      error: 'Invalid user type',
+      error: 'Forbidden',
       description: 'On-behalf-of requests are not allowed for app users',
+      status: 403,
     });
   }
 

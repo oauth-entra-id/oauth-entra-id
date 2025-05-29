@@ -30,19 +30,17 @@ import {
 } from './utils/zod';
 
 /**
- * The core authentication class that handles OAuth 2.0 flows using Microsoft Entra ID (Azure AD).
+ * Core OAuth2/PKCE provider for Microsoft Entra ID (Azure AD).
  *
- * Features:
- * - Generates login and logout URLs
- * - Handles token exchange (authorization code grant)
- * - Issues secure, encrypted cookies
- * - Validates JWTs
- * - Supports refresh token rotation
- * - Implements the On-Behalf-Of (OBO) flow for downstream service access
+ * Responsibilities:
+ *  - PKCE authorization URL generation
+ *  - Authorization‐code and refresh‐token exchanges
+ *  - Secure encryption/decryption of state & cookies
+ *  - JWT validation via JWKS
+ *  - B2B client‐credentials flow
+ *  - On‐Behalf-Of (OBO) flow for downstream services
  *
- * Designed to be framework-agnostic with support for cookie-based workflows and frontend redirects.
- *
- * @class
+ * Designed to be framework-agnostic (Express, NestJS, etc.)
  */
 export class OAuthProvider {
   private readonly azure: OAuthConfig['azure'];

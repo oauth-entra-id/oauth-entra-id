@@ -21,9 +21,7 @@ export async function sharedIsAuthenticated(
   const InjectDataFunction = async <T extends object = Record<any, string>>(accessToken: string, data: T) => {
     const { injectedAccessToken, success } = await oauthProvider.injectData({ accessToken, data });
     if (success) setCookie(res, injectedAccessToken.name, injectedAccessToken.value, injectedAccessToken.options);
-    if (req.userInfo?.isApp === false) {
-      req.userInfo = { ...req.userInfo, injectedData: data };
-    }
+    if (req.userInfo?.type === 'user') req.userInfo = { ...req.userInfo, injectedData: data };
   };
 
   // Check for Bearer token in Authorization header for B2B requests
@@ -89,13 +87,13 @@ function getUserInfo<T extends object = Record<any, string>>({
 }: { payload: JwtPayload; injectedData?: T; isApp?: boolean }) {
   return isApp
     ? ({
-        isApp: true,
+        type: 'app',
         uniqueId: payload.oid,
         roles: payload.roles,
         appId: payload.azp,
       } as const)
     : ({
-        isApp: false,
+        type: 'user',
         uniqueId: payload.oid,
         roles: payload.roles,
         name: payload.name,

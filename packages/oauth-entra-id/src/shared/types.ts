@@ -5,18 +5,21 @@ export type ServerType = 'express' | 'nestjs';
 
 export type UserInfo<T extends object = Record<string, any>> =
   | {
-      isApp: false;
-      uniqueId: string;
-      roles: string[];
-      name: string;
-      email: string;
-      injectedData?: T;
+      readonly type: 'user';
+      readonly name: string;
+      readonly email: string;
+      readonly injectedData?: T;
+      readonly uniqueId: string;
+      readonly roles: string[];
     }
   | {
-      isApp: true;
-      uniqueId: string;
-      roles: string[];
-      appId: string;
+      readonly type: 'app';
+      readonly appId: string;
+      readonly name?: undefined;
+      readonly email?: undefined;
+      readonly injectedData?: undefined;
+      readonly uniqueId: string;
+      readonly roles: string[];
     };
 
 export type InjectDataFunction<T extends object = Record<string, any>> = (data: T) => Promise<void>;
@@ -65,8 +68,8 @@ declare global {
        * Stores the raw Microsoft access token and its decoded payload.
        */
       accessTokenInfo?: {
-        jwt: string;
-        payload: JwtPayload;
+        readonly jwt: string;
+        readonly payload: JwtPayload;
       };
 
       /**
