@@ -100,10 +100,10 @@ export function handleLogout(req: Request, res: Response) {
 
 /**
  * Route handler that processes on-behalf-of requests to obtain an access token for a service principal.
- * 
+ *
  * ### Body:
  * - `serviceNames` - An array of service names for which the access token is requested.
- * 
+ *
  * @throws {OAuthError} if there is any issue.
  */
 export async function handleOnBehalfOf(req: Request, res: Response) {
@@ -132,10 +132,10 @@ export async function handleOnBehalfOf(req: Request, res: Response) {
  *  - If invalid, it looks for a refresh token cookie and attempts to refresh the session.
  *  - If the refresh is successful, it sets new cookies and attaches user info to the request.
  *  - If the refresh fails, it throws an error.
- * 
+ *
  * @param cb (optional) - A callback function that gives access to user info and an inject data function. Fires after the user is authenticated.
  * @returns True if the user is authenticated, otherwise throws an error.
- * 
+ *
  * @throws {OAuthError} if there is any issue with the configuration or authentication.
  */
 export async function isAuthenticated(req: Request, res: Response, cb?: CallbackFunction) {

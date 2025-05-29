@@ -80,15 +80,5 @@
     "typescript": "^5.8.3"
   },
   "license": "MIT",
-  "keywords": [
-    "auth",
-    "oauth2",
-    "typescript",
-    "microsoft",
-    "entra-id",
-    "azure",
-    "jwt",
-    "express",
-    "nestjs"
-  ]
+  "keywords": ["auth", "oauth2", "typescript", "microsoft", "entra-id", "azure", "jwt", "express", "nestjs"]
 }

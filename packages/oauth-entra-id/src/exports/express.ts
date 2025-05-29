@@ -36,12 +36,12 @@ export function authConfig(config: OAuthConfig) {
 
 /**
  * Route handler that begins the OAuth flow by sending back authentication PKCE-based URL.
- * 
+ *
  * ### Body:
  * - `loginPrompt` (optional) - Overrides the default login prompt behavior, can be `email`, `select_account`, or `sso`.
  * - `email` (optional) - Pre-fills the email field in the login form.
  * - `frontendUrl` (optional) - Redirects to this URL after successful login.
- * 
+ *
  * @throws {OAuthError} if there is any issue.
  */
 export async function handleAuthentication(req: Request, res: Response, next: NextFunction) {
@@ -57,11 +57,11 @@ export async function handleAuthentication(req: Request, res: Response, next: Ne
 
 /**
  * Route handler that processes the OAuth callback after user authentication.
- * 
+ *
  * ### Body:
  * - `code` - The authorization code received from Microsoft.
  * - `state` - The state parameter received from Microsoft, used to prevent CSRF attacks and store session state.
- * 
+ *
  * @throws {OAuthError} if there is any issue.
  */
 export async function handleCallback(req: Request, res: Response, next: NextFunction) {
@@ -77,10 +77,10 @@ export async function handleCallback(req: Request, res: Response, next: NextFunc
 
 /**
  * Route handler that clears session cookies and returns the Azure logout URL.
- * 
+ *
  * ### Body:
  * - `frontendUrl` (optional) - Overrides the default redirect URL after logout.
- * 
+ *
  * @throws {OAuthError} if there is any issue.
  */
 export function handleLogout(req: Request, res: Response, next: NextFunction) {
@@ -96,10 +96,10 @@ export function handleLogout(req: Request, res: Response, next: NextFunction) {
 
 /**
  * Route handler that processes on-behalf-of requests to obtain an access token for a service principal.
- * 
+ *
  * ### Body:
  * - `serviceNames` - An array of service names for which the access token is requested.
- * 
+ *
  * @throws {OAuthError} if there is any issue.
  */
 export async function handleOnBehalfOf(req: Request, res: Response, next: NextFunction) {
@@ -126,9 +126,9 @@ export async function handleOnBehalfOf(req: Request, res: Response, next: NextFu
  *  - If invalid, it looks for a refresh token cookie and attempts to refresh the session.
  *  - If the refresh is successful, it sets new cookies and attaches user info to the request.
  *  - If the refresh fails, it throws an error.
- * 
+ *
  * @param cb (optional) - A callback function that gives access to user info and an inject data function. Fires after the user is authenticated.
- * 
+ *
  * @throws {OAuthError} if there is any issue with the configuration or authentication.
  */
 export function protectRoute(cb?: CallbackFunction) {
