@@ -583,6 +583,29 @@ export class ProtectedController {
 }
 ```
 
+## Demo Apps 👀
+
+You can explore the demo apps to see how to integrate the package into your applications.
+
+- [React Demo App](https://github.com/oauth-entra-id/oauth-entra-id/tree/main/examples/frontend-react/) 🖥️ - React 19 frontend showcasing best practices for frontend integration in an OAuth 2.0 cookie-based flow.
+
+  > React 19, TanStack Router, TanStack Query (React Query), TanStack Form, Zustand, Tailwind, ShadCN Components, Axios and Zod.
+
+- [Express Demo App](https://github.com/oauth-entra-id/oauth-entra-id/tree/main/examples/server-express/) 📫- Express server, implements `oauth-entra-id/express` for authentication.
+- [NestJS Demo App](https://github.com/oauth-entra-id/oauth-entra-id/tree/main/examples/server-nestjs/) 🪺 - NestJS server, implements `oauth-entra-id/nestjs` for authentication.
+- [HonoJS Demo App](https://github.com/oauth-entra-id/oauth-entra-id/tree/main/examples/server-honojs/) 🔥 - HonoJS server, implements authentication using the core utilities of the package.
+- [Fastify Demo App](https://github.com/oauth-entra-id/oauth-entra-id/tree/main/examples/server-fastify/) ⚡ - Fastify server, implements authentication using the core utilities of the package.
+
+> In each server demo you get a fully working server with the following features:
+>
+> - Auth flows and protected routes.
+> - User input validation.
+> - Environment variables handling.
+> - HTTP security headers and CORS setup with credentials.
+> - Rate limiting.
+> - Logging.
+> - Centralized error handling
+
 ## Notes❗
 
 - **CORS**: Make sure to set the `credentials` option to `true` in your CORS configuration. This allows cookies to be sent with cross-origin requests.
