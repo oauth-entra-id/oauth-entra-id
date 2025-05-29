@@ -3,12 +3,12 @@ import type { NextFunction, Request, Response } from 'express';
 import { OAuthProvider } from '~/core';
 import { OAuthError } from '~/error';
 import {
-  sharedHandleAuthentication,
-  sharedHandleCallback,
-  sharedHandleLogout,
-  sharedHandleOnBehalfOf,
+  $sharedHandleAuthentication,
+  $sharedHandleCallback,
+  $sharedHandleLogout,
+  $sharedHandleOnBehalfOf,
 } from '~/shared/endpoints';
-import { sharedIsAuthenticated } from '~/shared/middleware';
+import { $sharedMiddleware } from '~/shared/middleware';
 import type { CallbackFunction } from '~/shared/types';
 import type { OAuthConfig } from '~/types';
 
@@ -17,13 +17,9 @@ const ERROR_MESSAGE = 'Make sure you used Express export and you used authConfig
 let globalExpressOAuthProvider: OAuthProvider | null = null;
 
 /**
- * Configures and initializes the OAuthProvider for Express.
+ * Factory that binds a singleton OAuthProvider to every Express request.
  *
- * Attaches the OAuthProvider instance to the Express request object,
- * allowing route handlers and middleware to access it.
- *
- * @param config - The full configuration used to initialize the OAuthProvider.
- * @returns Express middleware function.
+ * @param config  OAuthConfig for your Microsoft Entra ID app.
  */
 export function authConfig(config: OAuthConfig) {
   return (req: Request, res: Response, next: NextFunction) => {
@@ -39,103 +35,101 @@ export function authConfig(config: OAuthConfig) {
 }
 
 /**
- * Express route handler to generate an authentication URL.
+ * Route handler that begins the OAuth flow by sending back authentication PKCE-based URL.
  *
- * Optional Request Body:
- * - `loginPrompt` (optional): `'email'` | `'select-account'` | `'sso'`
- * - `email` (optional): `string`
- * - `frontendUrl` (optional): `string`
+ * ### Body:
+ * - `loginPrompt` (optional) - Overrides the default login prompt behavior, can be `email`, `select_account`, or `sso`.
+ * - `email` (optional) - Pre-fills the email field in the login form.
+ * - `frontendUrl` (optional) - Redirects to this URL after successful login.
  *
- * @throws {OAuthError} If authentication setup fails, an error is passed to `next`.
+ * @throws {OAuthError} if there is any issue.
  */
 export async function handleAuthentication(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.oauthProvider || req.serverType !== 'express') {
       throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE, status: 500 });
     }
-    await sharedHandleAuthentication(req, res);
+    await $sharedHandleAuthentication(req, res);
   } catch (err) {
     next(err);
   }
 }
 
 /**
- * Express route handler to exchange an authorization code for tokens.
- * After the exchange, it stores the tokens in cookies and redirects the user back to the frontend.
+ * Route handler that processes the OAuth callback after user authentication.
  *
- * Expected Request Body:
- * - `code`: `string`
- * - `state`: `string`
+ * ### Body:
+ * - `code` - The authorization code received from Microsoft.
+ * - `state` - The state parameter received from Microsoft, used to prevent CSRF attacks and store session state.
  *
- * @throws {OAuthError} If token exchange fails, an error is passed to `next`.
+ * @throws {OAuthError} if there is any issue.
  */
 export async function handleCallback(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.oauthProvider || req.serverType !== 'express') {
       throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE, status: 500 });
     }
-    await sharedHandleCallback(req, res);
+    await $sharedHandleCallback(req, res);
   } catch (err) {
     next(err);
   }
 }
 
 /**
- * Express route handler to log out a user by clearing cookies and generating a logout URL.
+ * Route handler that clears session cookies and returns the Azure logout URL.
  *
- * Optional Request Body:
- * - `frontendUrl` (optional): `string`
+ * ### Body:
+ * - `frontendUrl` (optional) - Overrides the default redirect URL after logout.
  *
- * @throws {OAuthError} If logout fails, an error is passed to `next`.
+ * @throws {OAuthError} if there is any issue.
  */
 export function handleLogout(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.oauthProvider || req.serverType !== 'express') {
       throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE, status: 500 });
     }
-    sharedHandleLogout(req, res);
+    $sharedHandleLogout(req, res);
   } catch (err) {
     next(err);
   }
 }
 
 /**
- * Express route handler to obtain tokens on behalf of another system.
+ * Route handler that processes on-behalf-of requests to obtain an access token for a service principal.
  *
- * Expected Request Body:
- * - `serviceNames`: `string[]`
+ * ### Body:
+ * - `serviceNames` - An array of service names for which the access token is requested.
  *
- * @throws {OAuthError} If token exchange fails, an error is passed to `next`.
+ * @throws {OAuthError} if there is any issue.
  */
 export async function handleOnBehalfOf(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.oauthProvider || req.serverType !== 'express') {
       throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE, status: 500 });
     }
-    await sharedHandleOnBehalfOf(req, res);
+    await $sharedHandleOnBehalfOf(req, res);
   } catch (err) {
     next(err);
   }
 }
 
 /**
- * Middleware to protect routes by checking user authentication status.
+ * Middleware that protects a route by ensuring the user is authenticated.
  *
- * Authentication Flow:
- * - If `allowOtherSystems` is **enabled**:
- *   - Checks for a Bearer token in the `Authorization` header.
- *   - If the token is **valid** and from **another system**, the request proceeds.
- *   - If the token is **valid** but from the **same system**, an error is thrown.
- *   - If the token is **invalid**, an error is thrown.
- *   - If no token is present, it falls back to checking cookies.
+ * ### What it does:
+ * - If `acceptB2BRequests` is enabled:
+ *  - Checks for a Bearer token in the Authorization header.
+ *  - Verifies the token and attaches user info to the request.
+ * - If not:
+ *  - Validate the users access token cookie.
+ *  - If valid, attaches user info to the request.
+ *  - If invalid, it looks for a refresh token cookie and attempts to refresh the session.
+ *  - If the refresh is successful, it sets new cookies and attaches user info to the request.
+ *  - If the refresh fails, it throws an error.
  *
- * - If `allowOtherSystems` is **disabled** or no Bearer token is found:
- *   - If the user has a **valid access token**, the request proceeds.
- *   - If the user has an **invalid or missing access token** but a **valid refresh token**:
- *     - The tokens are refreshed, and the request proceeds.
- *   - If **both tokens are invalid or missing**, an error is thrown.
+ * @param cb (optional) - A callback function that gives access to user info and an inject data function. Fires after the user is authenticated.
  *
- * @throws {OAuthError} If authentication fails, an error is passed to the `next` function.
+ * @throws {OAuthError} if there is any issue with the configuration or authentication.
  */
 export function protectRoute(cb?: CallbackFunction) {
   return async (req: Request, res: Response, next: NextFunction) => {
@@ -143,7 +137,7 @@ export function protectRoute(cb?: CallbackFunction) {
       if (!req.oauthProvider || req.serverType !== 'express') {
         throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE, status: 500 });
       }
-      const { userInfo, injectData } = await sharedIsAuthenticated(req, res);
+      const { userInfo, injectData } = await $sharedMiddleware(req, res);
       if (cb) await cb({ userInfo, injectData });
       next();
     } catch (err) {

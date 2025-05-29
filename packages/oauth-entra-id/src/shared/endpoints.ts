@@ -1,9 +1,14 @@
 import type { Request, Response } from 'express';
 import { OAuthError } from '~/error';
-import { setCookie } from './cookie-parser';
+import { $setCookie } from './cookie-parser';
 import type { Endpoints } from './types';
 
-export async function sharedHandleAuthentication(req: Request, res: Response) {
+/**
+ * Initiates the OAuth login flow by returning an authorization URL.
+ *
+ * @throws {OAuthError} if sessionType ≠ 'cookie-session' or MSAL errors occur
+ */
+export async function $sharedHandleAuthentication(req: Request, res: Response) {
   if (req.oauthProvider.settings.sessionType !== 'cookie-session') {
     throw new OAuthError('misconfiguration', {
       error: 'Invalid session type',
@@ -21,7 +26,12 @@ export async function sharedHandleAuthentication(req: Request, res: Response) {
   res.status(200).json({ url: authUrl });
 }
 
-export async function sharedHandleCallback(req: Request, res: Response) {
+/**
+ * Initiates the OAuth login flow by returning an authorization URL.
+ *
+ * @throws {OAuthError} if sessionType ≠ 'cookie-session' or MSAL errors occur
+ */
+export async function $sharedHandleCallback(req: Request, res: Response) {
   if (req.oauthProvider.settings.sessionType !== 'cookie-session') {
     throw new OAuthError('misconfiguration', {
       error: 'Invalid session type',
@@ -41,12 +51,17 @@ export async function sharedHandleCallback(req: Request, res: Response) {
   });
   if (error) throw new OAuthError(error);
 
-  setCookie(res, accessToken.name, accessToken.value, accessToken.options);
-  if (refreshToken) setCookie(res, refreshToken.name, refreshToken.value, refreshToken.options);
+  $setCookie(res, accessToken.name, accessToken.value, accessToken.options);
+  if (refreshToken) $setCookie(res, refreshToken.name, refreshToken.value, refreshToken.options);
   res.redirect(frontendUrl);
 }
 
-export function sharedHandleLogout(req: Request, res: Response) {
+/**
+ * Clears session cookies and returns the Azure logout URL.
+ *
+ * @throws {OAuthError} on misconfiguration or invalid params
+ */
+export function $sharedHandleLogout(req: Request, res: Response) {
   if (req.oauthProvider.settings.sessionType !== 'cookie-session') {
     throw new OAuthError('misconfiguration', {
       error: 'Invalid session type',
@@ -61,12 +76,18 @@ export function sharedHandleLogout(req: Request, res: Response) {
   const { logoutUrl, deleteAccessToken, deleteRefreshToken, error } = req.oauthProvider.getLogoutUrl(params);
   if (error) throw new OAuthError(error);
 
-  setCookie(res, deleteAccessToken.name, deleteAccessToken.value, deleteAccessToken.options);
-  setCookie(res, deleteRefreshToken.name, deleteRefreshToken.value, deleteRefreshToken.options);
+  $setCookie(res, deleteAccessToken.name, deleteAccessToken.value, deleteAccessToken.options);
+  $setCookie(res, deleteRefreshToken.name, deleteRefreshToken.value, deleteRefreshToken.options);
   res.status(200).json({ url: logoutUrl });
 }
 
-export async function sharedHandleOnBehalfOf(req: Request, res: Response) {
+/**
+ * Executes the On-Behalf-Of flow: acquires downstream tokens,
+ * sets service cookies, and returns the count of tokens set.
+ *
+ * @throws {OAuthError} on misconfiguration, missing access token, or forbidden app contexts
+ */
+export async function $sharedHandleOnBehalfOf(req: Request, res: Response) {
   if (req.oauthProvider.settings.sessionType !== 'cookie-session') {
     throw new OAuthError('misconfiguration', {
       error: 'Invalid session type',
@@ -104,7 +125,7 @@ export async function sharedHandleOnBehalfOf(req: Request, res: Response) {
   if (error) throw new OAuthError(error);
 
   for (const { accessToken } of results) {
-    setCookie(res, accessToken.name, accessToken.value, accessToken.options);
+    $setCookie(res, accessToken.name, accessToken.value, accessToken.options);
   }
 
   res.status(200).json({ tokensSet: results.length });
