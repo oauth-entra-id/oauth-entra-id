@@ -1,8 +1,25 @@
-# 💯 OAuth Entra ID 💯
+<p align="center">
+  <img src="https://github.com/oauth-entra-id/oauth-entra-id/blob/main/assets/logo.svg" width="200px" align="center" alt="logo" />
+  <h1 align="center">oauth-entra-id</h1>
+  <p align="center">
+    <span style="font-weight:700;">Simple</span> and <span style="font-weight:700;">Secure</span> Way <br/>
+    to Implement <span style="font-weight:700;">OAuth 2.0</span> with <br/>
+    <span style="font-weight:700;">Microsoft Entra ID</span>
+  </p>
+</p>
 
-## Overview 🪟
+<br/>
+<p align="center">
+<a href="https://opensource.org/licenses/MIT" rel="nofollow"><img src="https://img.shields.io/github/license/oauth-entra-id/oauth-entra-id?color=DC343B" alt="License"></a>
+<a href="https://opensource.org/licenses/MIT" rel="nofollow"><img src="https://img.shields.io/badge/version-2.0.0-0078D4" alt="License"></a>
+<a href="https://www.npmjs.com/package/oauth-entra-id" rel="nofollow"><img src="https://img.shields.io/npm/dm/oauth-entra-id.svg?color=03C03C" alt="npm"></a>
+<a href="https://github.com/oauth-entra-id/oauth-entra-id" rel="nofollow"><img src="https://img.shields.io/github/stars/oauth-entra-id/oauth-entra-id" alt="stars"></a>
+</p>
 
-`oauth-entra-id` is a framework-agnostic package that provides a secure and simple way to implement OAuth 2.0 authentication and authorization with Microsoft Entra ID (formerly Azure AD). It abstracts away the complexity of OAuth 2.0, allowing developers to focus on building their applications without worrying about the underlying authentication and authorization mechanisms.
+<br/>
+<br/>
+
+Framework-agnostic package that provides a secure and simple way to implement OAuth 2.0 authentication and authorization with Microsoft Entra ID (formerly Azure AD). It abstracts away the complexity of OAuth 2.0, allowing developers to focus on building their applications without worrying about the underlying authentication and authorization mechanisms.
 
 ## Installation 🚀
 
