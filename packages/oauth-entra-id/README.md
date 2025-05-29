@@ -20,7 +20,7 @@ npm install oauth-entra-id
 
 ## Architecture 🏗️
 
-![oauth-entra-id-flow](https://github.com/oauth-entra-id/oauth-entra-id/blob/main/assets/oauth-entra-id-flow.png)
+![oauth-entra-id-flow](https://github.com/oauth-entra-id/oauth-entra-id/blob/main/assets/flow.png)
 
 ## Configuration ⚙️
 

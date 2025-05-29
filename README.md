@@ -45,7 +45,7 @@ You can explore the demo apps to see how to integrate the package into your appl
 
 ## Architecture 🏗️
 
-![oauth-entra-id-flow](./assets/oauth-entra-id-flow.png)
+![oauth-entra-id-flow](./assets/flow.png)
 
 ## How to Run the Project Locally 🚀
 
