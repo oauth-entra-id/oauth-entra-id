@@ -31,10 +31,7 @@ export async function $sharedMiddleware(
       req.userInfo = { ...req.userInfo, injectedData: data };
       return $ok();
     }
-    return $err('bad_request', {
-      error: 'Invalid user type',
-      description: 'Injecting data is only supported for user type',
-    });
+    return $err('bad_request', { error: 'Invalid user type', description: 'Injecting data is only supported users' });
   };
 
   // Check for Bearer token in Authorization header for B2B requests
@@ -44,10 +41,9 @@ export async function $sharedMiddleware(
     const bearerInfo = await oauthProvider.verifyAccessToken(bearerAccessToken);
     if (bearerInfo.error) throw new OAuthError(bearerInfo.error);
 
-    const userInfo = $getUserInfo({ payload: bearerInfo.payload, isApp: true });
+    const userInfo = $setUserInfo(req, { payload: bearerInfo.payload, isApp: true });
 
     req.accessTokenInfo = { jwt: bearerInfo.rawAccessToken, payload: bearerInfo.payload };
-    req.userInfo = userInfo;
 
     return {
       userInfo,
@@ -76,11 +72,12 @@ export async function $sharedMiddleware(
 
   const accessTokenInfo = await oauthProvider.verifyAccessToken(cookieAccessToken);
 
-  if (!accessTokenInfo.error) {
-    const userInfo = $getUserInfo({ payload: accessTokenInfo.payload, injectedData: accessTokenInfo.injectedData });
-
+  if (accessTokenInfo.success) {
     req.accessTokenInfo = { jwt: accessTokenInfo.rawAccessToken, payload: accessTokenInfo.payload };
-    req.userInfo = userInfo;
+    const userInfo = $setUserInfo(req, {
+      payload: accessTokenInfo.payload,
+      injectedData: accessTokenInfo.injectedData,
+    });
 
     return { userInfo, injectData: (data) => InjectDataFunction(accessTokenInfo.rawAccessToken, data) };
   }
@@ -94,31 +91,32 @@ export async function $sharedMiddleware(
     $setCookie(res, newTokens.refreshToken.name, newTokens.refreshToken.value, newTokens.refreshToken.options);
   }
 
-  const userInfo = $getUserInfo({ payload: refreshTokenInfo.payload, isApp: false });
+  const userInfo = $setUserInfo(req, { payload: refreshTokenInfo.payload, isApp: false });
   req.accessTokenInfo = { jwt: refreshTokenInfo.rawAccessToken, payload: refreshTokenInfo.payload };
-  req.userInfo = userInfo;
 
   return { userInfo, injectData: (data) => InjectDataFunction(refreshTokenInfo.rawAccessToken, data) };
 }
 
-function $getUserInfo<T extends object = Record<any, string>>({
-  payload,
-  injectedData,
-  isApp,
-}: { payload: JwtPayload; injectedData?: T; isApp?: boolean }) {
-  return isApp
+function $setUserInfo<T extends object = Record<any, string>>(
+  req: Request,
+  params: { payload: JwtPayload; injectedData?: T; isApp?: boolean },
+) {
+  const userInfo = params.isApp
     ? ({
         isApp: true,
-        uniqueId: payload.oid,
-        roles: payload.roles,
-        appId: payload.azp,
+        uniqueId: params.payload.oid,
+        roles: params.payload.roles,
+        appId: params.payload.azp,
       } as const)
     : ({
         isApp: false,
-        uniqueId: payload.oid,
-        roles: payload.roles,
-        name: payload.name,
-        email: payload.preferred_username,
-        injectedData,
+        uniqueId: params.payload.oid,
+        roles: params.payload.roles,
+        name: params.payload.name,
+        email: params.payload.preferred_username,
+        injectedData: params.injectedData,
       } as const);
+
+  req.userInfo = userInfo;
+  return userInfo;
 }

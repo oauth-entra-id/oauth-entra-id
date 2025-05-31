@@ -17,7 +17,7 @@ protectedRouter.get('/user-info', (req, res) => {
   res.status(200).json({ user: req.userInfo });
 });
 
-protectedRouter.post('/on-behalf-of', handleOnBehalfOf);
+protectedRouter.post('/on-behalf-of', handleOnBehalfOf());
 
 protectedRouter.post('/get-b2b-info', async (req, res) => {
   const { data: body, error: bodyError } = zGetB2BInfoBody.safeParse(req.body);

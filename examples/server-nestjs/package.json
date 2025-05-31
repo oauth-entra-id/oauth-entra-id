@@ -27,13 +27,13 @@
     "oauth-entra-id": "workspace:*",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
-    "zod": "^3.25.36"
+    "zod": "^3.25.42"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.7",
     "@nestjs/schematics": "^11.0.5",
     "@types/express": "^5.0.2",
-    "@types/node": "^22.15.24",
+    "@types/node": "^22.15.29",
     "source-map-support": "^0.5.21",
     "ts-loader": "^9.5.2",
     "ts-node": "^10.9.2",

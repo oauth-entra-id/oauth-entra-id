@@ -164,9 +164,9 @@ export class OAuthProvider {
    * Generate an OAuth2 authorization URL for user login (PKCE-backed).
    *
    * @param params (optional) - Parameters to customize the auth URL:
-   * - `loginPrompt` - Override the default prompt (`sso`|`email`|`select-account`)
-   * - `email` - Login hint email address (if using `email` prompt)
-   * - `frontendUrl` - Which frontend host to return to
+   * - `loginPrompt` (optional) - Override the default prompt (`sso`|`email`|`select-account`)
+   * - `email` (optional) - Email address to pre-fill the login form
+   * - `frontendUrl` (optional) - Frontend URL override to redirect the user after authentication
    * @returns A result containing the authorization URL or an error.
    */
   async getAuthUrl(params?: { loginPrompt?: LoginPrompt; email?: string; frontendUrl?: string }): Promise<
@@ -225,7 +225,7 @@ export class OAuthProvider {
    *
    * @param params - The parameters containing the authorization code and state.
    * - `code` - The authorization code received from the OAuth flow.
-   * - `state` - The encrypted state object containing the frontend URL and other parameters.
+   * - `state` -  The state parameter received from Microsoft.
    * @returns A result containing the access token, refresh token (if available), frontend URL, and MSAL response.
    */
   async getTokenByCode(params: { code: string; state: string }): Promise<
@@ -274,7 +274,7 @@ export class OAuthProvider {
    * Build a logout URL and cookie-deletion instructions.
    *
    * @param params (optional) - Parameters to customize the logout URL:
-   * - `frontendUrl` - Optional frontend to redirect to after logout
+   * - `frontendUrl` (optional) - Frontend URL override to redirect the user after log out
    * @returns A result containing the logout URL and cookie deletion instructions.
    */
   getLogoutUrl(params?: { frontendUrl?: string }): Result<{
@@ -308,20 +308,21 @@ export class OAuthProvider {
   }
 
   /**
-   * Verify an access token (raw or encrypted), and return its payload.
+   * Verify the access token (either encrypted or in JWT format) and extract its payload.
    * Make sure that user access tokens are encrypted and app tokens aren't
    *
-   * @template T - Type of any injected data in the encrypted token
-   * @param accessToken - The raw JWT string or encrypted
+   * @param accessToken - The access token string either encrypted or in JWT format
    * @returns A result containing the raw access token, its payload, any injected data, and whether it is an app token.
+   * @template T - Type of any injected data in the encrypted token
    */
   async verifyAccessToken<T extends object = Record<string, any>>(
     accessToken: string | undefined,
   ): Promise<
     Result<{
-      rawAccessToken: string;
       payload: jwt.JwtPayload;
+      rawAccessToken: string;
       injectedData: T | undefined;
+      hasInjectedData: boolean;
       isApp: boolean;
     }>
   > {
@@ -357,23 +358,23 @@ export class OAuthProvider {
       });
     }
 
-    return $ok({ rawAccessToken, payload, injectedData, isApp });
+    return $ok({ rawAccessToken, payload, injectedData, hasInjectedData: !!injectedData, isApp });
   }
 
   /**
-   * Rotates tokens using a previously stored refresh token.
+   * Verifies and uses the refresh token to get new set of access and refresh tokens.
    *
    * @param refreshToken - Encrypted refresh-token value
    * @returns A result containing the new access token, optional new refresh token, the raw access token, its payload, and the MSAL response.
    */
   async getTokenByRefresh(refreshToken: string | undefined): Promise<
     Result<{
-      rawAccessToken: string;
-      payload: jwt.JwtPayload;
       newTokens: {
         accessToken: Cookies['AccessToken'];
         refreshToken: Cookies['RefreshToken'] | null;
       };
+      payload: jwt.JwtPayload;
+      rawAccessToken: string;
       msalResponse: MsalResponse;
     }>
   > {
@@ -431,6 +432,42 @@ export class OAuthProvider {
   }
 
   /**
+   * Embed non-sensitive metadata into the access token.
+   *
+   * @param params - The parameters containing the access token and data to inject.
+   * - `accessToken` - The encrypted access token to inject data into.
+   * - `data` - The data to inject into the access token.
+   * @returns A result containing the new encrypted access token with injected data and the injected data.
+   * @template T - Type of the data to inject into the access token.
+   */
+  async injectData<T extends object = Record<string, any>>(params: { accessToken: string; data: T }): Promise<
+    Result<{ injectedAccessToken: Cookies['AccessToken']; injectedData: T }>
+  > {
+    const { rawAccessToken, error } = await this.$decrypt<T>('accessToken', params.accessToken);
+    if (error) return $err(error);
+
+    const { data: accessTokenStruct, error: accessTokenStructError } = zAccessTokenStructure.safeParse({
+      at: rawAccessToken,
+      inj: params.data,
+    });
+
+    if (accessTokenStructError) {
+      return $err('invalid_format', { error: 'Invalid data', description: $prettyError(accessTokenStructError) });
+    }
+
+    const { encryptedAccessToken, error: encryptError } = await this.$encrypt('accessToken', {
+      value: accessTokenStruct.at,
+      injectedData: accessTokenStruct.inj,
+    });
+    if (encryptError) return $err(encryptError);
+
+    return $ok({
+      injectedAccessToken: { value: encryptedAccessToken, ...this.defaultCookieOptions.accessToken },
+      injectedData: accessTokenStruct.inj as T,
+    });
+  }
+
+  /**
    * Acquire client-credential tokens for one or multiple B2B apps.
    *
    * @overload
@@ -471,9 +508,9 @@ export class OAuthProvider {
 
               return {
                 appName: app.appName,
-                appClientId: clientId,
+                clientId: clientId,
                 accessToken: msalResponse.accessToken,
-                msalResponse,
+                msalResponse: msalResponse,
               } satisfies GetB2BTokenResult;
             } catch {
               return null;
@@ -564,9 +601,9 @@ export class OAuthProvider {
 
               return {
                 serviceName: service.serviceName,
-                clientId,
+                clientId: clientId,
                 accessToken: { value: encryptedAccessToken, ...cookieOptions.accessToken },
-                msalResponse,
+                msalResponse: msalResponse,
               } satisfies GetTokenOnBehalfOfResult;
             } catch {
               return null;
@@ -583,39 +620,6 @@ export class OAuthProvider {
     } catch (err) {
       return $filterCoreErrors(err, 'getTokenOnBehalfOf');
     }
-  }
-
-  /**
-   * Embed arbitrary and non-sensitive metadata into an encrypted access token.
-   *
-   * @template T - Type of the data to inject into the access token.
-   * @param params - The parameters containing the access token and data to inject.
-   * - `accessToken` - The encrypted access token to inject data into.
-   * - `data` - The data to inject into the access token.
-   * @returns A result containing the new encrypted access token with injected data.
-   */
-  async injectData<T extends object = Record<string, any>>(params: { accessToken: string; data: T }): Promise<
-    Result<{ injectedAccessToken: Cookies['AccessToken'] }>
-  > {
-    const { rawAccessToken, error } = await this.$decrypt<T>('accessToken', params.accessToken);
-    if (error) return $err(error);
-
-    const { data: accessTokenStruct, error: accessTokenStructError } = zAccessTokenStructure.safeParse({
-      at: rawAccessToken,
-      inj: params.data,
-    });
-
-    if (accessTokenStructError) {
-      return $err('invalid_format', { error: 'Invalid data', description: $prettyError(accessTokenStructError) });
-    }
-
-    const { encryptedAccessToken, error: encryptError } = await this.$encrypt('accessToken', {
-      value: accessTokenStruct.at,
-      injectedData: accessTokenStruct.inj,
-    });
-    if (encryptError) return $err(encryptError);
-
-    return $ok({ injectedAccessToken: { value: encryptedAccessToken, ...this.defaultCookieOptions.accessToken } });
   }
 
   /** Retrieves and caches the public key for a given key ID (kid) from the JWKS endpoint. */

@@ -24,26 +24,19 @@ export const protectRoute = createMiddleware<ProtectRoute>(async (c, next) => {
   if (!accessToken && !refreshToken) throw new HTTPException(401, { message: 'Unauthorized' });
 
   const accessTokenInfo = await oauthProvider.verifyAccessToken<{ randomNumber: number }>(accessToken);
-  if (!accessTokenInfo.error) {
+  if (accessTokenInfo.success) {
     c.set('accessTokenInfo', { jwt: accessTokenInfo.rawAccessToken, payload: accessTokenInfo.payload });
-    const injectedData = accessTokenInfo.injectedData ?? { randomNumber: getRandomNumber() };
-
-    if (accessTokenInfo.injectedData) {
-      setUserInfo(c, { payload: accessTokenInfo.payload, injectedData });
+    if (accessTokenInfo.hasInjectedData) {
+      setUserInfo(c, { payload: accessTokenInfo.payload, injectedData: accessTokenInfo.injectedData });
       return await next();
     }
 
-    const { injectedAccessToken, success } = await oauthProvider.injectData({
+    const { injectedAccessToken, success, injectedData } = await oauthProvider.injectData({
       accessToken: accessTokenInfo.rawAccessToken,
-      data: injectedData,
+      data: { randomNumber: getRandomNumber() },
     });
 
-    if (success) {
-      setCookie(c, injectedAccessToken.name, injectedAccessToken.value, injectedAccessToken.options);
-      setUserInfo(c, { payload: accessTokenInfo.payload, injectedData });
-      return await next();
-    }
-
+    if (success) setCookie(c, injectedAccessToken.name, injectedAccessToken.value, injectedAccessToken.options);
     setUserInfo(c, { payload: accessTokenInfo.payload, injectedData });
     return await next();
   }
@@ -54,10 +47,9 @@ export const protectRoute = createMiddleware<ProtectRoute>(async (c, next) => {
 
   c.set('accessTokenInfo', { jwt: refreshTokenInfo.rawAccessToken, payload: refreshTokenInfo.payload });
 
-  const injectedData = { randomNumber: getRandomNumber() };
-  const { injectedAccessToken, success } = await oauthProvider.injectData({
+  const { injectedAccessToken, success, injectedData } = await oauthProvider.injectData({
     accessToken: refreshTokenInfo.rawAccessToken,
-    data: injectedData,
+    data: { randomNumber: getRandomNumber() },
   });
 
   const finalAccessToken = success ? injectedAccessToken : newTokens.accessToken;

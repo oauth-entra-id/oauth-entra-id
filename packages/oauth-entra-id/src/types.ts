@@ -181,7 +181,7 @@ export interface Cookies {
 
 export interface GetB2BTokenResult {
   appName: string;
-  appClientId: string;
+  clientId: string;
   accessToken: string;
   msalResponse: MsalResponse;
 }

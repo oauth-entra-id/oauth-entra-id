@@ -100,7 +100,7 @@ export const zAuthParams = z.object({
 
 export const zAccessTokenStructure = z.object({
   at: zJwt,
-  inj: z.record(zStr.max(512), z.any()).optional(),
+  inj: z.record(zStr, z.any()).optional(),
 });
 
 export const zMethods = {

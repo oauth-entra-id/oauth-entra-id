@@ -44,15 +44,17 @@ export function authConfig(config: OAuthConfig) {
  *
  * @throws {OAuthError} if there is any issue.
  */
-export async function handleAuthentication(req: Request, res: Response, next: NextFunction) {
-  try {
-    if (!req.oauthProvider || req.serverType !== 'express') {
-      throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE, status: 500 });
+export function handleAuthentication() {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.oauthProvider || req.serverType !== 'express') {
+        throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE, status: 500 });
+      }
+      await $sharedHandleAuthentication(req, res);
+    } catch (err) {
+      next(err);
     }
-    await $sharedHandleAuthentication(req, res);
-  } catch (err) {
-    next(err);
-  }
+  };
 }
 
 /**
@@ -64,15 +66,17 @@ export async function handleAuthentication(req: Request, res: Response, next: Ne
  *
  * @throws {OAuthError} if there is any issue.
  */
-export async function handleCallback(req: Request, res: Response, next: NextFunction) {
-  try {
-    if (!req.oauthProvider || req.serverType !== 'express') {
-      throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE, status: 500 });
+export function handleCallback() {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.oauthProvider || req.serverType !== 'express') {
+        throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE, status: 500 });
+      }
+      await $sharedHandleCallback(req, res);
+    } catch (err) {
+      next(err);
     }
-    await $sharedHandleCallback(req, res);
-  } catch (err) {
-    next(err);
-  }
+  };
 }
 
 /**
@@ -83,15 +87,17 @@ export async function handleCallback(req: Request, res: Response, next: NextFunc
  *
  * @throws {OAuthError} if there is any issue.
  */
-export function handleLogout(req: Request, res: Response, next: NextFunction) {
-  try {
-    if (!req.oauthProvider || req.serverType !== 'express') {
-      throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE, status: 500 });
+export function handleLogout() {
+  return (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.oauthProvider || req.serverType !== 'express') {
+        throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE, status: 500 });
+      }
+      $sharedHandleLogout(req, res);
+    } catch (err) {
+      next(err);
     }
-    $sharedHandleLogout(req, res);
-  } catch (err) {
-    next(err);
-  }
+  };
 }
 
 /**
@@ -102,15 +108,17 @@ export function handleLogout(req: Request, res: Response, next: NextFunction) {
  *
  * @throws {OAuthError} if there is any issue.
  */
-export async function handleOnBehalfOf(req: Request, res: Response, next: NextFunction) {
-  try {
-    if (!req.oauthProvider || req.serverType !== 'express') {
-      throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE, status: 500 });
+export function handleOnBehalfOf() {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.oauthProvider || req.serverType !== 'express') {
+        throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE, status: 500 });
+      }
+      await $sharedHandleOnBehalfOf(req, res);
+    } catch (err) {
+      next(err);
     }
-    await $sharedHandleOnBehalfOf(req, res);
-  } catch (err) {
-    next(err);
-  }
+  };
 }
 
 /**

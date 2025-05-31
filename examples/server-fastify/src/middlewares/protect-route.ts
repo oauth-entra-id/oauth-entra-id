@@ -22,26 +22,19 @@ export async function protectRoute(req: FastifyRequest, reply: FastifyReply) {
   if (!accessToken && !refreshToken) throw new HttpException('Unauthorized', 401);
 
   const accessTokenInfo = await oauthProvider.verifyAccessToken<{ randomNumber: number }>(accessToken);
-  if (!accessTokenInfo.error) {
+  if (accessTokenInfo.success) {
     req.accessTokenInfo = { jwt: accessTokenInfo.rawAccessToken, payload: accessTokenInfo.payload };
-    const injectedData = accessTokenInfo.injectedData ?? { randomNumber: getRandomNumber() };
-
-    if (accessTokenInfo.injectedData) {
-      setUserInfo(req, { payload: accessTokenInfo.payload, injectedData });
+    if (accessTokenInfo.hasInjectedData) {
+      setUserInfo(req, { payload: accessTokenInfo.payload, injectedData: accessTokenInfo.injectedData });
       return;
     }
 
-    const { injectedAccessToken, success } = await oauthProvider.injectData({
+    const { injectedAccessToken, success, injectedData } = await oauthProvider.injectData({
       accessToken: accessTokenInfo.rawAccessToken,
-      data: injectedData,
+      data: { randomNumber: getRandomNumber() },
     });
 
-    if (success) {
-      reply.setCookie(injectedAccessToken.name, injectedAccessToken.value, injectedAccessToken.options);
-      setUserInfo(req, { payload: accessTokenInfo.payload, injectedData });
-      return;
-    }
-
+    if (success) reply.setCookie(injectedAccessToken.name, injectedAccessToken.value, injectedAccessToken.options);
     setUserInfo(req, { payload: accessTokenInfo.payload, injectedData });
     return;
   }
@@ -52,10 +45,9 @@ export async function protectRoute(req: FastifyRequest, reply: FastifyReply) {
 
   req.accessTokenInfo = { jwt: refreshTokenInfo.rawAccessToken, payload: refreshTokenInfo.payload };
 
-  const injectedData = { randomNumber: getRandomNumber() };
-  const { injectedAccessToken, success } = await oauthProvider.injectData({
+  const { injectedAccessToken, success, injectedData } = await oauthProvider.injectData({
     accessToken: refreshTokenInfo.rawAccessToken,
-    data: injectedData,
+    data: { randomNumber: getRandomNumber() },
   });
 
   const finalAccessToken = success ? injectedAccessToken : newTokens.accessToken;
