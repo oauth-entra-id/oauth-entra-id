@@ -10,8 +10,6 @@
   </p>
 </p>
 
-<br/>
-
 <p align="center">
 <a href="https://opensource.org/licenses/MIT" rel="nofollow"><img src="https://img.shields.io/github/license/oauth-entra-id/oauth-entra-id?color=DC343B" alt="License"></a>
 <a href="https://www.npmjs.com/package/oauth-entra-id" rel="nofollow"><img src="https://img.shields.io/badge/version-2.0.0-0078D4" alt="Version"></a>
@@ -19,9 +17,6 @@
 <a href="https://github.com/oauth-entra-id/oauth-entra-id" rel="nofollow"><img src="https://img.shields.io/github/stars/oauth-entra-id/oauth-entra-id" alt="stars"></a>
 
 </p>
-
-<br/>
-<br/>
 
 ## About 📖
 
@@ -735,7 +730,7 @@ You can explore the demo apps to see how to integrate the package into your appl
 - [Fastify Demo App](https://github.com/oauth-entra-id/oauth-entra-id/tree/main/examples/server-fastify/) ⚡ - Fastify server, implements authentication using the core utilities of the package.
 
 > In each server demo you get a fully working server and these features implemented:
-> Auth flows and protected routes, Input validation, Security HTTP Headers, CORS, Rate limiting, Logging, Error handling, and more.
+> Auth flows and protected routes, Input validation, HTTP Security Headers, CORS, Rate limiting, Logging, Error handling, and more.
 
 ## Architecture 🏗️
 
