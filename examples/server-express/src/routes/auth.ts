@@ -3,6 +3,6 @@ import { handleAuthentication, handleCallback, handleLogout } from 'oauth-entra-
 
 export const authRouter: Router = express.Router();
 
-authRouter.post('/authenticate', handleAuthentication);
-authRouter.post('/callback', handleCallback);
-authRouter.post('/logout', handleLogout);
+authRouter.post('/authenticate', handleAuthentication());
+authRouter.post('/callback', handleCallback());
+authRouter.post('/logout', handleLogout());

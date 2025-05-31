@@ -59,10 +59,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@azure/msal-node": "^3.5.3",
+    "@azure/msal-node": "^3.6.0",
     "jsonwebtoken": "^9.0.2",
     "jwks-rsa": "^3.2.0",
-    "zod": "^3.25.36"
+    "zod": "^3.25.42"
   },
   "peerDependencies": {
     "express": ">=4.21.0"
@@ -75,7 +75,7 @@
   "devDependencies": {
     "@types/express": "^5.0.2",
     "@types/jsonwebtoken": "^9.0.9",
-    "@types/node": "^22.15.24",
+    "@types/node": "^22.15.29",
     "tsup": "^8.5.0",
     "typescript": "^5.8.3"
   },
