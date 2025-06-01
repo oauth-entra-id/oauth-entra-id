@@ -19,7 +19,7 @@
     "helmet": "^8.1.0",
     "morgan": "^1.10.0",
     "oauth-entra-id": "workspace:*",
-    "zod": "^3.25.42"
+    "zod": "^3.25.45"
   },
   "devDependencies": {
     "@types/cors": "^2.8.18",
