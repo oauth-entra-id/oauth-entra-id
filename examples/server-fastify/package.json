@@ -22,7 +22,7 @@
     "dotenv": "^16.5.0",
     "fastify": "^5.3.3",
     "oauth-entra-id": "workspace:*",
-    "zod": "^3.25.42"
+    "zod": "^3.25.45"
   },
   "devDependencies": {
     "@types/node": "^22.15.29",
