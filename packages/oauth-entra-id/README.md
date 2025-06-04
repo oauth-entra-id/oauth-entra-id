@@ -94,6 +94,7 @@ interface OAuthConfig {
       scope: string; // Usually end with `/.default`
     }>;
     disableCompression: boolean; //Whether to disable compression for access tokens. Defaults to `false`
+    cryptoType?: 'node' | 'web-api'; // Defaults to `'node'`
     cookies?: {
       timeUnit?: 'ms' | 'sec'; // Defaults to `'sec'`
       disableHttps?: boolean;
@@ -108,6 +109,7 @@ interface OAuthConfig {
         serviceName: string; // Unique identifier of the downstream service
         scope: string; // Usually end with `/.default`
         secretKey: string; // 32 character secret key for the service
+        cryptoType?: 'node' | 'web-api'; // Defaults to `'node'`
         isHttps?: boolean;
         isSameOrigin?: boolean;
         accessTokenExpiry?: number;
