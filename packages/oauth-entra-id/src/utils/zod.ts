@@ -2,14 +2,16 @@ import { type ZodError, z } from 'zod/v4';
 
 export const base64urlWithDotRegex = /^[A-Za-z0-9._-]+$/;
 export const encryptedRegex = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.$/;
+export const compressedRegex = /^[A-Za-z0-9_-]+\.\.$/;
 
-export const $prettyError = (error: ZodError) => {
-  return error.issues
-    .map((issue) => {
-      const path = issue.path.length > 0 ? issue.path.join('.') : 'root';
-      return `${path}: ${issue.message}`;
-    })
-    .join('. ');
+export const $prettyErr = (error: ZodError): string => {
+  // return error.issues
+  //   .map((issue) => {
+  //     const path = issue.path.length > 0 ? issue.path.join('.') : 'root';
+  //     return `${path}: ${issue.message}`;
+  //   })
+  //   .join('. ');
+  return z.prettifyError(error);
 };
 
 export const zStr = z.string().trim();
@@ -18,6 +20,7 @@ export const zUrl = z.url();
 export const zEmail = z.email({ pattern: z.regexes.html5Email });
 export const zBase64 = z.base64url();
 export const zLooseBase64 = zStr.regex(base64urlWithDotRegex);
+export const zCompressed = zStr.regex(compressedRegex);
 
 export const zLoginPrompt = z.enum(['email', 'select-account', 'sso']);
 export const zSessionType = z.enum(['cookie-session', 'bearer-token']);
@@ -56,6 +59,7 @@ const zAdvanced = z.object({
   sessionType: zSessionType.default('cookie-session'),
   acceptB2BRequests: z.boolean().default(false),
   b2bTargetedApps: z.array(zB2BApp).min(1).optional(),
+  disableCompression: z.boolean().default(false),
   cookies: z
     .object({
       timeUnit: z.enum(['ms', 'sec']).default('sec'),
@@ -98,9 +102,11 @@ export const zAuthParams = z.object({
   codeVerifier: zStr.max(128),
 });
 
+export const zInjectedData = z.record(zStr, z.any()).optional();
+
 export const zAccessTokenStructure = z.object({
   at: zJwt,
-  inj: z.record(zStr, z.any()).optional(),
+  inj: zStr.max(4096).optional(),
 });
 
 export const zMethods = {

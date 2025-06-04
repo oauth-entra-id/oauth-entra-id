@@ -1,6 +1,6 @@
 {
   "name": "oauth-entra-id",
-  "version": "2.0.0",
+  "version": "2.1.1",
   "description": "🛡️ Simple and Secure Way to Implement OAuth 2.0 with Microsoft Entra ID",
   "homepage": "https://github.com/oauth-entra-id/oauth-entra-id",
   "repository": {
@@ -56,13 +56,15 @@
     "build": "tsup",
     "prepare": "npm run build",
     "dev": "tsup --watch",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest"
   },
   "dependencies": {
     "@azure/msal-node": "^3.6.0",
     "jsonwebtoken": "^9.0.2",
     "jwks-rsa": "^3.2.0",
-    "zod": "^3.25.45"
+    "pako": "^2.1.0",
+    "zod": "^3.25.51"
   },
   "peerDependencies": {
     "express": ">=4.21.0"
@@ -76,8 +78,10 @@
     "@types/express": "^5.0.2",
     "@types/jsonwebtoken": "^9.0.9",
     "@types/node": "^22.15.29",
+    "@types/pako": "^2.0.3",
     "tsup": "^8.5.0",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.4"
   },
   "license": "MIT",
   "keywords": ["auth", "oauth2", "typescript", "microsoft", "entra-id", "azure", "jwt", "express", "nestjs"]
