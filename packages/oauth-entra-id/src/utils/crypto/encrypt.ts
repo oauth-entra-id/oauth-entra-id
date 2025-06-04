@@ -1,125 +1,156 @@
-import { Buffer } from 'node:buffer';
-import { webcrypto } from 'node:crypto';
+import type { webcrypto } from 'node:crypto';
+import type nodeCrypto from 'node:crypto';
 import { $err, $ok, type Result } from '~/error';
+import type { CryptoType } from '~/types';
+import { $isString, encryptedNodeRegex, encryptedWebApiRegex } from '../zod';
+import { $createNodeSecretKey, $nodeDecrypt, $nodeEncrypt } from './node';
 import { $parseToObj, $stringifyObj } from './objects';
+import { $createWebApiSecretKey, $isWebApiKey, $webApiDecrypt, $webApiEncrypt } from './web-api';
 
-const ALGORITHM = 'AES-GCM';
 export const FORMAT = 'base64url';
+export const NODE_ALGORITHM = 'aes-256-gcm';
+export const WEB_API_ALGORITHM = 'AES-GCM';
 
-const encoder = new TextEncoder();
-const decoder = new TextDecoder();
-
-export async function $createSecretKey(
-  key: string | webcrypto.CryptoKey,
-): Promise<Result<{ newSecretKey: webcrypto.CryptoKey }>> {
-  if (typeof key === 'string') {
-    if (key.trim().length === 0) {
-      return $err('nullish_value', { error: 'Invalid secret key', description: 'Empty string', status: 500 });
-    }
-    try {
-      const hashedKey = await crypto.subtle.digest('SHA-256', encoder.encode(key));
-      const newSecretKey = await crypto.subtle.importKey('raw', hashedKey, { name: ALGORITHM }, true, [
-        'encrypt',
-        'decrypt',
-      ]);
-      return $ok({ newSecretKey: newSecretKey });
-    } catch (error) {
-      return $err('crypto_error', {
-        error: 'Failed to create secret key',
-        description: error instanceof Error ? error.message : String(error),
-        status: 500,
-      });
-    }
-  }
-
-  if (key) {
+export function $createSecretKey(
+  cryptoType: CryptoType,
+  key: string,
+): Result<{ newSecretKey: string | nodeCrypto.KeyObject }> {
+  if (cryptoType === 'web-api') {
     return $ok({ newSecretKey: key });
   }
 
-  return $err('misconfiguration', {
-    error: 'Invalid secret key',
-    description: 'Expected a CryptoKey instance',
-    status: 500,
-  });
+  const { newSecretKey, error } = $createNodeSecretKey(key);
+  if (error) return $err(error);
+  return $ok({ newSecretKey });
+}
+
+export function $createSecretKeys(
+  cryptoType: CryptoType,
+  keys: { at: string; rt: string; state: string },
+): Result<{
+  secretKeys: {
+    at: string | nodeCrypto.KeyObject;
+    rt: string | nodeCrypto.KeyObject;
+    state: string | nodeCrypto.KeyObject;
+  };
+}> {
+  if (cryptoType === 'web-api') {
+    return $ok({ secretKeys: keys });
+  }
+
+  const atKey = $createNodeSecretKey(keys.at);
+  if (atKey.error) return $err(atKey.error);
+  const rtKey = $createNodeSecretKey(keys.rt);
+  if (rtKey.error) return $err(rtKey.error);
+  const stateKey = $createNodeSecretKey(keys.state);
+  if (stateKey.error) return $err(stateKey.error);
+
+  return $ok({ secretKeys: { at: atKey.newSecretKey, rt: rtKey.newSecretKey, state: stateKey.newSecretKey } });
 }
 
 export async function $encrypt(
+  cryptoType: CryptoType,
   data: string | null,
-  key: string | webcrypto.CryptoKey,
-): Promise<Result<{ encrypted: string; newSecretKey: webcrypto.CryptoKey }>> {
-  if (!data || data.trim().length === 0) {
-    return $err('nullish_value', { error: 'Invalid data', description: 'Empty string' });
-  }
+  key: string | webcrypto.CryptoKey | nodeCrypto.KeyObject,
+): Promise<Result<{ encrypted: string; newSecretKey: webcrypto.CryptoKey | undefined }>> {
+  if (!$isString(data)) return $err('nullish_value', { error: 'Invalid data', description: 'Empty string to encrypt' });
 
-  const { newSecretKey, error } = await $createSecretKey(key);
-  if (error) return $err(error);
+  if (cryptoType === 'node') {
+    if ($isWebApiKey(key)) {
+      return $err('misconfiguration', { error: 'Invalid secret key', description: 'Expected a Node.js KeyObject' });
+    }
+    const { newSecretKey, error: secretKeyError } = $createNodeSecretKey(key);
+    if (secretKeyError) return $err(secretKeyError);
 
-  try {
-    const iv = webcrypto.getRandomValues(new Uint8Array(12));
-    const encrypted = await crypto.subtle.encrypt({ name: ALGORITHM, iv: iv }, newSecretKey, encoder.encode(data));
+    const { iv, encrypted, tag, error } = $nodeEncrypt(data, newSecretKey);
+    if (error) return $err(error);
     return $ok({
-      encrypted: `${Buffer.from(encrypted).toString(FORMAT)}.${Buffer.from(iv).toString(FORMAT)}.`,
-      newSecretKey: newSecretKey,
-    });
-  } catch (error) {
-    return $err('crypto_error', {
-      error: 'Failed to generate IV',
-      description: `Input: ${data}, ${error instanceof Error ? error.message : String(error)}`,
+      encrypted: `${iv}.${encrypted}.${tag}.`,
+      newSecretKey: undefined,
     });
   }
+  if (typeof key !== 'string' && !$isWebApiKey(key)) {
+    return $err('misconfiguration', {
+      error: 'Invalid secret key',
+      description: 'Expected a Web Crypto API CryptoKey instance',
+    });
+  }
+  const { newSecretKey, error: secretKeyError } = await $createWebApiSecretKey(key);
+  if (secretKeyError) return $err(secretKeyError);
+
+  const { iv, encryptedWithTag, error } = await $webApiEncrypt(data, newSecretKey);
+  if (error) return $err(error);
+  return $ok({
+    encrypted: `${iv}.${encryptedWithTag}.`,
+    newSecretKey,
+  });
 }
 
 export async function $decrypt(
+  cryptoType: CryptoType,
   encrypted: string | null,
-  key: string | webcrypto.CryptoKey,
-): Promise<Result<{ result: string; newSecretKey: webcrypto.CryptoKey }>> {
-  if (!encrypted || encrypted.trim().length === 0) {
-    return $err('nullish_value', { error: 'Invalid data', description: 'Empty string' });
-  }
-  if (!encrypted.includes('.')) {
-    return $err('invalid_format', { error: 'Invalid encrypted data format', description: `Input: ${encrypted}` });
+  key: string | webcrypto.CryptoKey | nodeCrypto.KeyObject,
+): Promise<Result<{ result: string; newSecretKey: webcrypto.CryptoKey | undefined }>> {
+  if (!$isString(encrypted)) {
+    return $err('nullish_value', { error: 'Invalid data', description: 'Empty string to decrypt' });
   }
 
-  const { newSecretKey, error } = await $createSecretKey(key);
-  if (error) return $err(error);
-
-  try {
-    const [encryptedData, iv] = encrypted.split('.');
-    if (!encryptedData || !iv) {
-      return $err('crypto_error', { error: 'Invalid encrypted data format', description: `Input: ${encryptedData}` });
+  const parts = encrypted.split('.');
+  if (cryptoType === 'node') {
+    if (typeof key === 'string' || $isWebApiKey(key)) {
+      return $err('misconfiguration', { error: 'Invalid secret key', description: 'Expected a Node.js KeyObject' });
     }
 
-    const decryptedData = await crypto.subtle.decrypt(
-      { name: ALGORITHM, iv: Buffer.from(iv, FORMAT) },
-      newSecretKey,
-      Buffer.from(encryptedData, FORMAT),
-    );
+    if (!encryptedNodeRegex.test(encrypted)) {
+      return $err('invalid_format', { error: 'Invalid data', description: 'Data does not match expected format' });
+    }
 
-    return $ok({ result: decoder.decode(decryptedData), newSecretKey: newSecretKey });
-  } catch (error) {
-    return $err('crypto_error', {
-      error: 'Failed to decrypt data',
-      description: `Input: ${encrypted}, ${error instanceof Error ? error.message : String(error)}`,
+    const [iv, encryptedData, tag] = parts as [string, string, string];
+
+    const { result, error } = $nodeDecrypt(iv, encryptedData, tag, key);
+    if (error) return $err(error);
+    return $ok({ result, newSecretKey: undefined });
+  }
+
+  if (typeof key !== 'string' && !$isWebApiKey(key)) {
+    return $err('misconfiguration', {
+      error: 'Invalid secret key',
+      description: 'Expected a Web Crypto API CryptoKey instance',
     });
   }
+
+  const { newSecretKey, error: secretKeyError } = await $createWebApiSecretKey(key);
+  if (secretKeyError) return $err(secretKeyError);
+
+  if (!encryptedWebApiRegex.test(encrypted)) {
+    return $err('invalid_format', { error: 'Invalid data', description: 'Data does not match expected format' });
+  }
+
+  const [iv, encryptedWithTag] = parts as [string, string];
+
+  const { result, error } = await $webApiDecrypt(iv, encryptedWithTag, newSecretKey);
+  if (error) return $err(error);
+  return $ok({ result, newSecretKey });
 }
 
 export async function $encryptObj(
+  cryptoType: CryptoType,
   obj: Record<string, unknown> | null,
-  key: string | webcrypto.CryptoKey,
-): Promise<Result<{ encrypted: string; newSecretKey: webcrypto.CryptoKey }>> {
+  key: string | webcrypto.CryptoKey | nodeCrypto.KeyObject,
+): Promise<Result<{ encrypted: string; newSecretKey: webcrypto.CryptoKey | undefined }>> {
   const { result, error } = $stringifyObj(obj);
   if (error) return $err(error);
-  return await $encrypt(result, key);
+  return await $encrypt(cryptoType, result, key);
 }
 
 export async function $decryptObj(
-  encryptedData: string | null,
-  key: string | webcrypto.CryptoKey,
-): Promise<Result<{ result: Record<string, unknown>; newSecretKey: webcrypto.CryptoKey }>> {
-  const { result: decryptedResult, newSecretKey, error: decryptError } = await $decrypt(encryptedData, key);
-  if (decryptError) return $err(decryptError);
-  const { result, error } = $parseToObj(decryptedResult);
+  cryptoType: CryptoType,
+  encrypted: string | null,
+  key: string | webcrypto.CryptoKey | nodeCrypto.KeyObject,
+): Promise<Result<{ result: Record<string, unknown>; newSecretKey: webcrypto.CryptoKey | undefined }>> {
+  const { result, newSecretKey, error } = await $decrypt(cryptoType, encrypted, key);
   if (error) return $err(error);
-  return $ok({ result, newSecretKey });
+  const { result: parsedObj, error: parseError } = $parseToObj(result);
+  if (parseError) return $err(parseError);
+  return $ok({ result: parsedObj, newSecretKey });
 }

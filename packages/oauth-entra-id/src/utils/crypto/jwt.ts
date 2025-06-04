@@ -1,10 +1,9 @@
 import jwt from 'jsonwebtoken';
 import { $err, $ok, type Result } from '~/error';
+import { $isString } from '../zod';
 
 function $decodeJwt(jwtToken: string): Result<{ decodedJwt: jwt.Jwt }> {
-  if (jwtToken.trim().length === 0) {
-    return $err('nullish_value', { error: 'Invalid data', description: 'Empty string' });
-  }
+  if (!$isString(jwtToken)) return $err('nullish_value', { error: 'Invalid JWT token', description: 'Empty JWT' });
 
   try {
     const decodedJwt = jwt.decode(jwtToken, { complete: true });

@@ -4,6 +4,7 @@ import type { ACCESS_TOKEN_NAME, REFRESH_TOKEN_NAME } from './utils/cookie-optio
 export type LoginPrompt = 'email' | 'select-account' | 'sso';
 export type TimeUnit = 'ms' | 'sec';
 export type SessionType = 'cookie-session' | 'bearer-token';
+export type CryptoType = 'node' | 'web-api';
 
 /**
  * Configuration for acquiring client credentials for a B2B service.
@@ -33,6 +34,9 @@ export interface DownstreamService {
   /** Encryption key used to encrypt tokens for this service. */
   secretKey: string;
 
+  /** Which crypto API to use for encryption. Defaults to `'node'`. */
+  cryptoType?: CryptoType;
+
   /** Whether HTTPS is required when setting cookies for this service. */
   isHttps?: boolean;
 
@@ -52,6 +56,7 @@ export interface OboService {
   sameSite: boolean;
   scope: string;
   secretKey: string;
+  cryptoType: CryptoType;
   atExp?: number;
   rtExp?: number;
 }
@@ -89,6 +94,8 @@ export interface OAuthConfig {
     b2bTargetedApps?: B2BApp[];
     /** Whether to disable compression for access tokens. */
     disableCompression?: boolean;
+    /** Which crypto API to use for encryption. Defaults to `'node'`. */
+    cryptoType?: CryptoType;
     /** Cookie behavior and expiration settings. */
     cookies?: {
       /** Unit used for cookie expiration times. */
@@ -124,6 +131,7 @@ export interface OAuthSettings {
   readonly b2bApps?: string[];
   readonly downstreamServices?: string[];
   readonly disableCompression: boolean;
+  readonly cryptoType: CryptoType;
   readonly cookies: {
     readonly timeUnit: TimeUnit;
     readonly isSecure: boolean;

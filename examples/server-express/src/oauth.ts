@@ -13,6 +13,7 @@ export const oauthConfig = {
   serverCallbackUrl: `${env.SERVER_URL}/auth/callback`,
   secretKey: env.YELLOW_SECRET_KEY,
   advanced: {
+    cryptoType: 'web-api',
     acceptB2BRequests: true,
     b2bTargetedApps: [
       { appName: 'nestjs', scope: env.AZURE_RED_EXPOSED_SCOPE },

@@ -27,6 +27,7 @@ export const oauthProvider = new OAuthProvider({
           serviceName: 'yellow',
           scope: env.AZURE_YELLOW_EXPOSED_SCOPE,
           secretKey: env.YELLOW_SECRET_KEY,
+          cryptoType: 'web-api',
         },
         {
           serviceName: 'red',

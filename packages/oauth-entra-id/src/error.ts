@@ -1,4 +1,4 @@
-import { $isPlainObject } from './utils/crypto/objects';
+import { $isPlainObject } from './utils/zod';
 
 export type HttpErrorCodes = 400 | 401 | 403 | 500;
 
