@@ -93,6 +93,7 @@ interface OAuthConfig {
       appName: string; // Unique identifier of the B2B app
       scope: string; // Usually end with `/.default`
     }>;
+    disableCompression: boolean; //Whether to disable compression for access tokens. Defaults to `false`
     cookies?: {
       timeUnit?: 'ms' | 'sec'; // Defaults to `'sec'`
       disableHttps?: boolean;
@@ -192,6 +193,7 @@ interface OAuthSettings {
   readonly acceptB2BRequests: boolean;
   readonly b2bApps?: string[];
   readonly downstreamServices?: string[];
+  readonly disableCompression: boolean;
   readonly cookies: {
     readonly timeUnit: 'sec' | 'ms';
     readonly isSecure: boolean;
