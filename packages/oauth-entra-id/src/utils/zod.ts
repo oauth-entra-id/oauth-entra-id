@@ -4,13 +4,14 @@ export const base64urlWithDotRegex = /^[A-Za-z0-9._-]+$/;
 export const encryptedRegex = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.$/;
 export const compressedRegex = /^[A-Za-z0-9_-]+\.\.$/;
 
-export const $prettyError = (error: ZodError) => {
-  return error.issues
-    .map((issue) => {
-      const path = issue.path.length > 0 ? issue.path.join('.') : 'root';
-      return `${path}: ${issue.message}`;
-    })
-    .join('. ');
+export const $prettyErr = (error: ZodError): string => {
+  // return error.issues
+  //   .map((issue) => {
+  //     const path = issue.path.length > 0 ? issue.path.join('.') : 'root';
+  //     return `${path}: ${issue.message}`;
+  //   })
+  //   .join('. ');
+  return z.prettifyError(error);
 };
 
 export const zStr = z.string().trim();

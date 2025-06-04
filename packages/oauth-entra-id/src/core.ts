@@ -22,7 +22,7 @@ import { $getAud, $getKid } from './utils/crypto/jwt';
 import { $parseToObj, $stringifyObj } from './utils/crypto/objects';
 import { $filterCoreErrors, $getB2BInfo, $getOboInfo } from './utils/misc';
 import {
-  $prettyError,
+  $prettyErr,
   zAccessTokenStructure,
   zConfig,
   zEncrypted,
@@ -78,7 +78,7 @@ export class OAuthProvider {
     if (configError) {
       throw new OAuthError('misconfiguration', {
         error: 'Invalid configuration',
-        description: $prettyError(configError),
+        description: $prettyErr(configError),
         status: 500,
       });
     }
@@ -186,7 +186,7 @@ export class OAuthProvider {
     Result<{ authUrl: string }>
   > {
     const { data: parsedParams, error: paramsError } = zMethods.getAuthUrl.safeParse(params);
-    if (paramsError) return $err('bad_request', { error: 'Invalid params', description: $prettyError(paramsError) });
+    if (paramsError) return $err('bad_request', { error: 'Invalid params', description: $prettyErr(paramsError) });
 
     if (parsedParams.loginPrompt === 'email' && !parsedParams.email) {
       return $err('bad_request', { error: 'Invalid params: Email required' });
@@ -252,7 +252,7 @@ export class OAuthProvider {
     }>
   > {
     const { data: parsedParams, error: paramsError } = zMethods.getTokenByCode.safeParse(params);
-    if (paramsError) return $err('bad_request', { error: 'Invalid params', description: $prettyError(paramsError) });
+    if (paramsError) return $err('bad_request', { error: 'Invalid params', description: $prettyErr(paramsError) });
 
     const { state, error: decryptError } = await this.$decryptState(parsedParams.state);
     if (decryptError) return $err(decryptError);
@@ -298,7 +298,7 @@ export class OAuthProvider {
     deleteRefreshToken: Cookies['DeleteRefreshToken'];
   }> {
     const { data: parsedParams, error: paramsError } = zMethods.getLogoutUrl.safeParse(params);
-    if (paramsError) return $err('bad_request', { error: 'Invalid params', description: $prettyError(paramsError) });
+    if (paramsError) return $err('bad_request', { error: 'Invalid params', description: $prettyErr(paramsError) });
 
     if (parsedParams.frontendUrl && !this.frontendWhitelist.has(new URL(parsedParams.frontendUrl).host)) {
       return $err('bad_request', { error: 'Invalid params: Unlisted host frontend URL', status: 403 });
@@ -463,7 +463,7 @@ export class OAuthProvider {
 
     const { data: dataToInject, error: dataToInjectError } = zInjectedData.safeParse(params.data);
     if (dataToInjectError) {
-      return $err('invalid_format', { error: 'Invalid data', description: $prettyError(dataToInjectError) });
+      return $err('invalid_format', { error: 'Invalid data', description: $prettyErr(dataToInjectError) });
     }
 
     const { encryptedAccessToken, error: encryptError } = await this.$encryptAccessToken(rawAccessToken, {
@@ -496,7 +496,7 @@ export class OAuthProvider {
     if (!this.b2bMap) return $err('misconfiguration', { error: 'B2B apps not configured', status: 500 });
 
     const { data: parsedParams, error: paramsError } = zMethods.getB2BToken.safeParse(params);
-    if (paramsError) return $err('bad_request', { error: 'Invalid params', description: $prettyError(paramsError) });
+    if (paramsError) return $err('bad_request', { error: 'Invalid params', description: $prettyErr(paramsError) });
 
     const apps = parsedParams.appNames.map((appName) => this.b2bMap?.get(appName)).filter((app) => !!app);
     if (!apps || apps.length === 0)
@@ -564,7 +564,7 @@ export class OAuthProvider {
     if (!this.oboMap) return $err('misconfiguration', { error: 'OBO services not configured', status: 500 });
 
     const { data: parsedParams, error: paramsError } = zMethods.getTokenOnBehalfOf.safeParse(params);
-    if (paramsError) return $err('bad_request', { error: 'Invalid params', description: $prettyError(paramsError) });
+    if (paramsError) return $err('bad_request', { error: 'Invalid params', description: $prettyErr(paramsError) });
 
     const services = parsedParams.serviceNames
       .map((serviceName) => this.oboMap?.get(serviceName))
@@ -738,15 +738,12 @@ export class OAuthProvider {
   ): Promise<Result<{ encryptedAccessToken: string }>> {
     const { data: accessToken, error: jwtError } = zJwt.safeParse(value);
     if (jwtError) {
-      return $err('invalid_format', { error: 'Invalid access token format', description: $prettyError(jwtError) });
+      return $err('invalid_format', { error: 'Invalid access token format', description: $prettyErr(jwtError) });
     }
 
     const { data: dataToInject, error: injectError } = zInjectedData.safeParse(params?.dataToInject);
     if (injectError) {
-      return $err('invalid_format', {
-        error: 'Invalid injected data format',
-        description: $prettyError(injectError),
-      });
+      return $err('invalid_format', { error: 'Invalid injected data format', description: $prettyErr(injectError) });
     }
 
     const injectedData = dataToInject ? $compressObj(dataToInject, this.settings.disableCompression) : undefined;
@@ -794,7 +791,7 @@ export class OAuthProvider {
     if (accessTokenStructError) {
       return $err('invalid_format', {
         error: 'Invalid access token format',
-        description: $prettyError(accessTokenStructError),
+        description: $prettyErr(accessTokenStructError),
       });
     }
 
@@ -811,10 +808,7 @@ export class OAuthProvider {
   private async $encryptRefreshToken(value: string | null): Promise<Result<{ encryptedRefreshToken: string }>> {
     const { data, error: parseError } = zLooseBase64.safeParse(value);
     if (parseError) {
-      return $err('invalid_format', {
-        error: 'Invalid refresh token format',
-        description: $prettyError(parseError),
-      });
+      return $err('invalid_format', { error: 'Invalid refresh token format', description: $prettyErr(parseError) });
     }
 
     const { encrypted, newSecretKey, error } = await $encrypt(data, this.secretKeys.rt);
@@ -853,10 +847,7 @@ export class OAuthProvider {
   private async $encryptState(value: object | null): Promise<Result<{ encryptedState: string }>> {
     const { data, error: parseError } = zState.safeParse(value);
     if (parseError) {
-      return $err('invalid_format', {
-        error: 'Invalid state format',
-        description: $prettyError(parseError),
-      });
+      return $err('invalid_format', { error: 'Invalid state format', description: $prettyErr(parseError) });
     }
 
     const { encrypted, newSecretKey, error } = await $encryptObj(data, this.secretKeys.state);
@@ -891,10 +882,7 @@ export class OAuthProvider {
 
     const { data: state, error: stateError } = zState.safeParse(result);
     if (stateError) {
-      return $err('invalid_format', {
-        error: 'Invalid state format',
-        description: $prettyError(stateError),
-      });
+      return $err('invalid_format', { error: 'Invalid state format', description: $prettyErr(stateError) });
     }
 
     return $ok({ state });
