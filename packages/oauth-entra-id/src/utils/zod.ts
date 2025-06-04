@@ -1,7 +1,21 @@
 import { type ZodError, z } from 'zod/v4';
 
+export function $isString(value: unknown): value is string {
+  return (value !== null || value !== undefined) && typeof value === 'string' && value.trim().length > 0;
+}
+
+export function $isPlainObject(value: unknown): value is Record<string, unknown> {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null)
+  );
+}
+
 export const base64urlWithDotRegex = /^[A-Za-z0-9._-]+$/;
-export const encryptedRegex = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.$/;
+export const encryptedWebApiRegex = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.$/;
+export const encryptedNodeRegex = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.$/;
+export const encryptedRegex = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)?\.$/;
 export const compressedRegex = /^[A-Za-z0-9_-]+\.\.$/;
 
 export const $prettyErr = (error: ZodError): string => {
@@ -48,6 +62,7 @@ const zDownstreamService = z.object({
   serviceName: zServiceName,
   scope: zScope,
   secretKey: zSecretKey,
+  cryptoType: z.enum(['web-api', 'node']).optional(),
   isHttps: z.boolean().optional(),
   isSameOrigin: z.boolean().optional(),
   accessTokenExpiry: z.number().positive().default(3600),
@@ -60,6 +75,7 @@ const zAdvanced = z.object({
   acceptB2BRequests: z.boolean().default(false),
   b2bTargetedApps: z.array(zB2BApp).min(1).optional(),
   disableCompression: z.boolean().default(false),
+  cryptoType: z.enum(['web-api', 'node']).default('node'),
   cookies: z
     .object({
       timeUnit: z.enum(['ms', 'sec']).default('sec'),

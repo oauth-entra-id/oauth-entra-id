@@ -6,7 +6,7 @@ import { $parseToObj, $stringifyObj } from './objects';
 
 export function $compress(str: string | null | undefined): Result<string> {
   if (!str || str.trim().length === 0) {
-    return $err('nullish_value', { error: 'Invalid data', description: 'Empty string' });
+    return $err('nullish_value', { error: 'Invalid data', description: 'Empty data to compress' });
   }
 
   try {
@@ -22,7 +22,7 @@ export function $compress(str: string | null | undefined): Result<string> {
 
 export function $decompress(str: string | null | undefined): Result<string> {
   if (!str || str.trim().length === 0) {
-    return $err('nullish_value', { error: 'Invalid data', description: 'Empty string' });
+    return $err('nullish_value', { error: 'Invalid data', description: 'Empty data to decompress' });
   }
   if (!str.endsWith('..')) {
     return $err('invalid_format', { error: 'Invalid compressed data', description: 'String does not end with ".."' });

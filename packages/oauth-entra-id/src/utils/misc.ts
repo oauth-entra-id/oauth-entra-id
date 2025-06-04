@@ -27,6 +27,7 @@ export function $getOboInfo(
       service.serviceName,
       {
         ...service,
+        cryptoType: service.cryptoType ?? 'node',
         secure: service.isHttps ?? oboConfig.areHttps,
         sameSite: service.isSameOrigin ?? oboConfig.areSameOrigin,
       } satisfies OboService,

@@ -1,4 +1,5 @@
 import type { webcrypto } from 'node:crypto';
+import type nodeCrypto from 'node:crypto';
 import * as msal from '@azure/msal-node';
 import jwt from 'jsonwebtoken';
 import jwks from 'jwks-rsa';
@@ -7,6 +8,7 @@ import { $err, $ok, OAuthError, type Result } from './error';
 import type {
   B2BApp,
   Cookies,
+  CryptoType,
   GetB2BTokenResult,
   GetTokenOnBehalfOfResult,
   LoginPrompt,
@@ -17,9 +19,8 @@ import type {
 } from './types';
 import { $cookieOptions } from './utils/cookie-options';
 import { $compressObj, $decompressObj } from './utils/crypto/compress';
-import { $decrypt, $decryptObj, $encrypt, $encryptObj } from './utils/crypto/encrypt';
+import { $createSecretKeys, $decrypt, $decryptObj, $encrypt, $encryptObj } from './utils/crypto/encrypt';
 import { $getAud, $getKid } from './utils/crypto/jwt';
-import { $parseToObj, $stringifyObj } from './utils/crypto/objects';
 import { $filterCoreErrors, $getB2BInfo, $getOboInfo } from './utils/misc';
 import {
   $prettyErr,
@@ -51,9 +52,9 @@ export class OAuthProvider {
   private readonly frontendUrls: [string, ...string[]];
   private readonly serverCallbackUrl: string;
   private readonly secretKeys: {
-    at: string | webcrypto.CryptoKey;
-    rt: string | webcrypto.CryptoKey;
-    state: string | webcrypto.CryptoKey;
+    at: nodeCrypto.KeyObject | string | webcrypto.CryptoKey;
+    rt: nodeCrypto.KeyObject | string | webcrypto.CryptoKey;
+    state: nodeCrypto.KeyObject | string | webcrypto.CryptoKey;
   };
   private readonly frontendWhitelist: Set<string>;
   private readonly defaultCookieOptions: Cookies['DefaultCookieOptions'];
@@ -94,6 +95,7 @@ export class OAuthProvider {
         acceptB2BRequests,
         b2bTargetedApps,
         disableCompression,
+        cryptoType,
         cookies,
         downstreamServices,
       },
@@ -104,11 +106,12 @@ export class OAuthProvider {
     const secure = !cookies.disableHttps && [serverHost, ...frontHosts].every((url) => url.startsWith('https'));
     const sameSite = !cookies.disableSameSite && frontHosts.size === 1 ? frontHosts.has(serverHost) : false;
 
-    const secretKeys = {
+    const { secretKeys, error: secretKeysError } = $createSecretKeys(cryptoType, {
       at: `access-token-${secretKey}`,
       rt: `refresh-token-${secretKey}`,
       state: `state-${secretKey}`,
-    };
+    });
+    if (secretKeysError) throw new OAuthError(secretKeysError);
 
     const { error: b2bError, b2bMap, b2bNames } = $getB2BInfo(b2bTargetedApps);
     if (b2bError) throw new OAuthError(b2bError);
@@ -132,6 +135,7 @@ export class OAuthProvider {
       b2bApps: b2bNames,
       downstreamServices: oboNames,
       disableCompression: disableCompression,
+      cryptoType: cryptoType,
       cookies: {
         timeUnit: cookies.timeUnit,
         isSecure: secure,
@@ -593,6 +597,7 @@ export class OAuthProvider {
               if (clientIdError) return null;
 
               const { encryptedAccessToken, error } = await this.$encryptAccessToken(msalResponse.accessToken, {
+                cryptoType: service.cryptoType,
                 otherSecretKey: `access-token-${service.secretKey}`,
               });
               if (error) return null;
@@ -704,36 +709,42 @@ export class OAuthProvider {
   }
 
   /** Updates the secret key for a specific token type if it is a string. */
-  private $updateSecretKey(type: 'accessToken' | 'refreshToken' | 'state', secretKey: webcrypto.CryptoKey): void {
-    switch (type) {
-      case 'accessToken':
-        if (typeof this.secretKeys.at === 'string') {
-          this.secretKeys.at = secretKey;
-        }
-        break;
-      case 'refreshToken':
-        if (typeof this.secretKeys.rt === 'string') {
-          this.secretKeys.rt = secretKey;
-        }
-        break;
-      case 'state':
-        if (typeof this.secretKeys.state === 'string') {
-          this.secretKeys.state = secretKey;
-        }
-        break;
-      default:
-        throw new OAuthError('misconfiguration', {
-          error: 'Invalid secret key type',
-          description: `Unknown type: ${type}`,
-        });
+  private $updateSecretKey(
+    type: 'accessToken' | 'refreshToken' | 'state',
+    secretKey: webcrypto.CryptoKey | undefined,
+  ): void {
+    if (this.settings.cryptoType === 'web-api' && secretKey) {
+      switch (type) {
+        case 'accessToken':
+          if (typeof this.secretKeys.at === 'string') {
+            this.secretKeys.at = secretKey;
+          }
+          break;
+        case 'refreshToken':
+          if (typeof this.secretKeys.rt === 'string') {
+            this.secretKeys.rt = secretKey;
+          }
+          break;
+        case 'state':
+          if (typeof this.secretKeys.state === 'string') {
+            this.secretKeys.state = secretKey;
+          }
+          break;
+        default:
+          throw new OAuthError('misconfiguration', {
+            error: 'Invalid secret key type',
+            description: `Unknown type: ${type}`,
+          });
+      }
     }
   }
 
   private async $encryptAccessToken<T extends object = Record<string, any>>(
     value: string | null,
     params?: {
-      otherSecretKey?: string;
       dataToInject?: T;
+      otherSecretKey?: string;
+      cryptoType?: CryptoType;
     },
   ): Promise<Result<{ encryptedAccessToken: string }>> {
     const { data: accessToken, error: jwtError } = zJwt.safeParse(value);
@@ -750,6 +761,7 @@ export class OAuthProvider {
     if (injectedData?.error) return $err(injectedData.error);
 
     const { encrypted, newSecretKey, error } = await $encryptObj(
+      params?.cryptoType ?? this.settings.cryptoType,
       { at: accessToken, inj: injectedData?.result } satisfies z.infer<typeof zAccessTokenStructure>,
       params?.otherSecretKey ?? this.secretKeys.at,
     );
@@ -780,7 +792,11 @@ export class OAuthProvider {
       return $err('invalid_format', { error: 'Unauthorized', description: 'Invalid access token format' });
     }
 
-    const { result, newSecretKey, error } = await $decryptObj(encryptedAccessToken, this.secretKeys.at);
+    const { result, newSecretKey, error } = await $decryptObj(
+      this.settings.cryptoType,
+      encryptedAccessToken,
+      this.secretKeys.at,
+    );
     if (error) {
       return $err('crypto_error', { error: 'Failed to decrypt access token', description: error.description });
     }
@@ -811,7 +827,7 @@ export class OAuthProvider {
       return $err('invalid_format', { error: 'Invalid refresh token format', description: $prettyErr(parseError) });
     }
 
-    const { encrypted, newSecretKey, error } = await $encrypt(data, this.secretKeys.rt);
+    const { encrypted, newSecretKey, error } = await $encrypt(this.settings.cryptoType, data, this.secretKeys.rt);
     if (error) {
       return $err('crypto_error', { error: 'Failed to encrypt refresh token', description: error.description });
     }
@@ -834,7 +850,11 @@ export class OAuthProvider {
       return $err('invalid_format', { error: 'Unauthorized', description: 'Invalid refresh token format' });
     }
 
-    const { result, newSecretKey, error } = await $decrypt(encryptedRefreshToken, this.secretKeys.rt);
+    const { result, newSecretKey, error } = await $decrypt(
+      this.settings.cryptoType,
+      encryptedRefreshToken,
+      this.secretKeys.rt,
+    );
     if (error) {
       return $err('crypto_error', { error: 'Failed to decrypt refresh token', description: error.description });
     }
@@ -850,7 +870,7 @@ export class OAuthProvider {
       return $err('invalid_format', { error: 'Invalid state format', description: $prettyErr(parseError) });
     }
 
-    const { encrypted, newSecretKey, error } = await $encryptObj(data, this.secretKeys.state);
+    const { encrypted, newSecretKey, error } = await $encryptObj(this.settings.cryptoType, data, this.secretKeys.state);
     if (error) {
       return $err('crypto_error', { error: 'Failed to encrypt state', description: error.description });
     }
@@ -873,7 +893,11 @@ export class OAuthProvider {
       return $err('invalid_format', { error: 'Unauthorized', description: 'Invalid state format' });
     }
 
-    const { result, newSecretKey, error } = await $decryptObj(encryptedState, this.secretKeys.state);
+    const { result, newSecretKey, error } = await $decryptObj(
+      this.settings.cryptoType,
+      encryptedState,
+      this.secretKeys.state,
+    );
     if (error) {
       return $err('crypto_error', { error: 'Failed to decrypt state', description: error.description });
     }

@@ -1,12 +1,5 @@
 import { $err, $ok, type Result } from '~/error';
-
-export function $isPlainObject(value: unknown): value is Record<string, unknown> {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null)
-  );
-}
+import { $isPlainObject, $isString } from '../zod';
 
 export function $stringifyObj(obj: Record<string, unknown> | null | undefined): Result<string> {
   if (!obj) return $err('nullish_value', { error: 'Invalid data' });
@@ -17,7 +10,7 @@ export function $stringifyObj(obj: Record<string, unknown> | null | undefined): 
     }
 
     const str = JSON.stringify(obj);
-    if (!str || str.trim().length === 0) {
+    if (!$isString(str)) {
       return $err('invalid_format', {
         error: 'Stringify failed',
         description: 'Empty string result from JSON.stringify',
@@ -34,8 +27,8 @@ export function $stringifyObj(obj: Record<string, unknown> | null | undefined): 
 }
 
 export function $parseToObj(str: string | null | undefined): Result<{ result: Record<string, unknown> }> {
-  if (!str || str.trim().length === 0) {
-    return $err('nullish_value', { error: 'Invalid data', description: 'Empty string' });
+  if (!$isString(str)) {
+    return $err('nullish_value', { error: 'Invalid data', description: 'Empty string to parse' });
   }
 
   try {

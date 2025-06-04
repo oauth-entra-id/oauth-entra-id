@@ -32,7 +32,6 @@ protectedRouter.post('/on-behalf-of', zValidator('json', zSchemas.onBehalfOf), a
     accessToken: c.get('accessTokenInfo').jwt,
     serviceNames,
   });
-
   if (error) throw new OAuthError(error);
 
   for (const { accessToken } of results) {
