@@ -1,3 +1,5 @@
+import { $isPlainObject } from './utils/crypto/objects';
+
 export type HttpErrorCodes = 400 | 401 | 403 | 500;
 
 export type ErrorTypes =
@@ -25,14 +27,6 @@ export type Result<T, E = ResultErr> = T extends void
     :
         | { readonly success: true; readonly result: T; readonly error?: undefined }
         | { readonly success: false; readonly error: E; readonly result?: undefined };
-
-function $isPlainObject(value: unknown): value is Record<string, unknown> {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null)
-  );
-}
 
 export function $ok(): Result<void>;
 export function $ok<T>(result: T): Result<T>;

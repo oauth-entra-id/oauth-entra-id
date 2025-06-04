@@ -24,6 +24,7 @@ export const protectRoute = createMiddleware<ProtectRoute>(async (c, next) => {
   if (!accessToken && !refreshToken) throw new HTTPException(401, { message: 'Unauthorized' });
 
   const accessTokenInfo = await oauthProvider.verifyAccessToken<{ randomNumber: number }>(accessToken);
+  console.log(accessTokenInfo.error);
   if (accessTokenInfo.success) {
     c.set('accessTokenInfo', { jwt: accessTokenInfo.rawAccessToken, payload: accessTokenInfo.payload });
     if (accessTokenInfo.hasInjectedData) {

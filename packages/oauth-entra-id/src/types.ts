@@ -87,6 +87,8 @@ export interface OAuthConfig {
     acceptB2BRequests?: boolean;
     /** List of external B2B services to acquire tokens for. */
     b2bTargetedApps?: B2BApp[];
+    /** Whether to disable compression for access tokens. */
+    disableCompression?: boolean;
     /** Cookie behavior and expiration settings. */
     cookies?: {
       /** Unit used for cookie expiration times. */
@@ -121,6 +123,7 @@ export interface OAuthSettings {
   readonly acceptB2BRequests: boolean;
   readonly b2bApps?: string[];
   readonly downstreamServices?: string[];
+  readonly disableCompression: boolean;
   readonly cookies: {
     readonly timeUnit: TimeUnit;
     readonly isSecure: boolean;
