@@ -106,6 +106,7 @@ export const zState = z.object({
   nonce: zUuid,
   email: zEmail.max(320).optional(),
   prompt: z.enum(['login', 'select_account']).optional(),
+  ticketId: zUuid,
 });
 
 export const zAuthParams = z.object({

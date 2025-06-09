@@ -7,6 +7,18 @@ import { FORMAT, WEB_API_ALGORITHM } from './encrypt';
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
+export function $generateWebApiUuid(): Result<{ uuid: string }> {
+  try {
+    return $ok({ uuid: crypto.randomUUID() });
+  } catch (error) {
+    return $err('crypto_error', {
+      error: 'Failed to generate UUID',
+      description: error instanceof Error ? error.message : String(error),
+      status: 500,
+    });
+  }
+}
+
 export function $isWebApiKey(key: unknown): key is webcrypto.CryptoKey {
   return (
     key !== null &&
