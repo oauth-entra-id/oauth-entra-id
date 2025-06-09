@@ -221,6 +221,7 @@ Returns:
 
 - Promise of a `Result` object:
   - `authUrl` - The URL to redirect the user for authentication.
+  - `ticket` - A unique ticket for the authentication session, this is used for bearer flow only.
 
 ```typescript
 app.post('/authenticate', async (c) => {
@@ -247,6 +248,7 @@ Returns:
   - `accessToken` - Access token object containing the token value, suggested name, and options.
   - `refreshToken` (optional) - Refresh token object containing the token value, suggested name, and options.
   - `frontendUrl` - The frontend URL to redirect the user after authentication.
+  - `ticketId` - Ticket ID useful for bearer flow, store the tokens in a cache or database with a key based on this ticket ID. Later you can use this ticket ID to retrieve the tokens.
   - `msalResponse` - The MSAL response object for extra information if needed.
 
 ```typescript
@@ -411,6 +413,20 @@ export const protectRoute = createMiddleware(async (c, next) => {
   return await next();
 });
 ```
+
+#### `decryptTicket()`
+
+Decrypts a ticket and returns the ticket ID.
+Useful for bearer flow.
+
+Parameters:
+
+- `ticket` - The ticket string to decrypt.
+
+Returns:
+
+- Promise of a `Result` object:
+  - `ticketId` - The decrypted ticket ID.
 
 #### `getB2BToken()`
 
