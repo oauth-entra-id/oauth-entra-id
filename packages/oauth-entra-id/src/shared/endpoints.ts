@@ -9,14 +9,6 @@ import type { Endpoints } from './types';
  * @throws {OAuthError} if sessionType ≠ 'cookie-session' or MSAL errors occur
  */
 export async function $sharedHandleAuthentication(req: Request, res: Response) {
-  if (req.oauthProvider.settings.sessionType !== 'cookie-session') {
-    throw new OAuthError('misconfiguration', {
-      error: 'Invalid session type',
-      description: 'Session type must be cookie-session',
-      status: 500,
-    });
-  }
-
   const body = req.body as Endpoints['Authenticate'] | undefined;
   const params = body ? { loginPrompt: body.loginPrompt, email: body.email, frontendUrl: body.frontendUrl } : {};
 
@@ -32,14 +24,6 @@ export async function $sharedHandleAuthentication(req: Request, res: Response) {
  * @throws {OAuthError} if sessionType ≠ 'cookie-session' or MSAL errors occur
  */
 export async function $sharedHandleCallback(req: Request, res: Response) {
-  if (req.oauthProvider.settings.sessionType !== 'cookie-session') {
-    throw new OAuthError('misconfiguration', {
-      error: 'Invalid session type',
-      description: 'Session type must be cookie-session',
-      status: 500,
-    });
-  }
-
   const body = req.body as Endpoints['Callback'] | undefined;
   if (!body) {
     throw new OAuthError('bad_request', { error: 'Invalid params', description: 'Body must contain code and state' });
@@ -62,14 +46,6 @@ export async function $sharedHandleCallback(req: Request, res: Response) {
  * @throws {OAuthError} on misconfiguration or invalid params
  */
 export function $sharedHandleLogout(req: Request, res: Response) {
-  if (req.oauthProvider.settings.sessionType !== 'cookie-session') {
-    throw new OAuthError('misconfiguration', {
-      error: 'Invalid session type',
-      description: 'Session type must be cookie-session',
-      status: 500,
-    });
-  }
-
   const body = req.body as Endpoints['Logout'] | undefined;
   const params = body ? { frontendUrl: body.frontendUrl } : {};
 
@@ -88,14 +64,6 @@ export function $sharedHandleLogout(req: Request, res: Response) {
  * @throws {OAuthError} on misconfiguration, missing access token, or forbidden app contexts
  */
 export async function $sharedHandleOnBehalfOf(req: Request, res: Response) {
-  if (req.oauthProvider.settings.sessionType !== 'cookie-session') {
-    throw new OAuthError('misconfiguration', {
-      error: 'Invalid session type',
-      description: 'Session type must be cookie-session',
-      status: 500,
-    });
-  }
-
   const body = req.body as Endpoints['OnBehalfOf'] | undefined;
   if (!body) {
     throw new OAuthError('bad_request', { error: 'Invalid params', description: 'Body must contain serviceNames' });

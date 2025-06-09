@@ -2,7 +2,7 @@ import jwt from 'jsonwebtoken';
 import { $err, $ok, type Result } from '~/error';
 import { $isString } from '../zod';
 
-function $decodeJwt(jwtToken: string): Result<{ decodedJwt: jwt.Jwt }> {
+export function $decodeJwt(jwtToken: string): Result<{ decodedJwt: jwt.Jwt }> {
   if (!$isString(jwtToken)) return $err('nullish_value', { error: 'Invalid JWT token', description: 'Empty JWT' });
 
   try {

@@ -47,10 +47,7 @@ describe('Compress Large Object', () => {
         city: 'Metropolis',
         state: 'CA',
         zip: '90210',
-        geo: {
-          lat: 34.0522,
-          lng: -118.2437,
-        },
+        geo: { lat: 34.0522, lng: -118.2437 },
       },
     },
     metadata: {
@@ -69,16 +66,9 @@ describe('Compress Large Object', () => {
         featureA: true,
         featureB: false,
         featureC: true,
-        experimental: {
-          newUI: false,
-          searchV2: true,
-        },
+        experimental: { newUI: false, searchV2: true },
       },
-      limits: {
-        maxItems: 1000,
-        timeout: 3000,
-        retries: 5,
-      },
+      limits: { maxItems: 1000, timeout: 3000, retries: 5 },
     },
     session: {
       token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',

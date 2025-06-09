@@ -1,18 +1,18 @@
 <p align="center">
   <img src="https://github.com/oauth-entra-id/oauth-entra-id/blob/main/assets/banner.svg" align="center" alt="banner" />
 
-  <h1 align="center" style="font-weight:800;">oauth-entra-id</h1>
+  <h1 align="center" style="font-weight:900;">oauth-entra-id</h1>
 
   <p align="center">
-    <span style="font-weight:800;">Simple</span> and <span style="font-weight:800;">Secure</span> Way <br/>
-    to Implement <span style="font-weight:800;">OAuth 2.0</span> with <br/>
-    <span style="font-weight:800;">Microsoft Entra ID</span>
+    Simple and Secure Way <br/>
+    to Implement OAuth 2.0 with <br/>
+    Microsoft Entra ID
   </p>
 </p>
 
 <p align="center">
 <a href="https://opensource.org/licenses/MIT" rel="nofollow"><img src="https://img.shields.io/github/license/oauth-entra-id/oauth-entra-id?color=DC343B" alt="License"></a>
-<a href="https://www.npmjs.com/package/oauth-entra-id" rel="nofollow"><img src="https://img.shields.io/badge/version-2.1.1-0078D4" alt="Version"></a>
+<a href="https://www.npmjs.com/package/oauth-entra-id" rel="nofollow"><img src="https://img.shields.io/badge/version-2.3.0-0078D4" alt="Version"></a>
 <a href="https://www.npmjs.com/package/oauth-entra-id" rel="nofollow"><img src="https://img.shields.io/npm/dm/oauth-entra-id.svg?color=03C03C" alt="npm"></a>
 <a href="https://github.com/oauth-entra-id/oauth-entra-id" rel="nofollow"><img src="https://img.shields.io/github/stars/oauth-entra-id/oauth-entra-id" alt="stars"></a>
 
@@ -20,7 +20,7 @@
 
 ## About 📖
 
-A lightweight, secure, and framework-agnostic wrapper for Microsoft Entra ID (Azure AD).
+A lightweight, secure, and framework-agnostic wrapper for Microsoft Entra ID (formerly called Microsoft Azure AD).
 Built for simplicity, speed, and type safety. It abstracts away the complexity of OAuth 2.0, allowing developers to focus on building their applications without worrying about the underlying authentication and authorization mechanisms.
 
 ## Features 🌟
@@ -87,7 +87,6 @@ interface OAuthConfig {
   secretKey: string; // 32 character secret key
   advanced?: {
     loginPrompt?: 'email' | 'select-account' | 'sso'; //Defaults to `'sso'`
-    sessionType?: 'cookie-session' | 'bearer-token'; // Defaults to `'cookie-session'`
     acceptB2BRequests?: boolean; // If true, allows B2B authentication. Defaults to `false`
     b2bTargetedApps?: Array<{
       appName: string; // Unique identifier of the B2B app
@@ -190,7 +189,6 @@ You can access the settings of the `OAuthProvider` instance using the `settings`
 
 ```typescript
 interface OAuthSettings {
-  readonly sessionType: 'cookie-session' | 'bearer-token';
   readonly loginPrompt: 'email' | 'select-account' | 'sso';
   readonly acceptB2BRequests: boolean;
   readonly b2bApps?: string[];
@@ -223,6 +221,7 @@ Returns:
 
 - Promise of a `Result` object:
   - `authUrl` - The URL to redirect the user for authentication.
+  - `ticket` - A unique ticket for the authentication session, this is used for bearer flow only.
 
 ```typescript
 app.post('/authenticate', async (c) => {
@@ -249,6 +248,7 @@ Returns:
   - `accessToken` - Access token object containing the token value, suggested name, and options.
   - `refreshToken` (optional) - Refresh token object containing the token value, suggested name, and options.
   - `frontendUrl` - The frontend URL to redirect the user after authentication.
+  - `ticketId` - Ticket ID useful for bearer flow, store the tokens in a cache or database with a key based on this ticket ID. Later you can use this ticket ID to retrieve the tokens.
   - `msalResponse` - The MSAL response object for extra information if needed.
 
 ```typescript
@@ -413,6 +413,20 @@ export const protectRoute = createMiddleware(async (c, next) => {
   return await next();
 });
 ```
+
+#### `decryptTicket()`
+
+Decrypts a ticket and returns the ticket ID.
+Useful for bearer flow.
+
+Parameters:
+
+- `ticket` - The ticket string to decrypt.
+
+Returns:
+
+- Promise of a `Result` object:
+  - `ticketId` - The decrypted ticket ID.
 
 #### `getB2BToken()`
 

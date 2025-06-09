@@ -3,13 +3,18 @@ import type nodeCrypto from 'node:crypto';
 import { $err, $ok, type Result } from '~/error';
 import type { CryptoType } from '~/types';
 import { $isString, encryptedNodeRegex, encryptedWebApiRegex } from '../zod';
-import { $createNodeSecretKey, $nodeDecrypt, $nodeEncrypt } from './node';
+import { $createNodeSecretKey, $generateNodeUuid, $nodeDecrypt, $nodeEncrypt } from './node';
 import { $parseToObj, $stringifyObj } from './objects';
-import { $createWebApiSecretKey, $isWebApiKey, $webApiDecrypt, $webApiEncrypt } from './web-api';
+import { $createWebApiSecretKey, $generateWebApiUuid, $isWebApiKey, $webApiDecrypt, $webApiEncrypt } from './web-api';
 
 export const FORMAT = 'base64url';
 export const NODE_ALGORITHM = 'aes-256-gcm';
 export const WEB_API_ALGORITHM = 'AES-GCM';
+
+export function $generateUuid(cryptoType: CryptoType): Result<{ uuid: string }> {
+  if (cryptoType === 'web-api') return $generateNodeUuid();
+  return $generateWebApiUuid();
+}
 
 export function $createSecretKey(
   cryptoType: CryptoType,
@@ -26,12 +31,13 @@ export function $createSecretKey(
 
 export function $createSecretKeys(
   cryptoType: CryptoType,
-  keys: { at: string; rt: string; state: string },
+  keys: { at: string; rt: string; state: string; ticket: string },
 ): Result<{
   secretKeys: {
     at: string | nodeCrypto.KeyObject;
     rt: string | nodeCrypto.KeyObject;
     state: string | nodeCrypto.KeyObject;
+    ticket: string | nodeCrypto.KeyObject;
   };
 }> {
   if (cryptoType === 'web-api') {
@@ -44,8 +50,17 @@ export function $createSecretKeys(
   if (rtKey.error) return $err(rtKey.error);
   const stateKey = $createNodeSecretKey(keys.state);
   if (stateKey.error) return $err(stateKey.error);
+  const ticketKey = $createNodeSecretKey(keys.ticket);
+  if (ticketKey.error) return $err(ticketKey.error);
 
-  return $ok({ secretKeys: { at: atKey.newSecretKey, rt: rtKey.newSecretKey, state: stateKey.newSecretKey } });
+  return $ok({
+    secretKeys: {
+      at: atKey.newSecretKey,
+      rt: rtKey.newSecretKey,
+      state: stateKey.newSecretKey,
+      ticket: ticketKey.newSecretKey,
+    },
+  });
 }
 
 export async function $encrypt(

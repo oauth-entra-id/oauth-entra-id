@@ -86,8 +86,6 @@ export interface OAuthConfig {
   advanced?: {
     /** Controls login UI behavior. Defaults to `'sso'`. */
     loginPrompt?: LoginPrompt;
-    /** Session persistence method. Defaults to `'cookie-session'`. */
-    sessionType?: SessionType;
     /** Whether to accept tokens issued by other systems. */
     acceptB2BRequests?: boolean;
     /** List of external B2B services to acquire tokens for. */
@@ -125,7 +123,6 @@ export interface OAuthConfig {
  * Parsed and resolved configuration used internally by the OAuthProvider.
  */
 export interface OAuthSettings {
-  readonly sessionType: SessionType;
   readonly loginPrompt: LoginPrompt;
   readonly acceptB2BRequests: boolean;
   readonly b2bApps?: string[];

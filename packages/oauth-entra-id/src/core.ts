@@ -19,7 +19,7 @@ import type {
 } from './types';
 import { $cookieOptions } from './utils/cookie-options';
 import { $compressObj, $decompressObj } from './utils/crypto/compress';
-import { $createSecretKeys, $decrypt, $decryptObj, $encrypt, $encryptObj } from './utils/crypto/encrypt';
+import { $createSecretKeys, $decrypt, $decryptObj, $encrypt, $encryptObj, $generateUuid } from './utils/crypto/encrypt';
 import { $getAud, $getKid } from './utils/crypto/jwt';
 import { $filterCoreErrors, $getB2BInfo, $getOboInfo } from './utils/misc';
 import {
@@ -32,6 +32,7 @@ import {
   zLooseBase64,
   zMethods,
   zState,
+  zUuid,
 } from './utils/zod';
 
 /**
@@ -55,6 +56,7 @@ export class OAuthProvider {
     at: nodeCrypto.KeyObject | string | webcrypto.CryptoKey;
     rt: nodeCrypto.KeyObject | string | webcrypto.CryptoKey;
     state: nodeCrypto.KeyObject | string | webcrypto.CryptoKey;
+    ticket: nodeCrypto.KeyObject | string | webcrypto.CryptoKey;
   };
   private readonly frontendWhitelist: Set<string>;
   private readonly defaultCookieOptions: Cookies['DefaultCookieOptions'];
@@ -91,7 +93,6 @@ export class OAuthProvider {
       secretKey,
       advanced: {
         loginPrompt,
-        sessionType,
         acceptB2BRequests,
         b2bTargetedApps,
         disableCompression,
@@ -110,6 +111,7 @@ export class OAuthProvider {
       at: `access-token-${secretKey}`,
       rt: `refresh-token-${secretKey}`,
       state: `state-${secretKey}`,
+      ticket: `ticket-${secretKey}`,
     });
     if (secretKeysError) throw new OAuthError(secretKeysError);
 
@@ -129,7 +131,6 @@ export class OAuthProvider {
     });
 
     const settings = {
-      sessionType,
       loginPrompt,
       acceptB2BRequests,
       b2bApps: b2bNames,
@@ -184,10 +185,10 @@ export class OAuthProvider {
    * - `loginPrompt` (optional) - Override the default prompt (`sso`|`email`|`select-account`)
    * - `email` (optional) - Email address to pre-fill the login form
    * - `frontendUrl` (optional) - Frontend URL override to redirect the user after authentication
-   * @returns A result containing the authorization URL or an error.
+   * @returns A result containing the authorization URL and a ticket (which is used for bearer flow only)
    */
   async getAuthUrl(params?: { loginPrompt?: LoginPrompt; email?: string; frontendUrl?: string }): Promise<
-    Result<{ authUrl: string }>
+    Result<{ authUrl: string; ticket: string }>
   > {
     const { data: parsedParams, error: paramsError } = zMethods.getAuthUrl.safeParse(params);
     if (paramsError) return $err('bad_request', { error: 'Invalid params', description: $prettyErr(paramsError) });
@@ -199,11 +200,19 @@ export class OAuthProvider {
       return $err('bad_request', { error: 'Invalid params: Unlisted host frontend URL', status: 403 });
     }
 
+    const { uuid: ticketId, error: uuidError } = $generateUuid(this.settings.cryptoType);
+    if (uuidError) return $err(uuidError);
+
     try {
-      const { verifier, challenge } = await this.msalCryptoProvider.generatePkceCodes();
+      const [pkce, ticket] = await Promise.all([
+        this.msalCryptoProvider.generatePkceCodes(),
+        await this.$encryptTicket(ticketId),
+      ]);
+      if (ticket.error) return $err(ticket.error);
+
       const frontendUrl = parsedParams.frontendUrl ?? this.frontendUrls[0];
       const configuredPrompt = parsedParams.loginPrompt ?? this.settings.loginPrompt;
-      const prompt =
+      const prompt: 'login' | 'select_account' | undefined =
         parsedParams.email || configuredPrompt === 'email'
           ? 'login'
           : configuredPrompt === 'select-account'
@@ -213,9 +222,10 @@ export class OAuthProvider {
       const params = { nonce: this.msalCryptoProvider.createNewGuid(), loginHint: parsedParams.email, prompt };
       const { encryptedState, error: encryptError } = await this.$encryptState({
         frontendUrl,
-        codeVerifier: verifier,
+        codeVerifier: pkce.verifier,
+        ticketId: ticketId,
         ...params,
-      });
+      } satisfies z.infer<typeof zState>);
 
       if (encryptError) return $err(encryptError);
 
@@ -226,14 +236,14 @@ export class OAuthProvider {
         redirectUri: this.serverCallbackUrl,
         responseMode: 'form_post',
         codeChallengeMethod: 'S256',
-        codeChallenge: challenge,
+        codeChallenge: pkce.challenge,
       });
 
       if (new URL(authUrl).hostname !== 'login.microsoftonline.com') {
         return $err('internal', { error: "Invalid redirect URL: must be 'login.microsoftonline.com'", status: 500 });
       }
 
-      return $ok({ authUrl });
+      return $ok({ authUrl, ticket: ticket.encryptedTicket });
     } catch (err) {
       return $filterCoreErrors(err, 'getAuthUrl');
     }
@@ -252,6 +262,7 @@ export class OAuthProvider {
       accessToken: Cookies['AccessToken'];
       refreshToken: Cookies['RefreshToken'] | null;
       frontendUrl: string;
+      ticketId: string;
       msalResponse: MsalResponse;
     }>
   > {
@@ -282,6 +293,7 @@ export class OAuthProvider {
           ? { value: encryptedRefreshToken, ...this.defaultCookieOptions.refreshToken }
           : null,
         frontendUrl: state.frontendUrl,
+        ticketId: state.ticketId,
         msalResponse,
       });
     } catch (err) {
@@ -479,6 +491,20 @@ export class OAuthProvider {
       injectedAccessToken: { value: encryptedAccessToken, ...this.defaultCookieOptions.accessToken },
       injectedData: dataToInject as T,
     });
+  }
+
+  /**
+   * Decrypts a ticket and returns the ticket ID.
+   * Useful for bearer flow.
+   *
+   * @param ticket - The encrypted ticket string to decrypt (generated by getAuthUrl).
+   * @returns A result containing the ticket ID (returned by getTokenByCode).
+   */
+  async decryptTicket(ticket: string): Promise<Result<{ ticketId: string }>> {
+    const { ticketId, error } = await this.$decryptTicket(ticket);
+    if (error) return $err(error);
+
+    return $ok({ ticketId });
   }
 
   /**
@@ -684,6 +710,24 @@ export class OAuthProvider {
     }
   }
 
+  /** Extracts and encrypts both tokens */
+  private async $extractTokens(
+    msalResponse: MsalResponse,
+  ): Promise<Result<{ encryptedAccessToken: string; encryptedRefreshToken: string | null }>> {
+    const [accessTokenRes, refreshTokenRes] = await Promise.all([
+      this.$encryptAccessToken(msalResponse.accessToken),
+      this.$obtainRefreshToken(msalResponse),
+    ]);
+
+    if (accessTokenRes.error) return $err(accessTokenRes.error);
+    // ! If the refresh token has any error, we still return the access token
+
+    return $ok({
+      encryptedAccessToken: accessTokenRes.encryptedAccessToken,
+      encryptedRefreshToken: refreshTokenRes.encryptedRefreshToken ?? null,
+    });
+  }
+
   /** Removes the account from the MSAL cache, if it exists. */
   private async $removeFromCache(account: msal.AccountInfo | null) {
     const cache = this.cca.getTokenCache();
@@ -710,7 +754,7 @@ export class OAuthProvider {
 
   /** Updates the secret key for a specific token type if it is a string. */
   private $updateSecretKey(
-    type: 'accessToken' | 'refreshToken' | 'state',
+    type: 'accessToken' | 'refreshToken' | 'state' | 'ticket',
     secretKey: webcrypto.CryptoKey | undefined,
   ): void {
     if (this.settings.cryptoType === 'web-api' && secretKey) {
@@ -728,6 +772,11 @@ export class OAuthProvider {
         case 'state':
           if (typeof this.secretKeys.state === 'string') {
             this.secretKeys.state = secretKey;
+          }
+          break;
+        case 'ticket':
+          if (typeof this.secretKeys.ticket === 'string') {
+            this.secretKeys.ticket = secretKey;
           }
           break;
         default:
@@ -772,9 +821,10 @@ export class OAuthProvider {
     if (!params?.otherSecretKey) this.$updateSecretKey('accessToken', newSecretKey);
 
     if (encrypted.length > 4096) {
+      //TODO: check if I should decode and compress the access token to reduce its size
       return $err('invalid_format', {
         error: 'Token too long',
-        description: 'Encrypted access token exceeds 4096 characters',
+        description: `Encrypted access token exceeds 4096 characters. Encrypted length: ${encrypted.length}, original length: ${accessToken.length}, injected data length: ${injectedData?.result.length ?? 0}`,
       });
     }
 
@@ -837,7 +887,7 @@ export class OAuthProvider {
     if (encrypted.length > 4096) {
       return $err('invalid_format', {
         error: 'Token too long',
-        description: 'Encrypted refresh token exceeds 4096 characters',
+        description: `Encrypted refresh token exceeds 4096 characters. Encrypted length: ${encrypted.length}, original length: ${data.length}`,
       });
     }
 
@@ -877,20 +927,13 @@ export class OAuthProvider {
 
     this.$updateSecretKey('state', newSecretKey);
 
-    if (encrypted.length > 4096) {
-      return $err('invalid_format', {
-        error: 'State too long',
-        description: 'Encrypted state exceeds 4096 characters',
-      });
-    }
-
     return $ok({ encryptedState: encrypted });
   }
 
   private async $decryptState(value: string | undefined): Promise<Result<{ state: z.infer<typeof zState> }>> {
     const { data: encryptedState, error: encryptedStateError } = zEncrypted.safeParse(value);
     if (encryptedStateError) {
-      return $err('invalid_format', { error: 'Unauthorized', description: 'Invalid state format' });
+      return $err('invalid_format', { error: 'Invalid state format', description: $prettyErr(encryptedStateError) });
     }
 
     const { result, newSecretKey, error } = await $decryptObj(
@@ -912,21 +955,40 @@ export class OAuthProvider {
     return $ok({ state });
   }
 
-  /** Extracts and encrypts both tokens */
-  private async $extractTokens(
-    msalResponse: MsalResponse,
-  ): Promise<Result<{ encryptedAccessToken: string; encryptedRefreshToken: string | null }>> {
-    const [accessTokenRes, refreshTokenRes] = await Promise.all([
-      this.$encryptAccessToken(msalResponse.accessToken),
-      this.$obtainRefreshToken(msalResponse),
-    ]);
+  private async $encryptTicket(ticketId: string): Promise<Result<{ encryptedTicket: string }>> {
+    const { data, error: parseError } = zUuid.safeParse(ticketId);
+    if (parseError) {
+      return $err('invalid_format', { error: 'Invalid ticket format', description: $prettyErr(parseError) });
+    }
 
-    if (accessTokenRes.error) return $err(accessTokenRes.error);
-    // ! If the refresh token has any error, we still return the access token
+    const { encrypted, newSecretKey, error } = await $encrypt(this.settings.cryptoType, data, this.secretKeys.state);
+    if (error) {
+      return $err('crypto_error', { error: 'Failed to encrypt ticket', description: error.description });
+    }
 
-    return $ok({
-      encryptedAccessToken: accessTokenRes.encryptedAccessToken,
-      encryptedRefreshToken: refreshTokenRes.encryptedRefreshToken ?? null,
-    });
+    this.$updateSecretKey('ticket', newSecretKey);
+
+    return $ok({ encryptedTicket: encrypted });
+  }
+
+  private async $decryptTicket(value: string | undefined): Promise<Result<{ ticketId: string }>> {
+    const { data, error: encryptedStateError } = zEncrypted.safeParse(value);
+    if (encryptedStateError) {
+      return $err('invalid_format', { error: 'Invalid ticket format', description: $prettyErr(encryptedStateError) });
+    }
+
+    const { result, newSecretKey, error } = await $decrypt(this.settings.cryptoType, data, this.secretKeys.state);
+    if (error) {
+      return $err('crypto_error', { error: 'Failed to decrypt ticket', description: error.description });
+    }
+
+    this.$updateSecretKey('ticket', newSecretKey);
+
+    const { data: ticketId, error: stateError } = zUuid.safeParse(result);
+    if (stateError) {
+      return $err('invalid_format', { error: 'Invalid state format', description: $prettyErr(stateError) });
+    }
+
+    return $ok({ ticketId });
   }
 }

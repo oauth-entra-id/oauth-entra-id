@@ -4,6 +4,18 @@ import { $err, $ok, type Result } from '~/error';
 import { $isPlainObject, $isString } from '../zod';
 import { FORMAT, NODE_ALGORITHM } from './encrypt';
 
+export function $generateNodeUuid(): Result<{ uuid: string }> {
+  try {
+    return $ok({ uuid: nodeCrypto.randomUUID() });
+  } catch (error) {
+    return $err('crypto_error', {
+      error: 'Failed to generate UUID',
+      description: error instanceof Error ? error.message : String(error),
+      status: 500,
+    });
+  }
+}
+
 export function $createNodeSecretKey(
   key: string | nodeCrypto.KeyObject,
 ): Result<{ newSecretKey: nodeCrypto.KeyObject }> {
