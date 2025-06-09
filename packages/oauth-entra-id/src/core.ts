@@ -91,7 +91,6 @@ export class OAuthProvider {
       secretKey,
       advanced: {
         loginPrompt,
-        sessionType,
         acceptB2BRequests,
         b2bTargetedApps,
         disableCompression,
@@ -129,7 +128,6 @@ export class OAuthProvider {
     });
 
     const settings = {
-      sessionType,
       loginPrompt,
       acceptB2BRequests,
       b2bApps: b2bNames,

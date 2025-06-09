@@ -13,14 +13,6 @@ export async function $sharedMiddleware(
   req: Request,
   res: Response,
 ): Promise<{ userInfo: UserInfo; injectData: InjectDataFunction }> {
-  if (req.oauthProvider.settings.sessionType !== 'cookie-session') {
-    throw new OAuthError('misconfiguration', {
-      error: 'Invalid session type',
-      description: 'Session type must be cookie-session',
-      status: 500,
-    });
-  }
-
   const oauthProvider = req.oauthProvider;
 
   const InjectDataFunction = async <T extends object = Record<any, string>>(accessToken: string, data: T) => {

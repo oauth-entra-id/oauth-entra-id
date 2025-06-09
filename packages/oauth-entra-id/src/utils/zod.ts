@@ -37,7 +37,6 @@ export const zLooseBase64 = zStr.regex(base64urlWithDotRegex);
 export const zCompressed = zStr.regex(compressedRegex);
 
 export const zLoginPrompt = z.enum(['email', 'select-account', 'sso']);
-export const zSessionType = z.enum(['cookie-session', 'bearer-token']);
 
 export const zEncrypted = zStr.max(4096).regex(encryptedRegex);
 export const zJwt = z.jwt().max(4096);
@@ -71,7 +70,6 @@ const zDownstreamService = z.object({
 
 const zAdvanced = z.object({
   loginPrompt: zLoginPrompt.default('sso'),
-  sessionType: zSessionType.default('cookie-session'),
   acceptB2BRequests: z.boolean().default(false),
   b2bTargetedApps: z.array(zB2BApp).min(1).optional(),
   disableCompression: z.boolean().default(false),
