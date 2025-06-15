@@ -119,6 +119,44 @@ export interface OAuthConfig {
   };
 }
 
+interface AzureConfig {
+  clientId: string;
+  tenantId: 'common' | (string & {});
+  scopes: string[];
+  clientSecret: string;
+  downstreamServices?: Array<{
+    serviceName: string;
+    scope: string;
+    encryptionKey: string;
+    serviceUrl?: string;
+    cryptoType?: CryptoType;
+  }>;
+  b2bApps?: Array<{
+    appName: string;
+    scope: string;
+  }>;
+}
+
+interface Config {
+  azure: AzureConfig | AzureConfig[];
+  frontendUrl: string | string[];
+  serverCallbackUrl: string;
+  encryptionKey: string;
+  advanced?: {
+    loginPrompt?: LoginPrompt;
+    acceptB2BRequests?: boolean;
+    cryptoType?: CryptoType;
+    disableCompression?: boolean;
+    cookies?: {
+      timeUnit?: TimeUnit;
+      disableSecure?: boolean;
+      disableSameSite?: boolean;
+      accessTokenExpiry?: number;
+      refreshTokenExpiry?: number;
+    };
+  };
+}
+
 /**
  * Parsed and resolved configuration used internally by the OAuthProvider.
  */
