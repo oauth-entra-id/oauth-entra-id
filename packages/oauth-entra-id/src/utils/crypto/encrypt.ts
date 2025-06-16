@@ -31,11 +31,11 @@ export function $createSecretKey(
 
 export function $createSecretKeys(
   cryptoType: CryptoType,
-  keys: { at: string; rt: string; state: string; ticket: string },
+  keys: { accessToken: string; refreshToken: string; state: string; ticket: string },
 ): Result<{
   secretKeys: {
-    at: string | nodeCrypto.KeyObject;
-    rt: string | nodeCrypto.KeyObject;
+    accessToken: string | nodeCrypto.KeyObject;
+    refreshToken: string | nodeCrypto.KeyObject;
     state: string | nodeCrypto.KeyObject;
     ticket: string | nodeCrypto.KeyObject;
   };
@@ -44,9 +44,9 @@ export function $createSecretKeys(
     return $ok({ secretKeys: keys });
   }
 
-  const atKey = $createNodeSecretKey(keys.at);
+  const atKey = $createNodeSecretKey(keys.accessToken);
   if (atKey.error) return $err(atKey.error);
-  const rtKey = $createNodeSecretKey(keys.rt);
+  const rtKey = $createNodeSecretKey(keys.refreshToken);
   if (rtKey.error) return $err(rtKey.error);
   const stateKey = $createNodeSecretKey(keys.state);
   if (stateKey.error) return $err(stateKey.error);
@@ -55,8 +55,8 @@ export function $createSecretKeys(
 
   return $ok({
     secretKeys: {
-      at: atKey.newSecretKey,
-      rt: rtKey.newSecretKey,
+      accessToken: atKey.newSecretKey,
+      refreshToken: rtKey.newSecretKey,
       state: stateKey.newSecretKey,
       ticket: ticketKey.newSecretKey,
     },

@@ -1,31 +1,32 @@
 import type { webcrypto } from 'node:crypto';
-import type nodeCrypto from 'node:crypto';
-import * as msal from '@azure/msal-node';
+import type { AccountInfo, CryptoProvider } from '@azure/msal-node';
 import jwt from 'jsonwebtoken';
-import jwks from 'jwks-rsa';
+import type { JwksClient } from 'jwks-rsa';
 import type { z } from 'zod/v4';
 import { $err, $ok, OAuthError, type Result } from './error';
 import type {
+  Azure,
   B2BApp,
   Cookies,
   CryptoType,
+  EncryptionKeys,
   GetB2BTokenResult,
   GetTokenOnBehalfOfResult,
   LoginPrompt,
   MsalResponse,
+  NonEmptyArray,
   OAuthConfig,
   OAuthSettings,
   OboService,
 } from './types';
 import { $cookieOptions } from './utils/cookie-options';
 import { $compressObj, $decompressObj } from './utils/crypto/compress';
-import { $createSecretKeys, $decrypt, $decryptObj, $encrypt, $encryptObj, $generateUuid } from './utils/crypto/encrypt';
+import { $decrypt, $decryptObj, $encrypt, $encryptObj, $generateUuid } from './utils/crypto/encrypt';
 import { $getAud, $getKid } from './utils/crypto/jwt';
-import { $filterCoreErrors, $getB2BInfo, $getOboInfo } from './utils/misc';
+import { $constructorHelper, $filterCoreErrors, $mapAndFilter } from './utils/helpers';
 import {
   $prettyErr,
   zAccessTokenStructure,
-  zConfig,
   zEncrypted,
   zInjectedData,
   zJwt,
@@ -49,23 +50,17 @@ import {
  * Designed to be framework-agnostic (Express, NestJS, etc.)
  */
 export class OAuthProvider {
-  private readonly azure: OAuthConfig['azure'];
-  private readonly frontendUrls: [string, ...string[]];
-  private readonly serverCallbackUrl: string;
-  private readonly secretKeys: {
-    at: nodeCrypto.KeyObject | string | webcrypto.CryptoKey;
-    rt: nodeCrypto.KeyObject | string | webcrypto.CryptoKey;
-    state: nodeCrypto.KeyObject | string | webcrypto.CryptoKey;
-    ticket: nodeCrypto.KeyObject | string | webcrypto.CryptoKey;
-  };
+  private readonly azure: Azure;
+  private readonly frontendUrls: NonEmptyArray<string>;
   private readonly frontendWhitelist: Set<string>;
+  private readonly serverCallbackUrl: string;
   private readonly defaultCookieOptions: Cookies['DefaultCookieOptions'];
+  private readonly encryptionKeys: EncryptionKeys;
   private readonly b2bMap: Map<string, B2BApp> | undefined;
   private readonly oboMap: Map<string, OboService> | undefined;
+  private readonly msalCryptoProvider: CryptoProvider;
+  private readonly jwksClient: JwksClient;
   readonly settings: OAuthSettings;
-  private readonly cca: msal.ConfidentialClientApplication;
-  private readonly msalCryptoProvider: msal.CryptoProvider;
-  private readonly jwksClient: jwks.JwksClient;
 
   /**
    * @param configuration The OAuth configuration object:
@@ -77,105 +72,20 @@ export class OAuthProvider {
    * @throws {OAuthError} if the config fails validation or has duplicate service names
    */
   constructor(configuration: OAuthConfig) {
-    const { data: config, error: configError } = zConfig.safeParse(configuration);
-    if (configError) {
-      throw new OAuthError('misconfiguration', {
-        error: 'Invalid configuration',
-        description: $prettyErr(configError),
-        status: 500,
-      });
-    }
+    const result = $constructorHelper(configuration);
+    if (result.error) throw new OAuthError(result.error);
 
-    const {
-      azure,
-      frontendUrl,
-      serverCallbackUrl,
-      secretKey,
-      advanced: {
-        loginPrompt,
-        acceptB2BRequests,
-        b2bTargetedApps,
-        disableCompression,
-        cryptoType,
-        cookies,
-        downstreamServices,
-      },
-    } = config;
-
-    const frontHosts = new Set(frontendUrl.map((url) => new URL(url).host));
-    const serverHost = new URL(serverCallbackUrl).host;
-    const secure = !cookies.disableHttps && [serverHost, ...frontHosts].every((url) => url.startsWith('https'));
-    const sameSite = !cookies.disableSameSite && frontHosts.size === 1 ? frontHosts.has(serverHost) : false;
-
-    const { secretKeys, error: secretKeysError } = $createSecretKeys(cryptoType, {
-      at: `access-token-${secretKey}`,
-      rt: `refresh-token-${secretKey}`,
-      state: `state-${secretKey}`,
-      ticket: `ticket-${secretKey}`,
-    });
-    if (secretKeysError) throw new OAuthError(secretKeysError);
-
-    const { error: b2bError, b2bMap, b2bNames } = $getB2BInfo(b2bTargetedApps);
-    if (b2bError) throw new OAuthError(b2bError);
-
-    const { error: oboError, oboMap, oboNames } = $getOboInfo(downstreamServices);
-    if (oboError) throw new OAuthError(oboError);
-
-    const defaultCookieOptions = $cookieOptions({
-      clientId: azure.clientId,
-      secure: secure,
-      sameSite: sameSite,
-      timeUnit: cookies.timeUnit,
-      atExp: cookies.accessTokenExpiry,
-      rtExp: cookies.refreshTokenExpiry,
-    });
-
-    const settings = {
-      loginPrompt,
-      acceptB2BRequests,
-      b2bApps: b2bNames,
-      downstreamServices: oboNames,
-      disableCompression: disableCompression,
-      cryptoType: cryptoType,
-      cookies: {
-        timeUnit: cookies.timeUnit,
-        isSecure: secure,
-        isSameSite: sameSite,
-        accessTokenExpiry: cookies.accessTokenExpiry,
-        refreshTokenExpiry: cookies.refreshTokenExpiry,
-        accessTokenName: defaultCookieOptions.accessToken.name,
-        refreshTokenName: defaultCookieOptions.refreshToken.name,
-      },
-    } satisfies OAuthSettings;
-
-    const cca = new msal.ConfidentialClientApplication({
-      auth: {
-        clientId: azure.clientId,
-        authority: `https://login.microsoftonline.com/${azure.tenantId}`,
-        clientSecret: azure.clientSecret,
-      },
-    });
-
-    const jwksClient = jwks({
-      jwksUri: `https://login.microsoftonline.com/${azure.tenantId}/discovery/v2.0/keys`,
-      cache: true,
-      cacheMaxEntries: 5,
-      cacheMaxAge: 60 * 60 * 1000,
-      rateLimit: true,
-    });
-
-    this.azure = azure;
-    this.frontendUrls = frontendUrl as [string, ...string[]];
-    this.serverCallbackUrl = serverCallbackUrl;
-    this.secretKeys = secretKeys;
-    this.frontendWhitelist = frontHosts;
-    this.defaultCookieOptions = defaultCookieOptions;
-    this.b2bMap = b2bMap;
-    this.oboMap = oboMap;
-    this.settings = settings;
-    this.cca = cca;
-    this.msalCryptoProvider = new msal.CryptoProvider();
-    this.jwksClient = jwksClient;
+    this.azure = result.azure;
+    this.frontendUrls = result.frontendUrls;
+    this.frontendWhitelist = result.frontendWhitelist;
+    this.serverCallbackUrl = result.serverCallbackUrl;
+    this.defaultCookieOptions = result.defaultCookieOptions;
+    this.encryptionKeys = result.encryptionKeys;
+    this.b2bMap = result.b2bMap;
+    this.oboMap = result.oboMap;
+    this.msalCryptoProvider = result.msalCryptoProvider;
+    this.jwksClient = result.jwksClient;
+    this.settings = result.settings;
   }
 
   /**
@@ -206,7 +116,7 @@ export class OAuthProvider {
     try {
       const [pkce, ticket] = await Promise.all([
         this.msalCryptoProvider.generatePkceCodes(),
-        await this.$encryptTicket(ticketId),
+        this.$encryptTicket(ticketId),
       ]);
       if (ticket.error) return $err(ticket.error);
 
@@ -229,7 +139,7 @@ export class OAuthProvider {
 
       if (encryptError) return $err(encryptError);
 
-      const authUrl = await this.cca.getAuthCodeUrl({
+      const authUrl = await this.azure.cca.getAuthCodeUrl({
         ...params,
         state: encryptedState,
         scopes: this.azure.scopes,
@@ -277,7 +187,7 @@ export class OAuthProvider {
     }
 
     try {
-      const msalResponse = await this.cca.acquireTokenByCode({
+      const msalResponse = await this.azure.cca.acquireTokenByCode({
         code: parsedParams.code,
         scopes: this.azure.scopes,
         redirectUri: this.serverCallbackUrl,
@@ -419,7 +329,7 @@ export class OAuthProvider {
     }
 
     try {
-      const msalResponse = await this.cca.acquireTokenByRefreshToken({
+      const msalResponse = await this.azure.cca.acquireTokenByRefreshToken({
         refreshToken: rawRefreshToken,
         scopes: this.azure.scopes,
         forceCache: true,
@@ -533,31 +443,23 @@ export class OAuthProvider {
       return $err('bad_request', { error: 'Invalid params', description: 'B2B app not found' });
 
     try {
-      const results = (
-        await Promise.all(
-          apps.map(async (app) => {
-            try {
-              const msalResponse = await this.cca.acquireTokenByClientCredential({
-                scopes: [app.scope],
-                skipCache: true,
-              });
-              if (!msalResponse) return null;
+      const results = await $mapAndFilter(apps, async (app) => {
+        const msalResponse = await this.azure.cca.acquireTokenByClientCredential({
+          scopes: [app.scope],
+          skipCache: true,
+        });
+        if (!msalResponse) return null;
 
-              const { result: clientId, error: clientIdError } = $getAud(msalResponse.accessToken);
-              if (clientIdError) return null;
+        const { result: clientId, error: clientIdError } = $getAud(msalResponse.accessToken);
+        if (clientIdError) return null;
 
-              return {
-                appName: app.appName,
-                clientId: clientId,
-                accessToken: msalResponse.accessToken,
-                msalResponse: msalResponse,
-              } satisfies GetB2BTokenResult;
-            } catch {
-              return null;
-            }
-          }),
-        )
-      ).filter((result) => !!result);
+        return {
+          appName: app.appName,
+          clientId: clientId,
+          accessToken: msalResponse.accessToken,
+          msalResponse: msalResponse,
+        } satisfies GetB2BTokenResult;
+      });
 
       if (!results || results.length === 0) {
         return $err('internal', { error: 'Failed to get B2B token', status: 500 });
@@ -608,49 +510,41 @@ export class OAuthProvider {
     if (error) return $err(error);
 
     try {
-      const results = (
-        await Promise.all(
-          services.map(async (service) => {
-            try {
-              const msalResponse = await this.cca.acquireTokenOnBehalfOf({
-                oboAssertion: rawAccessToken,
-                scopes: [service.scope],
-                skipCache: false,
-              });
-              if (!msalResponse) return null;
+      const results = await $mapAndFilter(services, async (service) => {
+        const msalResponse = await this.azure.cca.acquireTokenOnBehalfOf({
+          oboAssertion: rawAccessToken,
+          scopes: [service.scope],
+          skipCache: false,
+        });
+        if (!msalResponse) return null;
 
-              const { result: clientId, error: clientIdError } = $getAud(msalResponse.accessToken);
-              if (clientIdError) return null;
+        const { result: clientId, error: clientIdError } = $getAud(msalResponse.accessToken);
+        if (clientIdError) return null;
 
-              const { encryptedAccessToken, error } = await this.$encryptAccessToken(msalResponse.accessToken, {
-                cryptoType: service.cryptoType,
-                otherSecretKey: `access-token-${service.secretKey}`,
-              });
-              if (error) return null;
+        const { encryptedAccessToken, error } = await this.$encryptAccessToken(msalResponse.accessToken, {
+          cryptoType: service.cryptoType,
+          otherSecretKey: `access-token-${service.encryptionKey}`,
+        });
+        if (error) return null;
 
-              await this.$removeFromCache(msalResponse.account);
+        await this.$removeFromCache(msalResponse.account);
 
-              const cookieOptions = $cookieOptions({
-                clientId,
-                secure: service.secure,
-                sameSite: service.sameSite,
-                timeUnit: this.settings.cookies.timeUnit,
-                atExp: service.atExp ?? this.settings.cookies.accessTokenExpiry,
-                rtExp: service.atExp ?? this.settings.cookies.refreshTokenExpiry,
-              });
+        const cookieOptions = $cookieOptions({
+          clientId,
+          secure: service.isSecure,
+          sameSite: service.isSamesite,
+          timeUnit: this.settings.cookies.timeUnit,
+          atMaxAge: service.atMaxAge ?? this.settings.cookies.accessTokenMaxAge,
+          rtMaxAge: 0,
+        });
 
-              return {
-                serviceName: service.serviceName,
-                clientId: clientId,
-                accessToken: { value: encryptedAccessToken, ...cookieOptions.accessToken },
-                msalResponse: msalResponse,
-              } satisfies GetTokenOnBehalfOfResult;
-            } catch {
-              return null;
-            }
-          }),
-        )
-      ).filter((result) => !!result);
+        return {
+          serviceName: service.serviceName,
+          clientId: clientId,
+          accessToken: { value: encryptedAccessToken, ...cookieOptions.accessToken },
+          msalResponse: msalResponse,
+        } satisfies GetTokenOnBehalfOfResult;
+      });
 
       if (!results || results.length === 0) {
         return $err('internal', { error: 'Failed to get OBO token', status: 500 });
@@ -729,15 +623,15 @@ export class OAuthProvider {
   }
 
   /** Removes the account from the MSAL cache, if it exists. */
-  private async $removeFromCache(account: msal.AccountInfo | null) {
-    const cache = this.cca.getTokenCache();
+  private async $removeFromCache(account: AccountInfo | null) {
+    const cache = this.azure.cca.getTokenCache();
     if (account) await cache.removeAccount(account);
   }
 
   /** Extracts the refresh token from the cache that msal created, and removes the account from the cache. */
   private async $obtainRefreshToken(msalResponse: MsalResponse): Promise<Result<{ encryptedRefreshToken: string }>> {
     try {
-      const serializedCache = JSON.parse(this.cca.getTokenCache().serialize());
+      const serializedCache = JSON.parse(this.azure.cca.getTokenCache().serialize());
       const refreshTokens = serializedCache.RefreshToken;
       const refreshTokenKey = Object.keys(refreshTokens).find((key) => key.startsWith(msalResponse.uniqueId));
       await this.$removeFromCache(msalResponse.account);
@@ -760,23 +654,23 @@ export class OAuthProvider {
     if (this.settings.cryptoType === 'web-api' && secretKey) {
       switch (type) {
         case 'accessToken':
-          if (typeof this.secretKeys.at === 'string') {
-            this.secretKeys.at = secretKey;
+          if (typeof this.encryptionKeys.accessToken === 'string') {
+            this.encryptionKeys.accessToken = secretKey;
           }
           break;
         case 'refreshToken':
-          if (typeof this.secretKeys.rt === 'string') {
-            this.secretKeys.rt = secretKey;
+          if (typeof this.encryptionKeys.refreshToken === 'string') {
+            this.encryptionKeys.refreshToken = secretKey;
           }
           break;
         case 'state':
-          if (typeof this.secretKeys.state === 'string') {
-            this.secretKeys.state = secretKey;
+          if (typeof this.encryptionKeys.state === 'string') {
+            this.encryptionKeys.state = secretKey;
           }
           break;
         case 'ticket':
-          if (typeof this.secretKeys.ticket === 'string') {
-            this.secretKeys.ticket = secretKey;
+          if (typeof this.encryptionKeys.ticket === 'string') {
+            this.encryptionKeys.ticket = secretKey;
           }
           break;
         default:
@@ -812,7 +706,7 @@ export class OAuthProvider {
     const { encrypted, newSecretKey, error } = await $encryptObj(
       params?.cryptoType ?? this.settings.cryptoType,
       { at: accessToken, inj: injectedData?.result } satisfies z.infer<typeof zAccessTokenStructure>,
-      params?.otherSecretKey ?? this.secretKeys.at,
+      params?.otherSecretKey ?? this.encryptionKeys.accessToken,
     );
     if (error) {
       return $err('crypto_error', { error: 'Failed to encrypt access token', description: error.description });
@@ -845,7 +739,7 @@ export class OAuthProvider {
     const { result, newSecretKey, error } = await $decryptObj(
       this.settings.cryptoType,
       encryptedAccessToken,
-      this.secretKeys.at,
+      this.encryptionKeys.accessToken,
     );
     if (error) {
       return $err('crypto_error', { error: 'Failed to decrypt access token', description: error.description });
@@ -877,7 +771,11 @@ export class OAuthProvider {
       return $err('invalid_format', { error: 'Invalid refresh token format', description: $prettyErr(parseError) });
     }
 
-    const { encrypted, newSecretKey, error } = await $encrypt(this.settings.cryptoType, data, this.secretKeys.rt);
+    const { encrypted, newSecretKey, error } = await $encrypt(
+      this.settings.cryptoType,
+      data,
+      this.encryptionKeys.refreshToken,
+    );
     if (error) {
       return $err('crypto_error', { error: 'Failed to encrypt refresh token', description: error.description });
     }
@@ -903,7 +801,7 @@ export class OAuthProvider {
     const { result, newSecretKey, error } = await $decrypt(
       this.settings.cryptoType,
       encryptedRefreshToken,
-      this.secretKeys.rt,
+      this.encryptionKeys.refreshToken,
     );
     if (error) {
       return $err('crypto_error', { error: 'Failed to decrypt refresh token', description: error.description });
@@ -920,7 +818,11 @@ export class OAuthProvider {
       return $err('invalid_format', { error: 'Invalid state format', description: $prettyErr(parseError) });
     }
 
-    const { encrypted, newSecretKey, error } = await $encryptObj(this.settings.cryptoType, data, this.secretKeys.state);
+    const { encrypted, newSecretKey, error } = await $encryptObj(
+      this.settings.cryptoType,
+      data,
+      this.encryptionKeys.state,
+    );
     if (error) {
       return $err('crypto_error', { error: 'Failed to encrypt state', description: error.description });
     }
@@ -939,7 +841,7 @@ export class OAuthProvider {
     const { result, newSecretKey, error } = await $decryptObj(
       this.settings.cryptoType,
       encryptedState,
-      this.secretKeys.state,
+      this.encryptionKeys.state,
     );
     if (error) {
       return $err('crypto_error', { error: 'Failed to decrypt state', description: error.description });
@@ -961,7 +863,11 @@ export class OAuthProvider {
       return $err('invalid_format', { error: 'Invalid ticket format', description: $prettyErr(parseError) });
     }
 
-    const { encrypted, newSecretKey, error } = await $encrypt(this.settings.cryptoType, data, this.secretKeys.state);
+    const { encrypted, newSecretKey, error } = await $encrypt(
+      this.settings.cryptoType,
+      data,
+      this.encryptionKeys.state,
+    );
     if (error) {
       return $err('crypto_error', { error: 'Failed to encrypt ticket', description: error.description });
     }
@@ -977,7 +883,7 @@ export class OAuthProvider {
       return $err('invalid_format', { error: 'Invalid ticket format', description: $prettyErr(encryptedStateError) });
     }
 
-    const { result, newSecretKey, error } = await $decrypt(this.settings.cryptoType, data, this.secretKeys.state);
+    const { result, newSecretKey, error } = await $decrypt(this.settings.cryptoType, data, this.encryptionKeys.state);
     if (error) {
       return $err('crypto_error', { error: 'Failed to decrypt ticket', description: error.description });
     }

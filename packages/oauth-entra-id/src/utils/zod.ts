@@ -19,13 +19,12 @@ export const encryptedRegex = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]
 export const compressedRegex = /^[A-Za-z0-9_-]+\.\.$/;
 
 export const $prettyErr = (error: ZodError): string => {
-  // return error.issues
-  //   .map((issue) => {
-  //     const path = issue.path.length > 0 ? issue.path.join('.') : 'root';
-  //     return `${path}: ${issue.message}`;
-  //   })
-  //   .join('. ');
-  return z.prettifyError(error);
+  return error.issues
+    .map((issue) => {
+      const path = issue.path.length > 0 ? issue.path.join('.') : 'root';
+      return `${path}: ${issue.message}`;
+    })
+    .join('. ');
 };
 
 export const zStr = z.string().trim();
@@ -37,67 +36,63 @@ export const zLooseBase64 = zStr.regex(base64urlWithDotRegex);
 export const zCompressed = zStr.regex(compressedRegex);
 
 export const zLoginPrompt = z.enum(['email', 'select-account', 'sso']);
+export const zTimeUnit = z.enum(['ms', 'sec']);
+export const zCryptoType = z.enum(['web-api', 'node']);
+export const zAccessTokenMaxAge = z.number().positive();
+export const zRefreshTokenMaxAge = z.number().min(3600);
+const zOneOrMoreUrls = z.union([zUrl.max(2048).transform((url) => [url]), z.array(zUrl.max(2048)).min(1)]);
 
 export const zEncrypted = zStr.max(4096).regex(encryptedRegex);
 export const zJwt = z.jwt().max(4096);
 
 export const zScope = zStr.min(3).max(128);
-export const zSecretKey = zStr.min(32).max(64);
+export const zEncryptionKey = zStr.min(32).max(64);
 export const zServiceName = zStr.min(1).max(64);
 
-const zAzure = z.object({
-  clientId: zUuid,
-  tenantId: z.union([z.literal('common'), zUuid]),
-  scopes: z.array(zScope).min(1),
-  clientSecret: zStr.min(32).max(128),
-});
-
-const zB2BApp = z.object({
-  appName: zServiceName,
-  scope: zScope,
-});
-
-const zDownstreamService = z.object({
-  serviceName: zServiceName,
-  scope: zScope,
-  secretKey: zSecretKey,
-  cryptoType: z.enum(['web-api', 'node']).optional(),
-  isHttps: z.boolean().optional(),
-  isSameOrigin: z.boolean().optional(),
-  accessTokenExpiry: z.number().positive().default(3600),
-  refreshTokenExpiry: z.number().min(3600).default(2592000),
-});
-
-const zAdvanced = z.object({
-  loginPrompt: zLoginPrompt.default('sso'),
-  acceptB2BRequests: z.boolean().default(false),
-  b2bTargetedApps: z.array(zB2BApp).min(1).optional(),
-  disableCompression: z.boolean().default(false),
-  cryptoType: z.enum(['web-api', 'node']).default('node'),
-  cookies: z
+export const zConfig = z.object({
+  azure: z.object({
+    clientId: zUuid,
+    tenantId: z.union([z.literal('common'), zUuid]),
+    scopes: z.array(zScope).min(1),
+    clientSecret: zStr.min(32).max(128),
+    downstreamServices: z
+      .array(
+        z.object({
+          serviceName: zServiceName,
+          scope: zScope,
+          serviceUrl: zOneOrMoreUrls,
+          encryptionKey: zEncryptionKey,
+          cryptoType: zCryptoType.default('node'),
+          accessTokenMaxAge: zAccessTokenMaxAge.default(3600),
+        }),
+      )
+      .min(1)
+      .optional(),
+    b2bApps: z
+      .array(z.object({ appName: zServiceName, scope: zScope }))
+      .min(1)
+      .optional(),
+  }),
+  frontendUrl: zOneOrMoreUrls,
+  serverCallbackUrl: zUrl.max(2048),
+  encryptionKey: zEncryptionKey,
+  advanced: z
     .object({
-      timeUnit: z.enum(['ms', 'sec']).default('sec'),
-      disableHttps: z.boolean().default(false),
-      disableSameSite: z.boolean().default(false),
-      accessTokenExpiry: z.number().positive().default(3600),
-      refreshTokenExpiry: z.number().min(3600).default(2592000),
+      loginPrompt: zLoginPrompt.default('sso'),
+      acceptB2BRequests: z.boolean().default(false),
+      cryptoType: zCryptoType.default('node'),
+      disableCompression: z.boolean().default(false),
+      cookies: z
+        .object({
+          timeUnit: zTimeUnit.default('sec'),
+          disableSecure: z.boolean().default(false),
+          disableSameSite: z.boolean().default(false),
+          accessTokenMaxAge: zAccessTokenMaxAge.default(3600),
+          refreshTokenMaxAge: zRefreshTokenMaxAge.default(2592000),
+        })
+        .prefault({}),
     })
     .prefault({}),
-  downstreamServices: z
-    .object({
-      areHttps: z.boolean(),
-      areSameOrigin: z.boolean(),
-      services: z.array(zDownstreamService).min(1),
-    })
-    .optional(),
-});
-
-export const zConfig = z.object({
-  azure: zAzure,
-  frontendUrl: z.union([zUrl.max(2048).transform((url) => [url]), z.array(zUrl.max(2048)).min(1)]),
-  serverCallbackUrl: zUrl.max(2048),
-  secretKey: zSecretKey,
-  advanced: zAdvanced.prefault({}),
 });
 
 export const zState = z.object({
