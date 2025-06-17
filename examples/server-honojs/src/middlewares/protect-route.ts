@@ -31,7 +31,7 @@ export const protectRoute = createMiddleware<ProtectRoute>(async (c, next) => {
       return await next();
     }
 
-    const { injectedAccessToken, success, injectedData } = await oauthProvider.injectData({
+    const { injectedAccessToken, success, injectedData } = await oauthProvider.tryInjectData({
       accessToken: accessTokenInfo.rawAccessToken,
       data: { randomNumber: getRandomNumber() },
     });
@@ -47,7 +47,7 @@ export const protectRoute = createMiddleware<ProtectRoute>(async (c, next) => {
 
   c.set('accessTokenInfo', { jwt: refreshTokenInfo.rawAccessToken, payload: refreshTokenInfo.payload });
 
-  const { injectedAccessToken, success, injectedData } = await oauthProvider.injectData({
+  const { injectedAccessToken, success, injectedData } = await oauthProvider.tryInjectData({
     accessToken: refreshTokenInfo.rawAccessToken,
     data: { randomNumber: getRandomNumber() },
   });

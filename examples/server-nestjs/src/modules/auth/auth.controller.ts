@@ -19,6 +19,6 @@ export class AuthController {
   @Post('logout')
   @HttpCode(200)
   async getLogoutUrl(@Req() req: Request, @Res() res: Response) {
-    handleLogout(req, res);
+    await handleLogout(req, res);
   }
 }

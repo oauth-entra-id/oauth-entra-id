@@ -1,7 +1,6 @@
 import { zValidator } from '@hono/zod-validator';
 import { Hono } from 'hono';
 import { deleteCookie, setCookie } from 'hono/cookie';
-import { OAuthError } from 'oauth-entra-id';
 import { z } from 'zod/v4';
 import { oauthProvider } from '~/oauth';
 
@@ -22,20 +21,18 @@ export const authRouter = new Hono();
 authRouter.post('/authenticate', zValidator('json', zSchemas.authenticate), async (c) => {
   const body = c.req.valid('json');
 
-  const { authUrl, error } = await oauthProvider.getAuthUrl({
+  const { authUrl } = await oauthProvider.getAuthUrl({
     loginPrompt: body?.loginPrompt,
     email: body?.email,
     frontendUrl: body?.frontendUrl,
   });
-  if (error) throw new OAuthError(error);
 
   return c.json({ url: authUrl });
 });
 
 authRouter.post('/callback', zValidator('form', zSchemas.callback), async (c) => {
   const { code, state } = c.req.valid('form');
-  const { accessToken, refreshToken, frontendUrl, error } = await oauthProvider.getTokenByCode({ code, state });
-  if (error) throw new OAuthError(error);
+  const { accessToken, refreshToken, frontendUrl } = await oauthProvider.getTokenByCode({ code, state });
 
   setCookie(c, accessToken.name, accessToken.value, accessToken.options);
   if (refreshToken) setCookie(c, refreshToken.name, refreshToken.value, refreshToken.options);
@@ -44,11 +41,9 @@ authRouter.post('/callback', zValidator('form', zSchemas.callback), async (c) =>
 
 authRouter.post('/logout', zValidator('json', zSchemas.logout), async (c) => {
   const body = c.req.valid('json');
-  const { logoutUrl, deleteAccessToken, deleteRefreshToken, error } = oauthProvider.getLogoutUrl({
+  const { logoutUrl, deleteAccessToken, deleteRefreshToken } = await oauthProvider.getLogoutUrl({
     frontendUrl: body?.frontendUrl,
   });
-
-  if (error) throw new OAuthError(error);
 
   deleteCookie(c, deleteAccessToken.name, deleteAccessToken.options);
   deleteCookie(c, deleteRefreshToken.name, deleteRefreshToken.options);

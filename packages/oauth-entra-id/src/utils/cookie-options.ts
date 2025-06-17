@@ -9,7 +9,7 @@ export function $cookieOptions(params: {
   sameSite: boolean;
   timeUnit: 'sec' | 'ms';
   atMaxAge: number;
-  rtMaxAge: number;
+  rtMaxAge?: number;
 }): Cookies['DefaultCookieOptions'] {
   const timeFrame = params.timeUnit === 'sec' ? 1 : 1000;
   const baseOptions = {
@@ -26,7 +26,7 @@ export function $cookieOptions(params: {
     },
     refreshToken: {
       name: `${`${params.secure ? '__Host-' : ''}${REFRESH_TOKEN_NAME}-${params.clientId}`}`,
-      options: { ...baseOptions, maxAge: params.rtMaxAge * timeFrame },
+      options: { ...baseOptions, maxAge: params.rtMaxAge ?? 0 * timeFrame },
     },
     deleteOptions: { ...baseOptions, sameSite: params.secure ? 'none' : undefined, maxAge: 0 },
   } as const;

@@ -12,11 +12,11 @@ import type { InjectDataFunction, UserInfo } from './types';
 export async function $sharedMiddleware(
   req: Request,
   res: Response,
-): Promise<{ userInfo: UserInfo; injectData: InjectDataFunction }> {
+): Promise<{ userInfo: UserInfo; tryInjectData: InjectDataFunction }> {
   const oauthProvider = req.oauthProvider;
 
-  const InjectDataFunction = async <T extends object = Record<any, string>>(accessToken: string, data: T) => {
-    const { injectedAccessToken, error } = await oauthProvider.injectData({ accessToken, data });
+  const InjectFunc = async <T extends object = Record<any, string>>(accessToken: string, data: T) => {
+    const { injectedAccessToken, error } = await oauthProvider.tryInjectData({ accessToken, data });
     if (error) return $err(error);
     if (req.userInfo?.isApp === false) {
       $setCookie(res, injectedAccessToken.name, injectedAccessToken.value, injectedAccessToken.options);
@@ -39,7 +39,7 @@ export async function $sharedMiddleware(
 
     return {
       userInfo,
-      injectData: (data) =>
+      tryInjectData: (data) =>
         Promise.resolve(
           $err('bad_request', {
             error: 'Injecting data is not supported for B2B requests',
@@ -71,7 +71,7 @@ export async function $sharedMiddleware(
       injectedData: accessTokenInfo.injectedData,
     });
 
-    return { userInfo, injectData: (data) => InjectDataFunction(accessTokenInfo.rawAccessToken, data) };
+    return { userInfo, tryInjectData: (data) => InjectFunc(accessTokenInfo.rawAccessToken, data) };
   }
 
   const refreshTokenInfo = await oauthProvider.getTokenByRefresh(cookieRefreshToken);
@@ -86,7 +86,7 @@ export async function $sharedMiddleware(
   const userInfo = $setUserInfo(req, { payload: refreshTokenInfo.payload, isApp: false });
   req.accessTokenInfo = { jwt: refreshTokenInfo.rawAccessToken, payload: refreshTokenInfo.payload };
 
-  return { userInfo, injectData: (data) => InjectDataFunction(refreshTokenInfo.rawAccessToken, data) };
+  return { userInfo, tryInjectData: (data) => InjectFunc(refreshTokenInfo.rawAccessToken, data) };
 }
 
 function $setUserInfo<T extends object = Record<any, string>>(

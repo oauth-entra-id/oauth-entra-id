@@ -1,7 +1,6 @@
 import type { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox';
 import { Type as t } from '@sinclair/typebox';
 import axios from 'axios';
-import { OAuthError } from 'oauth-entra-id';
 import { z } from 'zod/v4';
 import { env } from '~/env';
 import { HttpException } from '~/error/HttpException';
@@ -29,11 +28,10 @@ export const protectedRouter: FastifyPluginAsyncTypebox = async (app) => {
 
     const { serviceNames } = req.body;
 
-    const { results, error } = await oauthProvider.getTokenOnBehalfOf({
+    const { results } = await oauthProvider.getTokenOnBehalfOf({
       accessToken: req.accessTokenInfo.jwt,
       serviceNames,
     });
-    if (error) throw new OAuthError(error);
 
     for (const { accessToken } of results) {
       reply.setCookie(accessToken.name, accessToken.value, accessToken.options);
@@ -44,13 +42,11 @@ export const protectedRouter: FastifyPluginAsyncTypebox = async (app) => {
 
   app.post('/get-b2b-info', { schema: { body: tSchemas.getB2BInfo } }, async (req, reply) => {
     const { appName } = req.body;
-    const { result, error } = await oauthProvider.getB2BToken({ appName });
-    if (error) throw new HttpException(error.message, error.statusCode);
-    const { accessToken } = result;
+    const { result } = await oauthProvider.getB2BToken({ appName });
 
     const serverUrl = serversMap[appName];
     const axiosResponse = await axios.get(`${serverUrl}/protected/b2b-info`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
+      headers: { Authorization: `Bearer ${result.accessToken}` },
     });
 
     const { data: b2bRes, error: b2bResError } = zB2BResponse.safeParse(axiosResponse.data);

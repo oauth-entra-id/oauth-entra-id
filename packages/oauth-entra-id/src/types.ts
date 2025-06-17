@@ -159,37 +159,3 @@ export interface GetTokenOnBehalfOfResult {
   accessToken: Cookies['AccessToken'];
   msalResponse: MsalResponse;
 }
-
-interface NewConfig {
-  azure: OneOrMore<{
-    clientId: string;
-    tenantId: LooseString<'common'>;
-    scopes: NonEmptyArray<string>;
-    clientSecret: string;
-    downstreamServices?: NonEmptyArray<{
-      serviceName: string;
-      scope: string;
-      serviceUrl: string;
-      encryptionKey: string;
-      cryptoType?: 'node' | 'web-api';
-      accessTokenExpiry?: number;
-    }>;
-    b2bApps?: NonEmptyArray<{ appName: string; scope: string }>;
-  }>;
-  frontendUrl: OneOrMore<string>;
-  serverCallbackUrl: string;
-  encryptionKey: string;
-  advanced?: {
-    loginPrompt?: 'email' | 'select-account' | 'sso';
-    acceptB2BRequests?: boolean;
-    cryptoType?: 'node' | 'web-api';
-    disableCompression?: boolean;
-    cookies?: {
-      timeUnit?: 'ms' | 'sec';
-      disableSecure?: boolean;
-      disableSameSite?: boolean;
-      accessTokenExpiry?: number;
-      refreshTokenExpiry?: number;
-    };
-  };
-}

@@ -12,8 +12,7 @@ export async function $sharedHandleAuthentication(req: Request, res: Response) {
   const body = req.body as Endpoints['Authenticate'] | undefined;
   const params = body ? { loginPrompt: body.loginPrompt, email: body.email, frontendUrl: body.frontendUrl } : {};
 
-  const { authUrl, error } = await req.oauthProvider.getAuthUrl(params);
-  if (error) throw new OAuthError(error);
+  const { authUrl } = await req.oauthProvider.getAuthUrl(params);
 
   res.status(200).json({ url: authUrl });
 }
@@ -29,11 +28,10 @@ export async function $sharedHandleCallback(req: Request, res: Response) {
     throw new OAuthError('bad_request', { error: 'Invalid params', description: 'Body must contain code and state' });
   }
 
-  const { accessToken, refreshToken, frontendUrl, error } = await req.oauthProvider.getTokenByCode({
+  const { accessToken, refreshToken, frontendUrl } = await req.oauthProvider.getTokenByCode({
     code: body.code,
     state: body.state,
   });
-  if (error) throw new OAuthError(error);
 
   $setCookie(res, accessToken.name, accessToken.value, accessToken.options);
   if (refreshToken) $setCookie(res, refreshToken.name, refreshToken.value, refreshToken.options);
@@ -45,12 +43,11 @@ export async function $sharedHandleCallback(req: Request, res: Response) {
  *
  * @throws {OAuthError} on misconfiguration or invalid params
  */
-export function $sharedHandleLogout(req: Request, res: Response) {
+export async function $sharedHandleLogout(req: Request, res: Response) {
   const body = req.body as Endpoints['Logout'] | undefined;
   const params = body ? { frontendUrl: body.frontendUrl } : {};
 
-  const { logoutUrl, deleteAccessToken, deleteRefreshToken, error } = req.oauthProvider.getLogoutUrl(params);
-  if (error) throw new OAuthError(error);
+  const { logoutUrl, deleteAccessToken, deleteRefreshToken } = await req.oauthProvider.getLogoutUrl(params);
 
   $setCookie(res, deleteAccessToken.name, deleteAccessToken.value, deleteAccessToken.options);
   $setCookie(res, deleteRefreshToken.name, deleteRefreshToken.value, deleteRefreshToken.options);
@@ -85,12 +82,10 @@ export async function $sharedHandleOnBehalfOf(req: Request, res: Response) {
     });
   }
 
-  const { results, error } = await req.oauthProvider.getTokenOnBehalfOf({
+  const { results } = await req.oauthProvider.getTokenOnBehalfOf({
     serviceNames: body.serviceNames,
     accessToken: req.accessTokenInfo.jwt,
   });
-
-  if (error) throw new OAuthError(error);
 
   for (const { accessToken } of results) {
     $setCookie(res, accessToken.name, accessToken.value, accessToken.options);

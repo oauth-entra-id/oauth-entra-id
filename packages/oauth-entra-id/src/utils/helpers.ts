@@ -2,7 +2,7 @@ import { ConfidentialClientApplication, CryptoProvider } from '@azure/msal-node'
 import { JwksClient } from 'jwks-rsa';
 import type { z } from 'zod/v4';
 import type { OAuthProvider } from '~/core';
-import { $err, $ok, type Result, type ResultErr } from '~/error';
+import { $err, $ok, OAuthError, type Result, type ResultErr } from '~/error';
 import type {
   Azure,
   B2BApp,
@@ -189,12 +189,16 @@ export async function $mapAndFilter<T, R>(items: T[], callback: (item: T) => Pro
   ).filter((result): result is Awaited<R> => !!result);
 }
 
-export function $filterCoreErrors(
+export function $coreErrors(
   err: unknown,
   method: {
     [K in keyof OAuthProvider]: OAuthProvider[K] extends (...args: any[]) => any ? K : never;
   }[keyof OAuthProvider],
-): Result<never, ResultErr> {
+) {
+  if (err instanceof OAuthError) {
+    return $err(err.type, { error: err.message, description: err.description, status: err.statusCode });
+  }
+
   if (err instanceof Error) {
     return $err('internal', {
       error: 'An Error occurred',

@@ -88,12 +88,12 @@ export function handleCallback() {
  * @throws {OAuthError} if there is any issue.
  */
 export function handleLogout() {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.oauthProvider || req.serverType !== 'express') {
         throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE, status: 500 });
       }
-      $sharedHandleLogout(req, res);
+      await $sharedHandleLogout(req, res);
     } catch (err) {
       next(err);
     }
@@ -145,8 +145,8 @@ export function protectRoute(cb?: CallbackFunction) {
       if (!req.oauthProvider || req.serverType !== 'express') {
         throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE, status: 500 });
       }
-      const { userInfo, injectData } = await $sharedMiddleware(req, res);
-      if (cb) await cb({ userInfo, injectData });
+      const { userInfo, tryInjectData } = await $sharedMiddleware(req, res);
+      if (cb) await cb({ userInfo, tryInjectData });
       next();
     } catch (err) {
       next(err);

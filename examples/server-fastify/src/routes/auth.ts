@@ -1,6 +1,5 @@
 import type { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox';
 import { Type as t } from '@sinclair/typebox';
-import { OAuthError } from 'oauth-entra-id';
 import { oauthProvider } from '~/oauth';
 
 const tSchemas = {
@@ -22,12 +21,11 @@ export const authRouter: FastifyPluginAsyncTypebox = async (app) => {
   app.post('/authenticate', { schema: { body: tSchemas.authenticate } }, async (req, reply) => {
     const body = req.body;
 
-    const { authUrl, error } = await oauthProvider.getAuthUrl({
+    const { authUrl } = await oauthProvider.getAuthUrl({
       loginPrompt: body?.loginPrompt,
       email: body?.email,
       frontendUrl: body?.frontendUrl,
     });
-    if (error) throw new OAuthError(error);
 
     return { url: authUrl };
   });
@@ -35,21 +33,19 @@ export const authRouter: FastifyPluginAsyncTypebox = async (app) => {
   app.post('/callback', { schema: { body: tSchemas.callback } }, async (req, reply) => {
     const { code, state } = req.body;
 
-    const { accessToken, refreshToken, frontendUrl, error } = await oauthProvider.getTokenByCode({ code, state });
-    if (error) throw new OAuthError(error);
+    const { accessToken, refreshToken, frontendUrl } = await oauthProvider.getTokenByCode({ code, state });
 
     reply.setCookie(accessToken.name, accessToken.value, accessToken.options);
     if (refreshToken) reply.setCookie(refreshToken.name, refreshToken.value, refreshToken.options);
     reply.redirect(frontendUrl);
   });
 
-  app.post('/logout', { schema: { body: tSchemas.logout } }, (req, reply) => {
+  app.post('/logout', { schema: { body: tSchemas.logout } }, async (req, reply) => {
     const body = req.body;
 
-    const { logoutUrl, deleteAccessToken, deleteRefreshToken, error } = oauthProvider.getLogoutUrl({
+    const { logoutUrl, deleteAccessToken, deleteRefreshToken } = await oauthProvider.getLogoutUrl({
       frontendUrl: body?.frontendUrl,
     });
-    if (error) throw new OAuthError(error);
 
     reply.setCookie(deleteAccessToken.name, deleteAccessToken.value, deleteAccessToken.options);
     reply.setCookie(deleteRefreshToken.name, deleteRefreshToken.value, deleteRefreshToken.options);
