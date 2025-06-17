@@ -1,5 +1,5 @@
-import { queryOptions, useQuery } from '@tanstack/react-query';
-import { Outlet, createRootRoute } from '@tanstack/react-router';
+import { useQuery } from '@tanstack/react-query';
+import { Outlet, createRootRoute, useLocation, useNavigate } from '@tanstack/react-router';
 import { useEffect } from 'react';
 import { toast } from 'sonner';
 import { DotsBackground } from '~/components/DotsBackground';
@@ -9,9 +9,11 @@ import { NotFound } from '~/components/pages/NotFound';
 import { Sonner } from '~/components/ui/Sonner';
 import { getAppInfo } from '~/services/app-info';
 import { getUserData } from '~/services/user';
-import { type Server, useServerStore } from '~/stores/server-store';
+import { useServerStore } from '~/stores/server-store';
 import { useThemeStore } from '~/stores/theme-store';
 import { useUserStore } from '~/stores/user-store';
+
+const PUBLIC_PATHNAMES = ['/login'];
 
 export const Route = createRootRoute({
   notFoundComponent: NotFound,
@@ -20,26 +22,44 @@ export const Route = createRootRoute({
 });
 
 function Root() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const theme = useThemeStore((state) => state.theme);
   const setUser = useUserStore((state) => state.setUser);
   const server = useServerStore((state) => state.server);
   const setAppInfo = useServerStore((state) => state.setAppInfo);
-  // Using isFetching instead of isPending to avoid showing cached data
-  const { data: userData, isFetching: isUserDataFetching, error: userDataError } = useQuery(userDataOptions(server));
-  const { data: appInfo, isFetching: isAppInfoFetching, error: appInfoError } = useQuery(appInfoOptions(server));
+
+  const userData = useQuery({
+    queryKey: ['user', server],
+    queryFn: getUserData,
+    refetchOnWindowFocus: false,
+    retry: 1,
+  });
+
+  const appInfo = useQuery({
+    queryKey: ['app-info', server],
+    queryFn: getAppInfo,
+    refetchOnWindowFocus: false,
+    retry: 1,
+  });
 
   useEffect(() => {
-    const isValid = userData && !isUserDataFetching && !userDataError;
-    setUser(isValid ? userData : null);
+    if (userData.isLoading) return;
+    const isValid = userData.data && !userData.error;
+    setUser(isValid ? userData.data : null);
+    if (!isValid && !PUBLIC_PATHNAMES.includes(location.pathname)) {
+      navigate({ to: '/login', replace: true });
+    }
     toast.info(isValid ? 'User data loaded ✅' : 'User data not found ❌', { duration: 1000 });
-  }, [userData, isUserDataFetching, userDataError, setUser]);
+  }, [userData.data, userData.isLoading, userData.error, setUser, navigate, location.pathname]);
 
   useEffect(() => {
-    const isValid = appInfo && !isAppInfoFetching && !appInfoError;
-    setAppInfo(isValid ? appInfo : null);
-  }, [appInfo, isAppInfoFetching, appInfoError, setAppInfo]);
+    if (appInfo.isLoading) return;
+    const isValid = appInfo.data && !appInfo.error;
+    setAppInfo(isValid ? appInfo.data : null);
+  }, [appInfo.data, appInfo.isLoading, appInfo.error, setAppInfo]);
 
-  if (isUserDataFetching || isAppInfoFetching) {
+  if (userData.isLoading || appInfo.isLoading) {
     return <Loading />;
   }
 
@@ -54,21 +74,3 @@ function Root() {
     </div>
   );
 }
-
-const userDataOptions = (server: Server) => {
-  return queryOptions({
-    queryKey: ['user', server],
-    queryFn: getUserData,
-    refetchOnWindowFocus: false,
-    retry: 1,
-  });
-};
-
-const appInfoOptions = (server: Server) => {
-  return queryOptions({
-    queryKey: ['app-info', server],
-    queryFn: getAppInfo,
-    refetchOnWindowFocus: false,
-    retry: 1,
-  });
-};
