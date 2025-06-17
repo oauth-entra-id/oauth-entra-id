@@ -1,6 +1,7 @@
 import { Buffer } from 'node:buffer';
 import nodeCrypto from 'node:crypto';
 import { $err, $ok, type Result } from '~/error';
+import type { NodeCryptoKey } from '~/types';
 import { $isPlainObject, $isString } from '../zod';
 import { FORMAT, NODE_ALGORITHM } from './encrypt';
 
@@ -16,9 +17,7 @@ export function $generateNodeUuid(): Result<{ uuid: string }> {
   }
 }
 
-export function $createNodeSecretKey(
-  key: string | nodeCrypto.KeyObject,
-): Result<{ newSecretKey: nodeCrypto.KeyObject }> {
+export function $createNodeSecretKey(key: string | NodeCryptoKey): Result<{ newSecretKey: NodeCryptoKey }> {
   if (typeof key === 'string') {
     if (!$isString(key)) {
       return $err('nullish_value', { error: 'Invalid secret key', description: 'Empty key for node', status: 500 });
@@ -44,7 +43,7 @@ export function $createNodeSecretKey(
 
 export function $nodeEncrypt(
   data: string,
-  secretKey: nodeCrypto.KeyObject,
+  secretKey: NodeCryptoKey,
 ): Result<{ iv: string; encrypted: string; tag: string }> {
   try {
     const iv = nodeCrypto.randomBytes(12);
@@ -69,7 +68,7 @@ export function $nodeDecrypt(
   iv: string,
   encrypted: string,
   tag: string,
-  secretKey: nodeCrypto.KeyObject,
+  secretKey: NodeCryptoKey,
 ): Result<{ result: string }> {
   try {
     const decipher = nodeCrypto.createDecipheriv(NODE_ALGORITHM, secretKey, Buffer.from(iv, FORMAT));

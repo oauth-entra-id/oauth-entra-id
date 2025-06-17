@@ -6,7 +6,9 @@ import type { ACCESS_TOKEN_NAME, REFRESH_TOKEN_NAME } from './utils/cookie-optio
 export type LoginPrompt = 'email' | 'select-account' | 'sso';
 export type TimeUnit = 'ms' | 'sec';
 export type CryptoType = 'node' | 'web-api';
-export type EncryptionKey = nodeCrypto.KeyObject | string | webcrypto.CryptoKey;
+export type WebApiCryptoKey = webcrypto.CryptoKey;
+export type NodeCryptoKey = nodeCrypto.KeyObject;
+export type EncryptionKey = NodeCryptoKey | WebApiCryptoKey | string;
 export type LooseString<T extends string> = T | (string & {});
 export type NonEmptyArray<T> = [T, ...T[]];
 export type OneOrMore<T> = T | [T, ...T[]];

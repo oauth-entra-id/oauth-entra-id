@@ -1,5 +1,4 @@
-import type { webcrypto } from 'node:crypto';
-import type { AccountInfo, CryptoProvider } from '@azure/msal-node';
+import type { CryptoProvider } from '@azure/msal-node';
 import jwt from 'jsonwebtoken';
 import type { JwksClient } from 'jwks-rsa';
 import type { z } from 'zod/v4';
@@ -18,6 +17,7 @@ import type {
   OAuthConfig,
   OAuthSettings,
   OboService,
+  WebApiCryptoKey,
 } from './types';
 import { $cookieOptions } from './utils/cookie-options';
 import { $compressObj, $decompressObj } from './utils/crypto/compress';
@@ -64,11 +64,11 @@ export class OAuthProvider {
 
   /**
    * @param configuration The OAuth configuration object:
-   * - `azure`: clientId, tenantId, scopes, clientSecret
+   * - `azure`: clientId, tenantId, scopes, clientSecret, B2B apps, and downstream services
    * - `frontendUrl`: allowed redirect URIs
    * - `serverCallbackUrl`: your server’s Azure callback endpoint
-   * - `secretKey`: 32-byte base encryption secret
-   * - `advanced`: optional behaviors (cookies, B2B, OBO, prompts)
+   * - `secretKey`: 32 characters base encryption secret
+   * - `advanced`: optional behaviors
    * @throws {OAuthError} if the config fails validation or has duplicate service names
    */
   constructor(configuration: OAuthConfig) {
@@ -114,11 +114,11 @@ export class OAuthProvider {
     if (uuidError) return $err(uuidError);
 
     try {
-      const [pkce, ticket] = await Promise.all([
+      const [pkce, { encryptedTicket, error: ticketError }] = await Promise.all([
         this.msalCryptoProvider.generatePkceCodes(),
         this.$encryptTicket(ticketId),
       ]);
-      if (ticket.error) return $err(ticket.error);
+      if (ticketError) return $err(ticketError);
 
       const frontendUrl = parsedParams.frontendUrl ?? this.frontendUrls[0];
       const configuredPrompt = parsedParams.loginPrompt ?? this.settings.loginPrompt;
@@ -153,7 +153,7 @@ export class OAuthProvider {
         return $err('internal', { error: "Invalid redirect URL: must be 'login.microsoftonline.com'", status: 500 });
       }
 
-      return $ok({ authUrl, ticket: ticket.encryptedTicket });
+      return $ok({ authUrl, ticket: encryptedTicket });
     } catch (err) {
       return $filterCoreErrors(err, 'getAuthUrl');
     }
@@ -514,20 +514,19 @@ export class OAuthProvider {
         const msalResponse = await this.azure.cca.acquireTokenOnBehalfOf({
           oboAssertion: rawAccessToken,
           scopes: [service.scope],
-          skipCache: false,
+          skipCache: true,
         });
         if (!msalResponse) return null;
 
         const { result: clientId, error: clientIdError } = $getAud(msalResponse.accessToken);
         if (clientIdError) return null;
 
+        //Promise.all here
         const { encryptedAccessToken, error } = await this.$encryptAccessToken(msalResponse.accessToken, {
           cryptoType: service.cryptoType,
           otherSecretKey: `access-token-${service.encryptionKey}`,
         });
         if (error) return null;
-
-        await this.$removeFromCache(msalResponse.account);
 
         const cookieOptions = $cookieOptions({
           clientId,
@@ -622,19 +621,14 @@ export class OAuthProvider {
     });
   }
 
-  /** Removes the account from the MSAL cache, if it exists. */
-  private async $removeFromCache(account: AccountInfo | null) {
-    const cache = this.azure.cca.getTokenCache();
-    if (account) await cache.removeAccount(account);
-  }
-
   /** Extracts the refresh token from the cache that msal created, and removes the account from the cache. */
   private async $obtainRefreshToken(msalResponse: MsalResponse): Promise<Result<{ encryptedRefreshToken: string }>> {
     try {
-      const serializedCache = JSON.parse(this.azure.cca.getTokenCache().serialize());
+      const cache = this.azure.cca.getTokenCache();
+      const serializedCache = JSON.parse(cache.serialize());
       const refreshTokens = serializedCache.RefreshToken;
       const refreshTokenKey = Object.keys(refreshTokens).find((key) => key.startsWith(msalResponse.uniqueId));
-      await this.$removeFromCache(msalResponse.account);
+      if (msalResponse.account) await cache.removeAccount(msalResponse.account);
       const refreshToken = refreshTokenKey ? (refreshTokens[refreshTokenKey].secret as string) : null;
       return await this.$encryptRefreshToken(refreshToken);
     } catch {
@@ -649,7 +643,7 @@ export class OAuthProvider {
   /** Updates the secret key for a specific token type if it is a string. */
   private $updateSecretKey(
     type: 'accessToken' | 'refreshToken' | 'state' | 'ticket',
-    secretKey: webcrypto.CryptoKey | undefined,
+    secretKey: WebApiCryptoKey | undefined,
   ): void {
     if (this.settings.cryptoType === 'web-api' && secretKey) {
       switch (type) {
