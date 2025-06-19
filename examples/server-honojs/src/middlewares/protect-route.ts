@@ -41,7 +41,7 @@ export const protectRoute = createMiddleware<ProtectRoute>(async (c, next) => {
     return await next();
   }
 
-  const refreshTokenInfo = await oauthProvider.getTokenByRefresh(refreshToken);
+  const refreshTokenInfo = await oauthProvider.tryRefreshTokens(refreshToken);
   if (refreshTokenInfo.error) throw new OAuthError(refreshTokenInfo.error);
   const { newTokens } = refreshTokenInfo;
 

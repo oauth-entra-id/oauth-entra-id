@@ -74,7 +74,7 @@ export async function $sharedMiddleware(
     return { userInfo, tryInjectData: (data) => InjectFunc(accessTokenInfo.rawAccessToken, data) };
   }
 
-  const refreshTokenInfo = await oauthProvider.getTokenByRefresh(cookieRefreshToken);
+  const refreshTokenInfo = await oauthProvider.tryRefreshTokens(cookieRefreshToken);
   if (refreshTokenInfo.error) throw new OAuthError(refreshTokenInfo.error);
   const { newTokens } = refreshTokenInfo;
 

@@ -39,7 +39,7 @@ export async function protectRoute(req: FastifyRequest, reply: FastifyReply) {
     return;
   }
 
-  const refreshTokenInfo = await oauthProvider.getTokenByRefresh(refreshToken);
+  const refreshTokenInfo = await oauthProvider.tryRefreshTokens(refreshToken);
   if (refreshTokenInfo.error) throw new OAuthError(refreshTokenInfo.error);
   const { newTokens } = refreshTokenInfo;
 

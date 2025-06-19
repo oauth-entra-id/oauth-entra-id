@@ -316,7 +316,7 @@ export class OAuthProvider {
    * @param refreshToken - Encrypted refresh-token value
    * @returns A result containing the new access token, optional new refresh token, the raw access token, its payload, and the MSAL response.
    */
-  async getTokenByRefresh(refreshToken: string | undefined): Promise<
+  async tryRefreshTokens(refreshToken: string | undefined): Promise<
     Result<{
       newTokens: {
         accessToken: Cookies['AccessToken'];
@@ -370,7 +370,7 @@ export class OAuthProvider {
         msalResponse: msalResponse,
       });
     } catch (err) {
-      return $coreErrors(err, 'getTokenByRefresh');
+      return $coreErrors(err, 'tryRefreshTokens');
     }
   }
 
@@ -413,10 +413,7 @@ export class OAuthProvider {
    * @returns A result containing the ticket ID (returned by getTokenByCode).
    */
   async tryDecryptTicket(ticket: string): Promise<Result<{ ticketId: string }>> {
-    const { ticketId, error } = await this.$decryptTicket(ticket);
-    if (error) return $err(error);
-
-    return $ok({ ticketId });
+    return await this.$decryptTicket(ticket);
   }
 
   /**
