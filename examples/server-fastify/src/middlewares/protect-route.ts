@@ -1,7 +1,7 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { type JwtPayload, OAuthError } from 'oauth-entra-id';
 import { HttpException } from '~/error/HttpException';
-import { oauthProvider } from '../oauth';
+import { oauthProvider } from '~/oauth';
 
 export async function protectRoute(req: FastifyRequest, reply: FastifyReply) {
   const authorizationHeader = req.headers.authorization;
@@ -29,7 +29,7 @@ export async function protectRoute(req: FastifyRequest, reply: FastifyReply) {
       return;
     }
 
-    const { injectedAccessToken, success, injectedData } = await oauthProvider.injectData({
+    const { injectedAccessToken, success, injectedData } = await oauthProvider.tryInjectData({
       accessToken: accessTokenInfo.rawAccessToken,
       data: { randomNumber: getRandomNumber() },
     });
@@ -39,13 +39,13 @@ export async function protectRoute(req: FastifyRequest, reply: FastifyReply) {
     return;
   }
 
-  const refreshTokenInfo = await oauthProvider.getTokenByRefresh(refreshToken);
+  const refreshTokenInfo = await oauthProvider.tryRefreshTokens(refreshToken);
   if (refreshTokenInfo.error) throw new OAuthError(refreshTokenInfo.error);
   const { newTokens } = refreshTokenInfo;
 
   req.accessTokenInfo = { jwt: refreshTokenInfo.rawAccessToken, payload: refreshTokenInfo.payload };
 
-  const { injectedAccessToken, success, injectedData } = await oauthProvider.injectData({
+  const { injectedAccessToken, success, injectedData } = await oauthProvider.tryInjectData({
     accessToken: refreshTokenInfo.rawAccessToken,
     data: { randomNumber: getRandomNumber() },
   });

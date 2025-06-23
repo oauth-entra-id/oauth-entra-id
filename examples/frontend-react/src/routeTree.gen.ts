@@ -8,137 +8,70 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-// Import Routes
+import { Route as rootRouteImport } from './routes/__root'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as IndexRouteImport } from './routes/index'
 
-import { Route as rootRoute } from './routes/__root'
-import { Route as LoginImport } from './routes/login'
-import { Route as protectedRouteImport } from './routes/(protected)/route'
-import { Route as protectedIndexImport } from './routes/(protected)/index'
-
-// Create/Update Routes
-
-const LoginRoute = LoginImport.update({
+const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-
-const protectedRouteRoute = protectedRouteImport.update({
-  id: '/(protected)',
-  getParentRoute: () => rootRoute,
-} as any)
-
-const protectedIndexRoute = protectedIndexImport.update({
+const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => protectedRouteRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
 
-// Populate the FileRoutesByPath interface
-
-declare module '@tanstack/react-router' {
-  interface FileRoutesByPath {
-    '/(protected)': {
-      id: '/(protected)'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof protectedRouteImport
-      parentRoute: typeof rootRoute
-    }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginImport
-      parentRoute: typeof rootRoute
-    }
-    '/(protected)/': {
-      id: '/(protected)/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof protectedIndexImport
-      parentRoute: typeof protectedRouteImport
-    }
-  }
-}
-
-// Create and export the route tree
-
-interface protectedRouteRouteChildren {
-  protectedIndexRoute: typeof protectedIndexRoute
-}
-
-const protectedRouteRouteChildren: protectedRouteRouteChildren = {
-  protectedIndexRoute: protectedIndexRoute,
-}
-
-const protectedRouteRouteWithChildren = protectedRouteRoute._addFileChildren(
-  protectedRouteRouteChildren,
-)
-
 export interface FileRoutesByFullPath {
-  '/': typeof protectedIndexRoute
+  '/': typeof IndexRoute
   '/login': typeof LoginRoute
 }
-
 export interface FileRoutesByTo {
+  '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/': typeof protectedIndexRoute
 }
-
 export interface FileRoutesById {
-  __root__: typeof rootRoute
-  '/(protected)': typeof protectedRouteRouteWithChildren
+  __root__: typeof rootRouteImport
+  '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/(protected)/': typeof protectedIndexRoute
 }
-
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths: '/' | '/login'
   fileRoutesByTo: FileRoutesByTo
-  to: '/login' | '/'
-  id: '__root__' | '/(protected)' | '/login' | '/(protected)/'
+  to: '/' | '/login'
+  id: '__root__' | '/' | '/login'
   fileRoutesById: FileRoutesById
 }
-
 export interface RootRouteChildren {
-  protectedRouteRoute: typeof protectedRouteRouteWithChildren
+  IndexRoute: typeof IndexRoute
   LoginRoute: typeof LoginRoute
 }
 
-const rootRouteChildren: RootRouteChildren = {
-  protectedRouteRoute: protectedRouteRouteWithChildren,
-  LoginRoute: LoginRoute,
-}
-
-export const routeTree = rootRoute
-  ._addFileChildren(rootRouteChildren)
-  ._addFileTypes<FileRouteTypes>()
-
-/* ROUTE_MANIFEST_START
-{
-  "routes": {
-    "__root__": {
-      "filePath": "__root.tsx",
-      "children": [
-        "/(protected)",
-        "/login"
-      ]
-    },
-    "/(protected)": {
-      "filePath": "(protected)/route.tsx",
-      "children": [
-        "/(protected)/"
-      ]
-    },
-    "/login": {
-      "filePath": "login.tsx"
-    },
-    "/(protected)/": {
-      "filePath": "(protected)/index.tsx",
-      "parent": "/(protected)"
+declare module '@tanstack/react-router' {
+  interface FileRoutesByPath {
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
     }
   }
 }
-ROUTE_MANIFEST_END */
+
+const rootRouteChildren: RootRouteChildren = {
+  IndexRoute: IndexRoute,
+  LoginRoute: LoginRoute,
+}
+export const routeTree = rootRouteImport
+  ._addFileChildren(rootRouteChildren)
+  ._addFileTypes<FileRouteTypes>()

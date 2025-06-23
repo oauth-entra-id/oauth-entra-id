@@ -8,11 +8,7 @@ const zGetUserData = z.object({
     uniqueId: z.uuid(),
     name: zStr,
     email: z.email({ pattern: z.regexes.html5Email }),
-    injectedData: z
-      .object({
-        randomNumber: z.number(),
-      })
-      .optional(),
+    injectedData: z.object({ randomNumber: z.number() }).optional(),
   }),
 });
 

@@ -27,7 +27,7 @@ function Login() {
   const queryClient = useQueryClient();
   const [ssoEnabled, setSsoEnabled] = useState(true);
   const user = useUserStore((state) => state.user);
-  const { mutate: loginUser, mutateAsync: loginUserAsync } = useMutation({
+  const loginUser = useMutation({
     mutationFn: getAuthUrl,
     onSuccess: async (url) => {
       window.location.href = url;
@@ -40,7 +40,7 @@ function Login() {
   const form = useForm({
     defaultValues: { email: '' },
     validators: { onChange: zEmailForm },
-    onSubmit: async ({ value }) => await loginUserAsync({ email: value.email }),
+    onSubmit: async ({ value }) => await loginUser.mutateAsync({ email: value.email }),
   });
 
   useEffect(() => {
@@ -93,7 +93,7 @@ function Login() {
             <Button
               variant="outline"
               className="w-full"
-              onClick={() => loginUser({ loginPrompt: ssoEnabled ? undefined : 'select-account' })}>
+              onClick={() => loginUser.mutate({ loginPrompt: ssoEnabled ? undefined : 'select-account' })}>
               <Microsoft /> Microsoft
             </Button>
             <div className="flex items-center justify-center mt-2">

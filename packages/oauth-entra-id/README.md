@@ -12,8 +12,8 @@
 
 <p align="center">
 <a href="https://opensource.org/licenses/MIT" rel="nofollow"><img src="https://img.shields.io/github/license/oauth-entra-id/oauth-entra-id?color=DC343B" alt="License"></a>
-<a href="https://www.npmjs.com/package/oauth-entra-id" rel="nofollow"><img src="https://img.shields.io/badge/version-2.3.0-0078D4" alt="Version"></a>
-<a href="https://www.npmjs.com/package/oauth-entra-id" rel="nofollow"><img src="https://img.shields.io/npm/dm/oauth-entra-id.svg?color=03C03C" alt="npm"></a>
+<a href="https://www.npmjs.com/package/oauth-entra-id" rel="nofollow"><img src="https://img.shields.io/npm/v/oauth-entra-id?color=0078D4" alt="npm version"></a>
+<a href="https://www.npmjs.com/package/oauth-entra-id" rel="nofollow"><img src="https://img.shields.io/npm/dy/oauth-entra-id.svg?color=03C03C" alt="npm downloads"></a>
 <a href="https://github.com/oauth-entra-id/oauth-entra-id" rel="nofollow"><img src="https://img.shields.io/github/stars/oauth-entra-id/oauth-entra-id" alt="stars"></a>
 
 </p>
@@ -30,7 +30,7 @@ Built for simplicity, speed, and type safety. It abstracts away the complexity o
 - 🍪 Built-in cookie-based authentication with token management and rotation.
 - 📢 On-Behalf-Of (OBO) flow for downstream services
 - 🤝 B2B app support (client credentials)
-- 🧩 Fully typed results and errors via Result<T>
+- 🧩 Fully typed results and errors via `Result<T>` and `OAuthError`
 - 🦾 Framework-agnostic core (Express and NestJS bindings included)
 
 ## Getting Started 🚀
@@ -75,55 +75,57 @@ Setting up On-Behalf-Of (OBO) flow for downstream services (works only if applic
 ## Configuration ⚙️
 
 ```typescript
-interface OAuthConfig {
+export interface OAuthConfig {
   azure: {
-    clientId: string;
-    tenantId: 'common' | string; // 'common' for multi-tenant apps
+    clientId: string; // Client ID from Azure App registration
+    tenantId: string; // 'common' for multi-tenant apps or your specific tenant ID
     scopes: string[]; // e.g., ['openid', 'profile', 'email']
-    clientSecret: string;
+    clientSecret: string; // Client secret from Azure App registration
+
+    // Optional for On-Behalf-Of (OBO) flow
+    downstreamServices?: Array<{
+      serviceName: string; // Unique identifier of the downstream service
+      scope: string; // Usually ends with `/.default`
+      serviceUrl: string | string[]; // URL(s) of the downstream service
+      encryptionKey: string; // 32 character encryption key for the service
+      cryptoType?: 'node' | 'web-api'; // Defaults to 'node'
+      accessTokenMaxAge?: number; // Defaults to 1 hour
+    }>;
+
+    // Optional for B2B apps
+    b2bApps?: Array<{
+      appName: string; // Unique identifier of the B2B app
+      scope: string; // Usually ends with `/.default`
+    }>;
   };
   frontendUrl: string | string[]; // Allowed frontend redirect URL(s)
   serverCallbackUrl: string; // Server callback URL (must match the one registered in Azure)
-  secretKey: string; // 32 character secret key
+  encryptionKey: string; // 32 character encryption key for the access and refresh tokens
+
+  // Optional advanced settings
   advanced?: {
-    loginPrompt?: 'email' | 'select-account' | 'sso'; //Defaults to `'sso'`
+    loginPrompt?: 'email' | 'select-account' | 'sso'; // Defaults to 'sso'
     acceptB2BRequests?: boolean; // If true, allows B2B authentication. Defaults to `false`
-    b2bTargetedApps?: Array<{
-      appName: string; // Unique identifier of the B2B app
-      scope: string; // Usually end with `/.default`
-    }>;
-    disableCompression: boolean; //Whether to disable compression for access tokens. Defaults to `false`
-    cryptoType?: 'node' | 'web-api'; // Defaults to `'node'`
+    cryptoType?: 'node' | 'web-api'; // Defaults to 'node'
+    disableCompression?: boolean; //Whether to disable compression for access tokens. Defaults to `false`
     cookies?: {
-      timeUnit?: 'ms' | 'sec'; // Defaults to `'sec'`
-      disableHttps?: boolean;
+      timeUnit?: 'ms' | 'sec'; // Defaults to 'sec'
+      disableSecure?: boolean;
       disableSameSite?: boolean;
-      accessTokenExpiry?: number; // Defaults to 1 hour
-      refreshTokenExpiry?: number; // Defaults to 30 days
-    };
-    downstreamServices?: {
-      areHttps: boolean;
-      areSameOrigin: boolean;
-      services: Array<{
-        serviceName: string; // Unique identifier of the downstream service
-        scope: string; // Usually end with `/.default`
-        secretKey: string; // 32 character secret key for the service
-        cryptoType?: 'node' | 'web-api'; // Defaults to `'node'`
-        isHttps?: boolean;
-        isSameOrigin?: boolean;
-        accessTokenExpiry?: number;
-        refreshTokenExpiry?: number;
-      }>;
+      accessTokenMaxAge?: number; // Defaults to 1 hour
+      refreshTokenMaxAge?: number; // Defaults to 30 days
     };
   };
 }
 ```
 
-### `Result<T>` Type 🧩
+### Error Handling ⚠️
 
-This package uses a custom `Result<T>` discriminated union to handle all async operations in a type-safe, exception-free way.
+This package uses a custom `Result<T>` discriminated union to handle async operations in a type-safe, exception-free way.
+If the method returns this type make sure to handle the error case or check if the `success` property is `true` before accessing the result.
+Usually methods with this return type will start with the prefix `try` or `verify`, indicating that they may fail and return an error.
 
-It provides a consistent pattern for returning both success and error states:
+If the return type is not `Result<T>`, it will throw an `OAuthError` with a specific error type and message.
 
 **Error Type:**
 
@@ -177,7 +179,7 @@ const oauthProvider = new OAuthProvider({
   },
   frontendUrl: env.FRONTEND_URL,
   serverCallbackUrl: `${env.SERVER_URL}/auth/callback`,
-  secretKey: env.SECRET,
+  encryptionKey: env.SECRET,
 });
 ```
 
@@ -219,15 +221,14 @@ Parameters:
 
 Returns:
 
-- Promise of a `Result` object:
+- Promise of an object:
   - `authUrl` - The URL to redirect the user for authentication.
   - `ticket` - A unique ticket for the authentication session, this is used for bearer flow only.
 
 ```typescript
 app.post('/authenticate', async (c) => {
   const { loginPrompt, email, frontendUrl } = await c.req.json();
-  const { authUrl, error } = await oauthProvider.getAuthUrl({ loginPrompt, email, frontendUrl });
-  if (error) throw new HTTPException(error.statusCode, { message: error.message });
+  const { authUrl } = await oauthProvider.getAuthUrl({ loginPrompt, email, frontendUrl });
   return c.json({ url: authUrl });
 });
 ```
@@ -244,7 +245,7 @@ Parameters:
 
 Returns:
 
-- Promise of a `Result` object:
+- Promise of an object:
   - `accessToken` - Access token object containing the token value, suggested name, and options.
   - `refreshToken` (optional) - Refresh token object containing the token value, suggested name, and options.
   - `frontendUrl` - The frontend URL to redirect the user after authentication.
@@ -254,8 +255,7 @@ Returns:
 ```typescript
 app.post('/callback', async (c) => {
   const { code, state } = await c.req.parseBody();
-  const { frontendUrl, accessToken, refreshToken, error } = await oauthProvider.getTokenByCode({ code, state });
-  if (error) throw new HTTPException(error.statusCode, { message: error.message });
+  const { frontendUrl, accessToken, refreshToken } = await oauthProvider.getTokenByCode({ code, state });
   setCookie(c, accessToken.name, accessToken.value, accessToken.options);
   if (refreshToken) setCookie(c, refreshToken.name, refreshToken.value, refreshToken.options);
   return c.redirect(frontendUrl);
@@ -273,7 +273,7 @@ Parameters:
 
 Returns:
 
-- A `Result` object:
+- Promise of an object:
   - `logoutUrl` - The URL to redirect the user for logout.
   - `deleteAccessToken` - Access token cookie object containing the token name, value, and options.
   - `deleteRefreshToken` - Refresh token cookie object containing the token name, value, and options.
@@ -281,8 +281,7 @@ Returns:
 ```typescript
 app.post('/logout', async (c) => {
   const { frontendUrl } = await c.req.json();
-  const { logoutUrl, deleteAccessToken, deleteRefreshToken, error } = oauthProvider.getLogoutUrl({ frontendUrl });
-  if (error) throw new HTTPException(error.statusCode, { message: error.message });
+  const { logoutUrl, deleteAccessToken, deleteRefreshToken } = await oauthProvider.getLogoutUrl({ frontendUrl });
   deleteCookie(c, deleteAccessToken.name, deleteAccessToken.options);
   deleteCookie(c, deleteRefreshToken.name, deleteRefreshToken.options);
   return c.json({ url: logoutUrl });
@@ -312,7 +311,7 @@ It will remain `undefined` if the token does not have injected data.
 
 An example will be shown below.
 
-#### `getTokenByRefresh()`
+#### `tryRefreshTokens()`
 
 Verifies and uses the refresh token to get new set of access and refresh tokens.
 
@@ -332,7 +331,7 @@ Returns:
 
 An example will be shown below.
 
-#### `injectData<T>()`
+#### `tryInjectData<T>()`
 
 Embed non-sensitive metadata into the access token.
 
@@ -364,6 +363,7 @@ export const protectRoute = createMiddleware(async (c, next) => {
 
   const accessTokenInfo = await oauthProvider.verifyAccessToken<{ randomNumber: number }>(accessToken);
   if (accessTokenInfo.success) {
+    // The access token is valid with injected data
     if (accessTokenInfo.hasInjectedData) {
       c.set('userInfo', {
         uniqueId: accessTokenInfo.payload.oid,
@@ -374,6 +374,7 @@ export const protectRoute = createMiddleware(async (c, next) => {
       return await next();
     }
 
+    // The access token is valid without injected data, inject some data
     const { injectedAccessToken, success, injectedData } = await oauthProvider.injectData({
       accessToken: accessTokenInfo.rawAccessToken,
       data: { randomNumber: getRandomNumber() },
@@ -389,8 +390,10 @@ export const protectRoute = createMiddleware(async (c, next) => {
     return await next();
   }
 
-  const refreshTokenInfo = await oauthProvider.getTokenByRefresh(refreshToken);
-  if (refreshTokenInfo.error) throw new OAuthError(refreshTokenInfo.error);
+  // The access token is invalid, try to refresh it
+  const refreshTokenInfo = await oauthProvider.tryRefreshTokens(refreshToken);
+  if (refreshTokenInfo.error)
+    throw new HTTPException(refreshTokenInfo.error.statusCode, { message: refreshTokenInfo.error.message });
   const { newTokens } = refreshTokenInfo;
 
   const { injectedAccessToken, success, injectedData } = await oauthProvider.injectData({
@@ -414,7 +417,7 @@ export const protectRoute = createMiddleware(async (c, next) => {
 });
 ```
 
-#### `decryptTicket()`
+#### `tryDecryptTicket()`
 
 Decrypts a ticket and returns the ticket ID.
 Useful for bearer flow.
@@ -443,7 +446,7 @@ Parameters:
 
 Returns:
 
-- Promise of a `Result` object:
+- Promise of an object:
   - `result` or `results` - An object or an array of objects (based on the parameters) containing:
     - `appName` - The name of the B2B app.
     - `clientId` - The client ID of the B2B app.
@@ -453,14 +456,11 @@ Returns:
 ```typescript
 protectedRouter.post('/get-b2b-info', async (c) => {
   const { appName } = await c.req.json();
-  const { result, error } = await oauthProvider.getB2BToken({ appName });
-  if (error) throw new HTTPException(error.statusCode, { message: error.message });
-  const axiosResponse = await axios.get(env.OTHER_SERVER, {
+  const { result } = await oauthProvider.getB2BToken({ appName });
+  const res = await axios.get(env.OTHER_SERVER, {
     headers: { Authorization: `Bearer ${result.accessToken}` },
   });
-  const { data, error } = zSchema.safeParse(axiosResponse.data);
-  if (error) throw new HTTPException(500, { message: 'Invalid response from the other server' });
-  return c.json(data);
+  return c.json({ data: res.data });
 });
 ```
 
@@ -480,7 +480,7 @@ Parameters:
 
 Returns:
 
-- Promise of a `Result` object or an array of objects (based on the parameters) containing:
+- Promise of an object or an array of objects (based on the parameters) containing:
 
   - `result` or `results` - An object or an array of objects (based on the parameters) with the following properties:
     - `serviceName` - The name of the OBO service.
@@ -492,8 +492,7 @@ Returns:
 app.post('/on-behalf-of', protectRoute, async (c) => {
   const { serviceNames } = await c.req.json();
   const accessToken = c.get('userInfo').accessToken;
-  const { results, error } = await oauthProvider.getOnBehalfOfToken({ accessToken, serviceNames });
-  if (error) throw new HTTPException(error.statusCode, { message: error.message });
+  const { results } = await oauthProvider.getOnBehalfOfToken({ accessToken, serviceNames });
 
   for (const { accessToken } of results) {
     setCookie(c, accessToken.name, accessToken.value, accessToken.options);
@@ -552,7 +551,7 @@ function bootstrap() {
       },
       frontendUrl: env.FRONTEND_URL,
       serverCallbackUrl: `${env.SERVER_URL}/auth/callback`,
-      secretKey: env.SECRET,
+      encryptionKey: env.SECRET,
     }),
   );
 
@@ -591,6 +590,7 @@ import { protectRoute } from 'oauth-entra-id/express';
 
 const protectedRouter: Router = express.Router();
 
+// Optional
 const callbackFunction: CallbackFunction = async ({ userInfo, injectData }) => {
   if (userInfo.isApp === false && !userInfo.injectedData) {
     const { error } = await injectData({ randomNumber: getRandomNumber() });
@@ -643,7 +643,7 @@ async function bootstrap() {
       },
       frontendUrl: env.FRONTEND_URL,
       serverCallbackUrl: `${env.SERVER_URL}/auth/callback`,
-      secretKey: env.SECRET,
+      encryptionKey: env.SECRET,
     }),
   );
 
@@ -677,7 +677,7 @@ export class AuthController {
 
   @Post('logout')
   async logout(@Req() req: Request, @Res() res: Response) {
-    handleLogout(req, res); // Delete cookies and returns {url: logoutUrl}
+    await handleLogout(req, res); // Delete cookies and returns {url: logoutUrl}
   }
 }
 ```
@@ -692,6 +692,7 @@ import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from
 import { type CallbackFunction, OAuthError } from 'oauth-entra-id';
 import { isAuthenticated } from 'oauth-entra-id/nestjs';
 
+// Optional
 const callbackFunction: CallbackFunction = async ({ userInfo, injectData }) => {
   if (userInfo.isApp === false && !userInfo.injectedData) {
     const { error } = await injectData({ randomNumber: getRandomNumber() });
@@ -718,7 +719,7 @@ import { Controller, Get, UseGuards, Req } from '@nestjs/common';
 import { ProtectRoute } from '../guards/protect-route.guard';
 
 @Controller('protected')
-@UseGuards(ProtectRoute)
+@UseGuards(ProtectRoute) // You can also apply the guard for specific routes, controller, or globally (you would need to write the logic in the guard)
 export class ProtectedController {
   constructor() {}
 
@@ -752,7 +753,17 @@ You can explore the demo apps to see how to integrate the package into your appl
 
 ## Architecture 🏗️
 
-![oauth-entra-id-flow](https://github.com/oauth-entra-id/oauth-entra-id/blob/main/assets/flow.png)
+### Authentication Flow 🚪
+
+![oauth-entra-id-flow](https://github.com/oauth-entra-id/oauth-entra-id/blob/main/assets/authentication-flow.png)
+
+### Middleware Flow ✅
+
+![oauth-entra-id-flow](https://github.com/oauth-entra-id/oauth-entra-id/blob/main/assets/middleware-flow.png)
+
+### On-Behalf-Of Flow 🌊
+
+![oauth-entra-id-flow](https://github.com/oauth-entra-id/oauth-entra-id/blob/main/assets/on-behalf-of-flow.png)
 
 ## Notes❗
 
@@ -780,3 +791,5 @@ axiosInstance.get('http://localhost:3000/protected/user-info');
 ## License 📜
 
 This project is licensed under the [MIT License](https://opensource.org/licenses/MIT).
+
+Thank you!

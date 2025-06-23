@@ -85,12 +85,12 @@ export async function handleCallback(req: Request, res: Response) {
  * ### Body:
  * - `frontendUrl` (optional) - Overrides the default redirect URL after logout.
  */
-export function handleLogout(req: Request, res: Response) {
+export async function handleLogout(req: Request, res: Response) {
   try {
     if (!req.oauthProvider || req.serverType !== 'nestjs') {
       throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE, status: 500 });
     }
-    $sharedHandleLogout(req, res);
+    await $sharedHandleLogout(req, res);
   } catch (err) {
     if (err instanceof OAuthError) throw err;
     if (err instanceof Error) throw new OAuthError('internal', { error: err.message });
@@ -143,8 +143,8 @@ export async function isAuthenticated(req: Request, res: Response, cb?: Callback
     if (!req.oauthProvider || req.serverType !== 'nestjs') {
       throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE, status: 500 });
     }
-    const { userInfo, injectData } = await $sharedMiddleware(req, res);
-    if (cb) await cb({ userInfo, injectData });
+    const { userInfo, tryInjectData } = await $sharedMiddleware(req, res);
+    if (cb) await cb({ userInfo, tryInjectData });
     return true;
   } catch (err) {
     if (err instanceof OAuthError) throw err;

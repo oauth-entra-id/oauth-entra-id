@@ -42,11 +42,11 @@ export type InjectDataFunction<T extends object = Record<string, any>> = (data: 
  * Optional callback invoked once a request is authenticated.
  *
  * @param params.userInfo - Information about the authenticated user or service principal.
- * @param params.injectData - Function to inject additional data into the access token.
+ * @param params.tryInjectData - Function to inject additional data into the access token.
  */
 export type CallbackFunction = (params: {
   userInfo: UserInfo;
-  injectData: InjectDataFunction;
+  tryInjectData: InjectDataFunction;
 }) => Promise<void> | void;
 
 export interface Endpoints {

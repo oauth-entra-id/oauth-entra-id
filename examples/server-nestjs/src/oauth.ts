@@ -8,32 +8,31 @@ export const oauthConfig = {
     tenantId: env.AZURE_RED_TENANT_ID,
     scopes: [env.AZURE_RED_CUSTOM_SCOPE],
     clientSecret: env.AZURE_RED_CLIENT_SECRET,
-  },
-  frontendUrl: env.REACT_FRONTEND_URL,
-  serverCallbackUrl: `${env.SERVER_URL}/auth/callback`,
-  secretKey: env.RED_SECRET_KEY,
-  advanced: {
-    acceptB2BRequests: true,
-    b2bTargetedApps: [
+    downstreamServices: [
+      {
+        serviceName: 'yellow',
+        scope: env.AZURE_YELLOW_EXPOSED_SCOPE,
+        serviceUrl: env.EXPRESS_URL,
+        encryptionKey: env.YELLOW_SECRET_KEY,
+        cryptoType: 'web-api',
+      },
+      {
+        serviceName: 'blue',
+        scope: env.AZURE_BLUE_EXPOSED_SCOPE,
+        serviceUrl: env.HONOJS_URL,
+        encryptionKey: env.BLUE_SECRET_KEY,
+      },
+    ],
+    b2bApps: [
       { appName: 'express', scope: env.AZURE_YELLOW_EXPOSED_SCOPE },
       { appName: 'fastify', scope: env.AZURE_RED_EXPOSED_SCOPE },
       { appName: 'honojs', scope: env.AZURE_BLUE_EXPOSED_SCOPE },
     ],
-    downstreamServices: {
-      areHttps: env.NODE_ENV !== 'development',
-      areSameOrigin: env.NODE_ENV !== 'development',
-      services: [
-        {
-          serviceName: 'yellow',
-          scope: env.AZURE_YELLOW_EXPOSED_SCOPE,
-          secretKey: env.YELLOW_SECRET_KEY,
-        },
-        {
-          serviceName: 'blue',
-          scope: env.AZURE_BLUE_EXPOSED_SCOPE,
-          secretKey: env.BLUE_SECRET_KEY,
-        },
-      ],
-    },
+  },
+  frontendUrl: env.REACT_FRONTEND_URL,
+  serverCallbackUrl: `${env.SERVER_URL}/auth/callback`,
+  encryptionKey: env.RED_SECRET_KEY,
+  advanced: {
+    acceptB2BRequests: true,
   },
 } satisfies OAuthConfig;

@@ -1,7 +1,5 @@
-import type { webcrypto } from 'node:crypto';
-import type nodeCrypto from 'node:crypto';
 import { $err, $ok, type Result } from '~/error';
-import type { CryptoType } from '~/types';
+import type { CryptoType, NodeCryptoKey, WebApiCryptoKey } from '~/types';
 import { $isString, encryptedNodeRegex, encryptedWebApiRegex } from '../zod';
 import { $createNodeSecretKey, $generateNodeUuid, $nodeDecrypt, $nodeEncrypt } from './node';
 import { $parseToObj, $stringifyObj } from './objects';
@@ -19,7 +17,7 @@ export function $generateUuid(cryptoType: CryptoType): Result<{ uuid: string }> 
 export function $createSecretKey(
   cryptoType: CryptoType,
   key: string,
-): Result<{ newSecretKey: string | nodeCrypto.KeyObject }> {
+): Result<{ newSecretKey: string | NodeCryptoKey }> {
   if (cryptoType === 'web-api') {
     return $ok({ newSecretKey: key });
   }
@@ -31,22 +29,22 @@ export function $createSecretKey(
 
 export function $createSecretKeys(
   cryptoType: CryptoType,
-  keys: { at: string; rt: string; state: string; ticket: string },
+  keys: { accessToken: string; refreshToken: string; state: string; ticket: string },
 ): Result<{
   secretKeys: {
-    at: string | nodeCrypto.KeyObject;
-    rt: string | nodeCrypto.KeyObject;
-    state: string | nodeCrypto.KeyObject;
-    ticket: string | nodeCrypto.KeyObject;
+    accessToken: string | NodeCryptoKey;
+    refreshToken: string | NodeCryptoKey;
+    state: string | NodeCryptoKey;
+    ticket: string | NodeCryptoKey;
   };
 }> {
   if (cryptoType === 'web-api') {
     return $ok({ secretKeys: keys });
   }
 
-  const atKey = $createNodeSecretKey(keys.at);
+  const atKey = $createNodeSecretKey(keys.accessToken);
   if (atKey.error) return $err(atKey.error);
-  const rtKey = $createNodeSecretKey(keys.rt);
+  const rtKey = $createNodeSecretKey(keys.refreshToken);
   if (rtKey.error) return $err(rtKey.error);
   const stateKey = $createNodeSecretKey(keys.state);
   if (stateKey.error) return $err(stateKey.error);
@@ -55,8 +53,8 @@ export function $createSecretKeys(
 
   return $ok({
     secretKeys: {
-      at: atKey.newSecretKey,
-      rt: rtKey.newSecretKey,
+      accessToken: atKey.newSecretKey,
+      refreshToken: rtKey.newSecretKey,
       state: stateKey.newSecretKey,
       ticket: ticketKey.newSecretKey,
     },
@@ -66,8 +64,8 @@ export function $createSecretKeys(
 export async function $encrypt(
   cryptoType: CryptoType,
   data: string | null,
-  key: string | webcrypto.CryptoKey | nodeCrypto.KeyObject,
-): Promise<Result<{ encrypted: string; newSecretKey: webcrypto.CryptoKey | undefined }>> {
+  key: string | WebApiCryptoKey | NodeCryptoKey,
+): Promise<Result<{ encrypted: string; newSecretKey: WebApiCryptoKey | undefined }>> {
   if (!$isString(data)) return $err('nullish_value', { error: 'Invalid data', description: 'Empty string to encrypt' });
 
   if (cryptoType === 'node') {
@@ -104,8 +102,8 @@ export async function $encrypt(
 export async function $decrypt(
   cryptoType: CryptoType,
   encrypted: string | null,
-  key: string | webcrypto.CryptoKey | nodeCrypto.KeyObject,
-): Promise<Result<{ result: string; newSecretKey: webcrypto.CryptoKey | undefined }>> {
+  key: string | WebApiCryptoKey | NodeCryptoKey,
+): Promise<Result<{ result: string; newSecretKey: WebApiCryptoKey | undefined }>> {
   if (!$isString(encrypted)) {
     return $err('nullish_value', { error: 'Invalid data', description: 'Empty string to decrypt' });
   }
@@ -151,8 +149,8 @@ export async function $decrypt(
 export async function $encryptObj(
   cryptoType: CryptoType,
   obj: Record<string, unknown> | null,
-  key: string | webcrypto.CryptoKey | nodeCrypto.KeyObject,
-): Promise<Result<{ encrypted: string; newSecretKey: webcrypto.CryptoKey | undefined }>> {
+  key: string | WebApiCryptoKey | NodeCryptoKey,
+): Promise<Result<{ encrypted: string; newSecretKey: WebApiCryptoKey | undefined }>> {
   const { result, error } = $stringifyObj(obj);
   if (error) return $err(error);
   return await $encrypt(cryptoType, result, key);
@@ -161,8 +159,8 @@ export async function $encryptObj(
 export async function $decryptObj(
   cryptoType: CryptoType,
   encrypted: string | null,
-  key: string | webcrypto.CryptoKey | nodeCrypto.KeyObject,
-): Promise<Result<{ result: Record<string, unknown>; newSecretKey: webcrypto.CryptoKey | undefined }>> {
+  key: string | WebApiCryptoKey | NodeCryptoKey,
+): Promise<Result<{ result: Record<string, unknown>; newSecretKey: WebApiCryptoKey | undefined }>> {
   const { result, newSecretKey, error } = await $decrypt(cryptoType, encrypted, key);
   if (error) return $err(error);
   const { result: parsedObj, error: parseError } = $parseToObj(result);

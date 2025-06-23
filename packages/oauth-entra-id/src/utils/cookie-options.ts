@@ -1,3 +1,5 @@
+import type { Cookies } from '~/types';
+
 export const ACCESS_TOKEN_NAME = 'at' as const;
 export const REFRESH_TOKEN_NAME = 'rt' as const;
 
@@ -6,9 +8,9 @@ export function $cookieOptions(params: {
   secure: boolean;
   sameSite: boolean;
   timeUnit: 'sec' | 'ms';
-  atExp: number;
-  rtExp: number;
-}) {
+  atMaxAge: number;
+  rtMaxAge?: number;
+}): Cookies['DefaultCookieOptions'] {
   const timeFrame = params.timeUnit === 'sec' ? 1 : 1000;
   const baseOptions = {
     httpOnly: true,
@@ -20,11 +22,11 @@ export function $cookieOptions(params: {
   return {
     accessToken: {
       name: `${`${params.secure ? '__Host-' : ''}${ACCESS_TOKEN_NAME}-${params.clientId}`}`,
-      options: { ...baseOptions, maxAge: params.atExp * timeFrame },
+      options: { ...baseOptions, maxAge: params.atMaxAge * timeFrame },
     },
     refreshToken: {
       name: `${`${params.secure ? '__Host-' : ''}${REFRESH_TOKEN_NAME}-${params.clientId}`}`,
-      options: { ...baseOptions, maxAge: params.rtExp * timeFrame },
+      options: { ...baseOptions, maxAge: params.rtMaxAge ?? 0 * timeFrame },
     },
     deleteOptions: { ...baseOptions, sameSite: params.secure ? 'none' : undefined, maxAge: 0 },
   } as const;

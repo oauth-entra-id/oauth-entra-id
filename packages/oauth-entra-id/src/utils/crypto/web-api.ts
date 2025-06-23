@@ -1,6 +1,6 @@
 import { Buffer } from 'node:buffer';
-import type { webcrypto } from 'node:crypto';
 import { $err, $ok, type Result } from '~/error';
+import type { WebApiCryptoKey } from '~/types';
 import { $isString } from '../zod';
 import { FORMAT, WEB_API_ALGORITHM } from './encrypt';
 
@@ -19,7 +19,7 @@ export function $generateWebApiUuid(): Result<{ uuid: string }> {
   }
 }
 
-export function $isWebApiKey(key: unknown): key is webcrypto.CryptoKey {
+export function $isWebApiKey(key: unknown): key is WebApiCryptoKey {
   return (
     key !== null &&
     key !== undefined &&
@@ -37,8 +37,8 @@ export function $isWebApiKey(key: unknown): key is webcrypto.CryptoKey {
 }
 
 export async function $createWebApiSecretKey(
-  key: string | webcrypto.CryptoKey,
-): Promise<Result<{ newSecretKey: webcrypto.CryptoKey }>> {
+  key: string | WebApiCryptoKey,
+): Promise<Result<{ newSecretKey: WebApiCryptoKey }>> {
   if (typeof key === 'string') {
     if (!$isString(key)) {
       return $err('nullish_value', { error: 'Invalid secret key', description: 'Empty key for webApi', status: 500 });
@@ -67,7 +67,7 @@ export async function $createWebApiSecretKey(
 
 export async function $webApiEncrypt(
   data: string,
-  secretKey: webcrypto.CryptoKey,
+  secretKey: WebApiCryptoKey,
 ): Promise<Result<{ iv: string; encryptedWithTag: string }>> {
   try {
     const iv = crypto.getRandomValues(new Uint8Array(12));
@@ -91,7 +91,7 @@ export async function $webApiEncrypt(
 export async function $webApiDecrypt(
   iv: string,
   encryptedWithTag: string,
-  secretKey: webcrypto.CryptoKey,
+  secretKey: WebApiCryptoKey,
 ): Promise<Result<{ result: string }>> {
   try {
     const decrypted = await crypto.subtle.decrypt(

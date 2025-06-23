@@ -3,9 +3,9 @@ import type { Request, Response } from 'express';
 import { type CallbackFunction, OAuthError } from 'oauth-entra-id';
 import { isAuthenticated } from 'oauth-entra-id/nestjs';
 
-const callbackFunction: CallbackFunction = async ({ userInfo, injectData }) => {
+const callbackFunc: CallbackFunction = async ({ userInfo, tryInjectData }) => {
   if (!userInfo.isApp && !userInfo.injectedData) {
-    const { error } = await injectData({ randomNumber: getRandomNumber() });
+    const { error } = await tryInjectData({ randomNumber: getRandomNumber() });
     if (error) throw new OAuthError(error);
   }
 };
@@ -16,7 +16,7 @@ export class ProtectRouteGuard implements CanActivate {
     const httpContext = context.switchToHttp();
     const req = httpContext.getRequest<Request>();
     const res = httpContext.getResponse<Response>();
-    return await isAuthenticated(req, res, callbackFunction);
+    return await isAuthenticated(req, res, callbackFunc);
   }
 }
 

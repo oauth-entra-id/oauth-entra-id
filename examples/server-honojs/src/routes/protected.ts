@@ -3,7 +3,6 @@ import axios from 'axios';
 import { Hono } from 'hono';
 import { setCookie } from 'hono/cookie';
 import { HTTPException } from 'hono/http-exception';
-import { OAuthError } from 'oauth-entra-id';
 import { z } from 'zod/v4';
 import { env } from '~/env';
 import { type ProtectRoute, protectRoute } from '~/middlewares/protect-route';
@@ -28,11 +27,10 @@ protectedRouter.post('/on-behalf-of', zValidator('json', zSchemas.onBehalfOf), a
   if (c.get('userInfo')?.isApp === true) throw new HTTPException(401, { message: 'B2B users cannot use OBO' });
 
   const { serviceNames } = c.req.valid('json');
-  const { results, error } = await oauthProvider.getTokenOnBehalfOf({
+  const { results } = await oauthProvider.getTokenOnBehalfOf({
     accessToken: c.get('accessTokenInfo').jwt,
     serviceNames,
   });
-  if (error) throw new OAuthError(error);
 
   for (const { accessToken } of results) {
     setCookie(c, accessToken.name, accessToken.value, accessToken.options);
@@ -42,14 +40,11 @@ protectedRouter.post('/on-behalf-of', zValidator('json', zSchemas.onBehalfOf), a
 
 protectedRouter.post('/get-b2b-info', zValidator('json', zSchemas.getB2BInfo), async (c) => {
   const { appName } = c.req.valid('json');
-  const { result, error } = await oauthProvider.getB2BToken({ appName });
-
-  if (error) throw new HTTPException(error.statusCode, { message: error.message });
-  const { accessToken } = result;
+  const { result } = await oauthProvider.getB2BToken({ appName });
 
   const serverUrl = serversMap[appName];
   const axiosResponse = await axios.get(`${serverUrl}/protected/b2b-info`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
+    headers: { Authorization: `Bearer ${result.accessToken}` },
   });
   const { data: b2bRes, error: b2bResError } = zB2BResponse.safeParse(axiosResponse.data);
   if (b2bResError) throw new HTTPException(500, { message: 'Invalid response from B2B server' });

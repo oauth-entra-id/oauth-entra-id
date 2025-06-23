@@ -52,7 +52,7 @@ export function createApp() {
 
   app.onError((err, c) => {
     const { statusCode, message, description } = errorFilter(err);
-    return c.json({ error: message, description }, statusCode as ContentfulStatusCode);
+    return c.json({ error: message, statusCode, description }, statusCode as ContentfulStatusCode);
   });
 
   app.notFound((c) => c.json({ error: 'Not found' }, 404));

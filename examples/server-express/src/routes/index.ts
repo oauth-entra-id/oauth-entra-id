@@ -7,16 +7,16 @@ import { publicRouter } from './public';
 
 export const routesRouter: Router = express.Router();
 
-const callbackFunction: CallbackFunction = async ({ userInfo, injectData }) => {
+const callbackFunc: CallbackFunction = async ({ userInfo, tryInjectData }) => {
   if (userInfo.isApp === false && !userInfo.injectedData) {
-    const { error } = await injectData({ randomNumber: getRandomNumber() });
+    const { error } = await tryInjectData({ randomNumber: getRandomNumber() });
     if (error) throw new OAuthError(error);
   }
 };
 
 routesRouter.use('/', publicRouter);
 routesRouter.use('/auth', authRouter);
-routesRouter.use('/protected', protectRoute(callbackFunction), protectedRouter);
+routesRouter.use('/protected', protectRoute(callbackFunc), protectedRouter);
 
 function getRandomNumber() {
   return Math.floor(Math.random() * 100);

@@ -18,7 +18,7 @@ import { getTokensOnBehalfOf, logoutAndGetLogoutUrl } from '~/services/user';
 import { type Color, type Server, serversMap, useServerStore } from '~/stores/server-store';
 import { useUserStore } from '~/stores/user-store';
 
-export const Route = createFileRoute('/(protected)/')({
+export const Route = createFileRoute('/')({
   component: Home,
 });
 
@@ -26,7 +26,7 @@ function Home() {
   const queryClient = useQueryClient();
   const { width, height } = useWindowDimensions();
   const { user, setUser } = useUserStore();
-  const { mutate: handleLogout } = useMutation({
+  const handleLogout = useMutation({
     mutationFn: logoutAndGetLogoutUrl,
     onSuccess: async (url) => {
       await queryClient.invalidateQueries({ queryKey: ['user'] });
@@ -75,7 +75,7 @@ function Home() {
               <GetB2BData />
             </CardContent>
             <CardFooter className="flex flex-col items-center justify-center space-y-2">
-              <Button variant="destructive" className="w-full" onClick={() => handleLogout()}>
+              <Button variant="destructive" className="w-full" onClick={() => handleLogout.mutate()}>
                 Logout <LogOut />
               </Button>
             </CardFooter>
@@ -86,7 +86,7 @@ function Home() {
       </div>
 
       <div className="absolute inset-0 -z-10 pointer-events-none">
-        <Confetti width={width} height={height} numberOfPieces={200} recycle={false} gravity={1} friction={0.95} />
+        <Confetti width={width} height={height} numberOfPieces={150} recycle={false} gravity={1} friction={0.95} />
       </div>
     </>
   );
@@ -95,7 +95,7 @@ function Home() {
 function DownstreamServices() {
   const [selectedServices, setSelectedServices] = useState<Color[]>([]);
   const appInfo = useServerStore((state) => state.appInfo);
-  const { mutate: handleOnBehalfOf } = useMutation({
+  const handleOnBehalfOf = useMutation({
     mutationFn: () => getTokensOnBehalfOf(selectedServices),
     onSuccess: (tokensSet) => {
       setSelectedServices([]);
@@ -147,7 +147,7 @@ function DownstreamServices() {
             variant="outline"
             className="text-sm font-semibold w-full"
             disabled={selectedServices.length === 0}
-            onClick={() => handleOnBehalfOf()}>
+            onClick={() => handleOnBehalfOf.mutate()}>
             Get Tokens
           </Button>
         </div>
@@ -160,7 +160,7 @@ function GetB2BData() {
   const [pokemon, setPokemon] = useState<string | undefined>();
   const [selectedApp, setSelectedApp] = useState<Server | undefined>();
   const server = useServerStore((state) => state.server);
-  const { mutate: handleGetUserInfo } = useMutation({
+  const handleGetB2BInfo = useMutation({
     mutationFn: () => getB2BInfo(selectedApp),
     onSuccess: (data) => {
       setSelectedApp(undefined);
@@ -205,7 +205,7 @@ function GetB2BData() {
             variant="outline"
             size="sm"
             className="text-sm font-semibold w-full"
-            onClick={() => handleGetUserInfo()}
+            onClick={() => handleGetB2BInfo.mutate()}
             disabled={!selectedApp}>
             Get Data
           </Button>
