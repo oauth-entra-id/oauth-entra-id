@@ -753,7 +753,17 @@ You can explore the demo apps to see how to integrate the package into your appl
 
 ## Architecture 🏗️
 
-![oauth-entra-id-flow](https://github.com/oauth-entra-id/oauth-entra-id/blob/main/assets/flow.png)
+### Authentication Flow 🚪
+
+![oauth-entra-id-flow](https://github.com/oauth-entra-id/oauth-entra-id/blob/main/assets/authentication-flow.png)
+
+### Middleware Flow ✅
+
+![oauth-entra-id-flow](https://github.com/oauth-entra-id/oauth-entra-id/blob/main/assets/middleware-flow.png)
+
+### On-Behalf-Of Flow 🌊
+
+![oauth-entra-id-flow](https://github.com/oauth-entra-id/oauth-entra-id/blob/main/assets/on-behalf-of-flow.png)
 
 ## Notes❗
 
