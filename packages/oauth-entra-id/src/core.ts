@@ -370,7 +370,7 @@ export class OAuthProvider {
         msalResponse: msalResponse,
       });
     } catch (err) {
-      return $coreErrors(err, 'tryRefreshTokens');
+      return $coreErrors(err, 'tryRefreshTokens', 401);
     }
   }
 

@@ -2,7 +2,7 @@ import { ConfidentialClientApplication, CryptoProvider } from '@azure/msal-node'
 import { JwksClient } from 'jwks-rsa';
 import type { z } from 'zod/v4';
 import type { OAuthProvider } from '~/core';
-import { $err, $ok, OAuthError, type Result, type ResultErr } from '~/error';
+import { $err, $ok, type HttpErrorCodes, OAuthError, type Result } from '~/error';
 import type {
   Azure,
   B2BApp,
@@ -194,6 +194,7 @@ export function $coreErrors(
   method: {
     [K in keyof OAuthProvider]: OAuthProvider[K] extends (...args: any[]) => any ? K : never;
   }[keyof OAuthProvider],
+  defaultStatusCode: HttpErrorCodes = 500,
 ) {
   if (err instanceof OAuthError) {
     return $err(err.type, { error: err.message, description: err.description, status: err.statusCode });
@@ -203,7 +204,7 @@ export function $coreErrors(
     return $err('internal', {
       error: 'An Error occurred',
       description: `method: ${method}, message: ${err.message}, stack : ${err.stack}`,
-      status: 500,
+      status: defaultStatusCode,
     });
   }
 
@@ -211,13 +212,13 @@ export function $coreErrors(
     return $err('internal', {
       error: 'An Error occurred',
       description: `method: ${method}, message: ${err}`,
-      status: 500,
+      status: defaultStatusCode,
     });
   }
 
   return $err('internal', {
     error: 'Unknown error',
     description: `method: ${method}, error: ${JSON.stringify(err)}`,
-    status: 500,
+    status: defaultStatusCode,
   });
 }

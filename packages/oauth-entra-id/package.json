@@ -60,11 +60,11 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@azure/msal-node": "^3.6.0",
+    "@azure/msal-node": "^3.6.1",
     "jsonwebtoken": "^9.0.2",
     "jwks-rsa": "^3.2.0",
     "pako": "^2.1.0",
-    "zod": "^3.25.65"
+    "zod": "^3.25.67"
   },
   "peerDependencies": {
     "express": ">=4.21.0"
@@ -81,7 +81,7 @@
     "@types/pako": "^2.0.3",
     "tsup": "^8.5.0",
     "typescript": "^5.8.3",
-    "vitest": "^3.2.3"
+    "vitest": "^3.2.4"
   },
   "license": "MIT",
   "keywords": ["auth", "oauth2", "typescript", "microsoft", "entra-id", "azure", "jwt", "express", "nestjs"]

@@ -75,45 +75,45 @@ Setting up On-Behalf-Of (OBO) flow for downstream services (works only if applic
 ## Configuration ⚙️
 
 ```typescript
-interface OAuthConfig {
+export interface OAuthConfig {
   azure: {
     clientId: string;
-    tenantId: 'common' | string; // 'common' for multi-tenant apps
+    tenantId: string; // 'common' for multi-tenant apps or your specific tenant ID
     scopes: string[]; // e.g., ['openid', 'profile', 'email']
     clientSecret: string;
+
+    // Optional for On-Behalf-Of (OBO) flow
+    downstreamServices?: Array<{
+      serviceName: string; // Unique identifier of the downstream service
+      scope: string; // Usually ends with `/.default`
+      serviceUrl: string | string[]; // URL(s) of the downstream service
+      encryptionKey: string; // 32 character encryption key for the service
+      cryptoType?: 'node' | 'web-api'; // Defaults to 'node'
+      accessTokenMaxAge?: number; // Defaults to 1 hour
+    }>;
+
+    // Optional for B2B apps
+    b2bApps?: Array<{
+      appName: string; // Unique identifier of the B2B app
+      scope: string; // Usually ends with `/.default`
+    }>;
   };
   frontendUrl: string | string[]; // Allowed frontend redirect URL(s)
   serverCallbackUrl: string; // Server callback URL (must match the one registered in Azure)
-  secretKey: string; // 32 character secret key
+  encryptionKey: string; // 32 character encryption key for the access and refresh tokens
+
+  // Optional advanced settings
   advanced?: {
-    loginPrompt?: 'email' | 'select-account' | 'sso'; //Defaults to `'sso'`
+    loginPrompt?: 'email' | 'select-account' | 'sso'; // Defaults to 'sso'
     acceptB2BRequests?: boolean; // If true, allows B2B authentication. Defaults to `false`
-    b2bTargetedApps?: Array<{
-      appName: string; // Unique identifier of the B2B app
-      scope: string; // Usually end with `/.default`
-    }>;
-    disableCompression: boolean; //Whether to disable compression for access tokens. Defaults to `false`
-    cryptoType?: 'node' | 'web-api'; // Defaults to `'node'`
+    cryptoType?: 'node' | 'web-api'; // Defaults to 'node'
+    disableCompression?: boolean; //Whether to disable compression for access tokens. Defaults to `false`
     cookies?: {
-      timeUnit?: 'ms' | 'sec'; // Defaults to `'sec'`
-      disableHttps?: boolean;
+      timeUnit?: 'ms' | 'sec'; // Defaults to 'sec'
+      disableSecure?: boolean;
       disableSameSite?: boolean;
-      accessTokenExpiry?: number; // Defaults to 1 hour
-      refreshTokenExpiry?: number; // Defaults to 30 days
-    };
-    downstreamServices?: {
-      areHttps: boolean;
-      areSameOrigin: boolean;
-      services: Array<{
-        serviceName: string; // Unique identifier of the downstream service
-        scope: string; // Usually end with `/.default`
-        secretKey: string; // 32 character secret key for the service
-        cryptoType?: 'node' | 'web-api'; // Defaults to `'node'`
-        isHttps?: boolean;
-        isSameOrigin?: boolean;
-        accessTokenExpiry?: number;
-        refreshTokenExpiry?: number;
-      }>;
+      accessTokenMaxAge?: number; // Defaults to 1 hour
+      refreshTokenMaxAge?: number; // Defaults to 30 days
     };
   };
 }
