@@ -83,7 +83,7 @@ export async function $sharedHandleOnBehalfOf(req: Request, res: Response) {
   }
 
   const { results } = await req.oauthProvider.getTokenOnBehalfOf({
-    serviceNames: body.serviceNames,
+    services: body.services,
     accessToken: req.accessTokenInfo.jwt,
   });
 

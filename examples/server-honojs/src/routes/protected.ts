@@ -11,8 +11,8 @@ import { oauthProvider } from '~/oauth';
 const zAvailableServers = z.enum(['express', 'nestjs', 'fastify']);
 
 const zSchemas = {
-  onBehalfOf: z.object({ serviceNames: z.array(z.string()) }),
-  getB2BInfo: z.object({ appName: zAvailableServers }),
+  onBehalfOf: z.object({ services: z.array(z.string()) }),
+  getB2BInfo: z.object({ app: zAvailableServers }),
 };
 
 export const protectedRouter = new Hono<ProtectRoute>();
@@ -26,10 +26,10 @@ protectedRouter.get('/user-info', (c) => {
 protectedRouter.post('/on-behalf-of', zValidator('json', zSchemas.onBehalfOf), async (c) => {
   if (c.get('userInfo')?.isApp === true) throw new HTTPException(401, { message: 'B2B users cannot use OBO' });
 
-  const { serviceNames } = c.req.valid('json');
+  const { services } = c.req.valid('json');
   const { results } = await oauthProvider.getTokenOnBehalfOf({
     accessToken: c.get('accessTokenInfo').jwt,
-    serviceNames,
+    services,
   });
 
   for (const { accessToken } of results) {
@@ -39,10 +39,10 @@ protectedRouter.post('/on-behalf-of', zValidator('json', zSchemas.onBehalfOf), a
 });
 
 protectedRouter.post('/get-b2b-info', zValidator('json', zSchemas.getB2BInfo), async (c) => {
-  const { appName } = c.req.valid('json');
-  const { result } = await oauthProvider.getB2BToken({ appName });
+  const { app } = c.req.valid('json');
+  const { result } = await oauthProvider.getB2BToken({ app });
 
-  const serverUrl = serversMap[appName];
+  const serverUrl = serversMap[app];
   const axiosResponse = await axios.get(`${serverUrl}/protected/b2b-info`, {
     headers: { Authorization: `Bearer ${result.accessToken}` },
   });

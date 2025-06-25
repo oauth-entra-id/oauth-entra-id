@@ -63,7 +63,7 @@ export interface Endpoints {
     frontendUrl?: string;
   };
   OnBehalfOf: {
-    serviceNames: string[];
+    services: string[];
   };
 }
 

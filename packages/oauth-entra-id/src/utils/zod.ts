@@ -130,13 +130,13 @@ export const zMethods = {
   getTokenByCode: z.object({ code: zStr.max(2048).regex(base64urlWithDotRegex), state: zEncrypted }),
   getLogoutUrl: z.object({ frontendUrl: zUrl.max(4096).optional() }).default({}),
   getB2BToken: z.union([
-    z.object({ appName: zServiceName }).transform((data) => ({ appNames: [data.appName] })),
-    z.object({ appNames: z.array(zServiceName).min(1) }),
+    z.object({ app: zServiceName }).transform((data) => ({ apps: [data.app] })),
+    z.object({ apps: z.array(zServiceName).min(1) }),
   ]),
   getTokenOnBehalfOf: z.union([
     z
-      .object({ accessToken: z.union([zJwt, zEncrypted]), serviceName: zServiceName })
-      .transform((data) => ({ accessToken: data.accessToken, serviceNames: [data.serviceName] })),
-    z.object({ accessToken: z.union([zJwt, zEncrypted]), serviceNames: z.array(zServiceName).min(1) }),
+      .object({ accessToken: z.union([zJwt, zEncrypted]), service: zServiceName })
+      .transform((data) => ({ accessToken: data.accessToken, services: [data.service] })),
+    z.object({ accessToken: z.union([zJwt, zEncrypted]), services: z.array(zServiceName).min(1) }),
   ]),
 };

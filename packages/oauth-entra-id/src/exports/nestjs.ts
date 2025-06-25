@@ -14,7 +14,7 @@ import type { OAuthConfig } from '~/types';
 
 const ERROR_MESSAGE = 'Make sure you used NestJS export and you used authConfig';
 
-let globalNestjsOAuthProvider: OAuthProvider | null = null;
+export let nestjsOAuthProvider: OAuthProvider = undefined as unknown as OAuthProvider;
 
 /**
  * Factory that binds a singleton OAuthProvider to every NestJS request.
@@ -23,11 +23,11 @@ let globalNestjsOAuthProvider: OAuthProvider | null = null;
  */
 export function authConfig(config: OAuthConfig) {
   return (req: Request, res: Response, next: NextFunction) => {
-    if (!globalNestjsOAuthProvider) {
-      globalNestjsOAuthProvider = new OAuthProvider(config);
+    if (!nestjsOAuthProvider) {
+      nestjsOAuthProvider = new OAuthProvider(config);
     }
 
-    req.oauthProvider = globalNestjsOAuthProvider;
+    req.oauthProvider = nestjsOAuthProvider;
     req.serverType = 'nestjs';
 
     next();

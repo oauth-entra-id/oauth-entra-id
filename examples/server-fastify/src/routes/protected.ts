@@ -9,10 +9,10 @@ import { oauthProvider } from '~/oauth';
 
 const tSchemas = {
   onBehalfOf: t.Object({
-    serviceNames: t.Array(t.String(), { minItems: 1 }),
+    services: t.Array(t.String(), { minItems: 1 }),
   }),
   getB2BInfo: t.Object({
-    appName: t.Union([t.Literal('express'), t.Literal('nestjs'), t.Literal('honojs')]),
+    app: t.Union([t.Literal('express'), t.Literal('nestjs'), t.Literal('honojs')]),
   }),
 };
 
@@ -26,11 +26,11 @@ export const protectedRouter: FastifyPluginAsyncTypebox = async (app) => {
   app.post('/on-behalf-of', { schema: { body: tSchemas.onBehalfOf } }, async (req, reply) => {
     if (req.userInfo?.isApp === true) throw new HttpException('B2B users cannot use OBO', 401);
 
-    const { serviceNames } = req.body;
+    const { services } = req.body;
 
     const { results } = await oauthProvider.getTokenOnBehalfOf({
       accessToken: req.accessTokenInfo.jwt,
-      serviceNames,
+      services,
     });
 
     for (const { accessToken } of results) {
@@ -41,10 +41,10 @@ export const protectedRouter: FastifyPluginAsyncTypebox = async (app) => {
   });
 
   app.post('/get-b2b-info', { schema: { body: tSchemas.getB2BInfo } }, async (req, reply) => {
-    const { appName } = req.body;
-    const { result } = await oauthProvider.getB2BToken({ appName });
+    const { app } = req.body;
+    const { result } = await oauthProvider.getB2BToken({ app });
 
-    const serverUrl = serversMap[appName];
+    const serverUrl = serversMap[app];
     const axiosResponse = await axios.get(`${serverUrl}/protected/b2b-info`, {
       headers: { Authorization: `Bearer ${result.accessToken}` },
     });

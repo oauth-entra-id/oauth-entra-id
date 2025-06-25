@@ -1,10 +1,9 @@
 import { Body, Controller, Get, HttpException, Post, Req, Res, UseGuards } from '@nestjs/common';
 import axios from 'axios';
 import type { Request, Response } from 'express';
-import type { OAuthProvider as OAuthProviderType, UserInfo as UserInfoType } from 'oauth-entra-id';
-import { handleOnBehalfOf } from 'oauth-entra-id/nestjs';
+import type { UserInfo as UserInfoType } from 'oauth-entra-id';
+import { handleOnBehalfOf, nestjsOAuthProvider } from 'oauth-entra-id/nestjs';
 import { z } from 'zod/v4';
-import { OAuthProvider } from '~/decorators/oauth.decorator';
 import { UserInfo } from '~/decorators/user-info.decorator';
 import { env } from '~/env';
 import { ProtectRouteGuard } from '~/guards/protect-route.guard';
@@ -25,10 +24,10 @@ export class ProtectedController {
   }
 
   @Post('get-b2b-info')
-  async getB2BInfo(@Body() body: GetB2BInfoDto, @OAuthProvider() oauthProvider: OAuthProviderType) {
-    const { result } = await oauthProvider.getB2BToken({ appName: body.appName });
+  async getB2BInfo(@Body() body: GetB2BInfoDto) {
+    const { result } = await nestjsOAuthProvider.getB2BToken({ app: body.app });
 
-    const serverUrl = serversMap[body.appName];
+    const serverUrl = serversMap[body.app];
     const axiosResponse = await axios.get(`${serverUrl}/protected/b2b-info`, {
       headers: { Authorization: `Bearer ${result.accessToken}` },
     });

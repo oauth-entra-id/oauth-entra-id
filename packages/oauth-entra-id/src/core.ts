@@ -429,10 +429,10 @@ export class OAuthProvider {
    * @returns Results containing an array of B2B app tokens and metadata.
    * @throws {OAuthError} if something goes wrong.
    */
-  async getB2BToken(params: { appName: string }): Promise<{ result: GetB2BTokenResult }>;
-  async getB2BToken(params: { appsNames: string[] }): Promise<{ results: GetB2BTokenResult[] }>;
+  async getB2BToken(params: { app: string }): Promise<{ result: GetB2BTokenResult }>;
+  async getB2BToken(params: { apps: string[] }): Promise<{ results: GetB2BTokenResult[] }>;
   async getB2BToken(
-    params: { appName: string } | { appsNames: string[] },
+    params: { app: string } | { apps: string[] },
   ): Promise<{ result: GetB2BTokenResult } | { results: GetB2BTokenResult[] }> {
     if (!this.b2bMap) throw new OAuthError('misconfiguration', { error: 'B2B apps not configured', status: 500 });
 
@@ -440,7 +440,7 @@ export class OAuthProvider {
     if (paramsError)
       throw new OAuthError('bad_request', { error: 'Invalid params', description: $prettyErr(paramsError) });
 
-    const apps = parsedParams.appNames.map((appName) => this.b2bMap?.get(appName)).filter((app) => !!app);
+    const apps = parsedParams.apps.map((app) => this.b2bMap?.get(app)).filter((app) => !!app);
     if (!apps || apps.length === 0) {
       throw new OAuthError('bad_request', { error: 'Invalid params', description: 'B2B app not found' });
     }
@@ -468,7 +468,7 @@ export class OAuthProvider {
         throw new OAuthError('internal', { error: 'Failed to get B2B token', status: 500 });
       }
 
-      return 'appName' in params ? { result: results[0] as GetB2BTokenResult } : { results };
+      return 'app' in params ? { result: results[0] as GetB2BTokenResult } : { results };
     } catch (err) {
       throw new OAuthError($coreErrors(err, 'getB2BToken'));
     }
@@ -489,14 +489,14 @@ export class OAuthProvider {
    * @returns Results containing an array of OBO tokens and metadata for the specified services.
    * @throws {OAuthError} if something goes wrong.
    */
-  async getTokenOnBehalfOf(params: { accessToken: string; serviceName: string }): Promise<{
+  async getTokenOnBehalfOf(params: { accessToken: string; service: string }): Promise<{
     result: GetTokenOnBehalfOfResult;
   }>;
-  async getTokenOnBehalfOf(params: { accessToken: string; serviceNames: string[] }): Promise<{
+  async getTokenOnBehalfOf(params: { accessToken: string; services: string[] }): Promise<{
     results: GetTokenOnBehalfOfResult[];
   }>;
   async getTokenOnBehalfOf(
-    params: { accessToken: string; serviceName: string } | { accessToken: string; serviceNames: string[] },
+    params: { accessToken: string; service: string } | { accessToken: string; services: string[] },
   ): Promise<{ result: GetTokenOnBehalfOfResult } | { results: GetTokenOnBehalfOfResult[] }> {
     if (!this.oboMap) throw new OAuthError('misconfiguration', { error: 'OBO services not configured', status: 500 });
 
@@ -505,9 +505,7 @@ export class OAuthProvider {
       throw new OAuthError('bad_request', { error: 'Invalid params', description: $prettyErr(paramsError) });
     }
 
-    const services = parsedParams.serviceNames
-      .map((serviceName) => this.oboMap?.get(serviceName))
-      .filter((service) => !!service);
+    const services = parsedParams.services.map((service) => this.oboMap?.get(service)).filter((service) => !!service);
 
     if (!services || services.length === 0) {
       throw new OAuthError('bad_request', { error: 'Invalid params', description: 'OBO service not found' });
@@ -554,7 +552,7 @@ export class OAuthProvider {
         throw new OAuthError('internal', { error: 'Failed to get OBO token', status: 500 });
       }
 
-      return 'serviceName' in params ? { result: results[0] as GetTokenOnBehalfOfResult } : { results };
+      return 'service' in params ? { result: results[0] as GetTokenOnBehalfOfResult } : { results };
     } catch (err) {
       throw new OAuthError($coreErrors(err, 'getTokenOnBehalfOf'));
     }

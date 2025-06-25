@@ -444,7 +444,7 @@ Note: This method is only available if `b2bTargetedApps` is configured in the `a
 Parameters:
 
 - `params`:
-  - `appName` or `appsNames` - The name of the B2B app or an array of app names to generate tokens for.
+  - `app` or `apps` - The name of the B2B app or an array of app names to generate tokens for.
 
 Returns:
 
@@ -457,8 +457,8 @@ Returns:
 
 ```typescript
 protectedRouter.post('/get-b2b-info', async (c) => {
-  const { appName } = await c.req.json();
-  const { result } = await oauthProvider.getB2BToken({ appName });
+  const { app } = await c.req.json();
+  const { result } = await oauthProvider.getB2BToken({ app });
   const res = await axios.get(env.OTHER_SERVER, {
     headers: { Authorization: `Bearer ${result.accessToken}` },
   });
@@ -478,7 +478,7 @@ Parameters:
 
 - `params`:
   - `accessToken` - The access token string either encrypted or in JWT format.
-  - `serviceName` or `serviceNames` - The name of the downstream service or an array of service names to acquire tokens for.
+  - `service` or `services` - The name of the downstream service or an array of service names to acquire tokens for.
 
 Returns:
 
@@ -492,9 +492,9 @@ Returns:
 
 ```typescript
 app.post('/on-behalf-of', protectRoute, async (c) => {
-  const { serviceNames } = await c.req.json();
+  const { services } = await c.req.json();
   const accessToken = c.get('userInfo').accessToken;
-  const { results } = await oauthProvider.getOnBehalfOfToken({ accessToken, serviceNames });
+  const { results } = await oauthProvider.getOnBehalfOfToken({ accessToken, services });
 
   for (const { accessToken } of results) {
     setCookie(c, accessToken.name, accessToken.value, accessToken.options);
