@@ -24,7 +24,7 @@ protectedRouter.post('/get-b2b-info', async (req, res) => {
 
   const serverUrl = serversMap[body.app];
   const axiosResponse = await axios.get(`${serverUrl}/protected/b2b-info`, {
-    headers: { Authorization: `Bearer ${result.accessToken}` },
+    headers: { Authorization: `Bearer ${result.token}` },
   });
 
   const { data: b2bRes, error: b2bResError } = zB2BResponse.safeParse(axiosResponse.data);

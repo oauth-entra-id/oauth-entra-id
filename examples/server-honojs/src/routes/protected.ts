@@ -44,7 +44,7 @@ protectedRouter.post('/get-b2b-info', zValidator('json', zSchemas.getB2BInfo), a
 
   const serverUrl = serversMap[app];
   const axiosResponse = await axios.get(`${serverUrl}/protected/b2b-info`, {
-    headers: { Authorization: `Bearer ${result.accessToken}` },
+    headers: { Authorization: `Bearer ${result.token}` },
   });
   const { data: b2bRes, error: b2bResError } = zB2BResponse.safeParse(axiosResponse.data);
   if (b2bResError) throw new HTTPException(500, { message: 'Invalid response from B2B server' });

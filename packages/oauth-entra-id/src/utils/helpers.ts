@@ -130,7 +130,19 @@ function $getB2BInfo(
 ): Result<{ b2bMap: Map<string, B2BApp> | undefined; b2bNames: string[] | undefined }> {
   if (!b2bApps) return $ok({ b2bMap: undefined, b2bNames: undefined });
 
-  const b2bMap = new Map(b2bApps.map((app) => [app.appName, app]));
+  const b2bMap = new Map(
+    b2bApps.map((app) => [
+      app.appName,
+      {
+        appName: app.appName,
+        scope: app.scope,
+        token: null,
+        exp: null,
+        aud: null,
+        msalResponse: null,
+      } satisfies B2BApp,
+    ]),
+  );
   const b2bNames = Array.from(b2bMap.keys());
 
   if (b2bNames.length !== b2bApps.length) {

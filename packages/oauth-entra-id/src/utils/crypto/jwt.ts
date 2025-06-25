@@ -15,7 +15,7 @@ export function $decodeJwt(jwtToken: string): Result<{ decodedJwt: jwt.Jwt }> {
   }
 }
 
-export function $getAud(jwtToken: string): Result<string> {
+export function $getAudAndExp(jwtToken: string): Result<{ aud: string; exp: number }> {
   const { decodedJwt, error } = $decodeJwt(jwtToken);
   if (error) return $err(error);
 
@@ -30,7 +30,14 @@ export function $getAud(jwtToken: string): Result<string> {
       description: `Invalid audience (aud) claim, payload: ${JSON.stringify(decodedJwt.payload)}`,
     });
 
-  return $ok(aud);
+  const exp = decodedJwt.payload.exp;
+  if (typeof exp !== 'number')
+    return $err('jwt_error', {
+      error: 'Invalid JWT token',
+      description: `Invalid expiration (exp) claim, payload: ${JSON.stringify(decodedJwt.payload)}`,
+    });
+
+  return $ok({ aud, exp });
 }
 
 export function $getKid(jwtToken: string): Result<string> {

@@ -22,7 +22,7 @@ import type {
 import { $cookieOptions } from './utils/cookie-options';
 import { $compressObj, $decompressObj } from './utils/crypto/compress';
 import { $decrypt, $decryptObj, $encrypt, $encryptObj, $generateUuid } from './utils/crypto/encrypt';
-import { $getAud, $getKid } from './utils/crypto/jwt';
+import { $getAudAndExp, $getKid } from './utils/crypto/jwt';
 import { $constructorHelper, $coreErrors, $mapAndFilter } from './utils/helpers';
 import {
   $prettyErr,
@@ -418,6 +418,7 @@ export class OAuthProvider {
 
   /**
    * Acquire client-credential tokens for one or multiple B2B apps.
+   * Caches tokens for better performance.
    *
    * @overload
    * @param params.appName - The name of the B2B app to get the token for.
@@ -447,20 +448,42 @@ export class OAuthProvider {
 
     try {
       const results = await $mapAndFilter(apps, async (app) => {
+        if (app.token && app.exp > Date.now() / 1000) {
+          return {
+            appName: app.appName,
+            clientId: app.aud,
+            token: app.token,
+            msalResponse: app.msalResponse,
+            isCached: true,
+            expiresAt: app.exp,
+          } satisfies GetB2BTokenResult;
+        }
+
         const msalResponse = await this.azure.cca.acquireTokenByClientCredential({
           scopes: [app.scope],
           skipCache: true,
         });
         if (!msalResponse) return null;
 
-        const { result: clientId, error: clientIdError } = $getAud(msalResponse.accessToken);
-        if (clientIdError) return null;
+        const { aud, exp, error: audError } = $getAudAndExp(msalResponse.accessToken);
+        if (audError) return null;
+
+        this.b2bMap?.set(app.appName, {
+          appName: app.appName,
+          scope: app.scope,
+          token: msalResponse.accessToken,
+          exp: exp - 5 * 60, // 5 minutes before expiration
+          aud: aud,
+          msalResponse: msalResponse,
+        } satisfies B2BApp);
 
         return {
           appName: app.appName,
-          clientId: clientId,
-          accessToken: msalResponse.accessToken,
+          clientId: aud,
+          token: msalResponse.accessToken,
           msalResponse: msalResponse,
+          isCached: false,
+          expiresAt: 0,
         } satisfies GetB2BTokenResult;
       });
 
@@ -523,8 +546,8 @@ export class OAuthProvider {
         });
         if (!msalResponse) return null;
 
-        const { result: clientId, error: clientIdError } = $getAud(msalResponse.accessToken);
-        if (clientIdError) return null;
+        const { aud, error: audError } = $getAudAndExp(msalResponse.accessToken);
+        if (audError) return null;
 
         const { encryptedAccessToken, error } = await this.$encryptAccessToken(msalResponse.accessToken, {
           cryptoType: service.cryptoType,
@@ -533,7 +556,7 @@ export class OAuthProvider {
         if (error) return null;
 
         const cookieOptions = $cookieOptions({
-          clientId,
+          clientId: aud,
           secure: service.isSecure,
           sameSite: service.isSamesite,
           timeUnit: this.settings.cookies.timeUnit,
@@ -542,7 +565,7 @@ export class OAuthProvider {
 
         return {
           serviceName: service.serviceName,
-          clientId: clientId,
+          clientId: aud,
           accessToken: { value: encryptedAccessToken, ...cookieOptions.accessToken },
           msalResponse: msalResponse,
         } satisfies GetTokenOnBehalfOfResult;

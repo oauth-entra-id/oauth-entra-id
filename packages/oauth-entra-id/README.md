@@ -20,18 +20,21 @@
 
 ## About 📖
 
-A lightweight, secure, and framework-agnostic wrapper for Microsoft Entra ID (formerly called Microsoft Azure AD).
-Built for simplicity, speed, and type safety. It abstracts away the complexity of OAuth 2.0, allowing developers to focus on building their applications without worrying about the underlying authentication and authorization mechanisms.
+A secure, performant, and feature-rich OAuth 2.0 integration for Microsoft Entra ID — fully abstracted and production-ready.
+
+This library simplifies the Authorization Code Grant flow (with PKCE), token rotation, B2B authentication, and the On-Behalf-Of (OBO) flow with a strong focus on type safety, security and performance.
+
+Designed to be framework-agnostic and developer-friendly, it eliminates the complexity of managing Microsoft Entra ID authentication — so you can focus on building your application, not your auth layer.
 
 ## Features 🌟
 
-- 🔐 Secure backend-driven OAuth 2.0 Authorization Code Grant flow with PKCE.
-- ⚡ Fast performance with minimal dependencies.
-- 🍪 Built-in cookie-based authentication with token management and rotation.
-- 📢 On-Behalf-Of (OBO) flow for downstream services
+- 🔐 Secure backend-driven OAuth 2.0 Authorization Code Grant flow with PKCE
+- ⚡ High performance optimized for production environments
+- 🍪 Built-in cookie-based authentication with token management and rotation
+- 📢 On-Behalf-Of (OBO) flow for downstream services access
 - 🤝 B2B app support (client credentials)
 - 🧩 Fully typed results and errors via `Result<T>` and `OAuthError`
-- 🦾 Framework-agnostic core (Express and NestJS bindings included)
+- 🦾 Framework-agnostic core with Express and NestJS bindings
 
 ## Getting Started 🚀
 
@@ -436,6 +439,7 @@ Returns:
 #### `getB2BToken()`
 
 Acquire an app token for a specific app, using the client credentials flow.
+Caches tokens for better performance.
 
 This method is useful for B2B applications that need to authenticate and authorize themselves against other services.
 
@@ -452,15 +456,17 @@ Returns:
   - `result` or `results` - An object or an array of objects (based on the parameters) containing:
     - `appName` - The name of the B2B app.
     - `clientId` - The client ID of the B2B app.
-    - `accessToken` - The B2B access token string.
+    - `token` - The B2B access token string.
     - `msalResponse` - The MSAL response object for extra information if needed.
+    - `isCached` - A boolean indicating if the token was cached or not.
+    - `expiresAt` - The expiration time of the token minus 5 minutes.
 
 ```typescript
 protectedRouter.post('/get-b2b-info', async (c) => {
   const { app } = await c.req.json();
   const { result } = await oauthProvider.getB2BToken({ app });
   const res = await axios.get(env.OTHER_SERVER, {
-    headers: { Authorization: `Bearer ${result.accessToken}` },
+    headers: { Authorization: `Bearer ${result.token}` },
   });
   return c.json({ data: res.data });
 });

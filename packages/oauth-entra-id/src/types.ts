@@ -63,10 +63,23 @@ export type EncryptionKeys = {
   ticket: EncryptionKey;
 };
 
-export interface B2BApp {
-  appName: string;
-  scope: string;
-}
+export type B2BApp =
+  | {
+      appName: string;
+      scope: string;
+      token: string;
+      exp: number;
+      aud: string;
+      msalResponse: MsalResponse;
+    }
+  | {
+      appName: string;
+      scope: string;
+      token: null;
+      exp: null;
+      aud: null;
+      msalResponse: null;
+    };
 
 export interface OboService {
   serviceName: string;
@@ -149,8 +162,10 @@ export interface Cookies {
 export interface GetB2BTokenResult {
   appName: string;
   clientId: string;
-  accessToken: string;
+  token: string;
+  isCached: boolean;
   msalResponse: MsalResponse;
+  expiresAt: number;
 }
 
 export interface GetTokenOnBehalfOfResult {
