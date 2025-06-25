@@ -4,9 +4,9 @@
   <h1 align="center" style="font-weight:900;">oauth-entra-id</h1>
 
   <p align="center">
-    Simple and Secure Way <br/>
-    to Implement OAuth 2.0 with <br/>
-    Microsoft Entra ID
+    A secure, performant, and feature-rich</br>
+    OAuth 2.0 integration for Microsoft Entra ID <br/>
+    fully abstracted and production-ready.
   </p>
 </p>
 

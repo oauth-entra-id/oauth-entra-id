@@ -1,6 +1,6 @@
 import axios from 'axios';
 import express, { type Router } from 'express';
-import { handleOnBehalfOf } from 'oauth-entra-id/express';
+import { expressOAuthProvider, handleOnBehalfOf } from 'oauth-entra-id/express';
 import { z } from 'zod/v4';
 import { env } from '~/env';
 import { HttpException } from '~/error/HttpException';
@@ -20,7 +20,7 @@ protectedRouter.post('/get-b2b-info', async (req, res) => {
   const { data: body, error: bodyError } = zGetB2BInfoBody.safeParse(req.body);
   if (bodyError) throw new HttpException('Invalid params', 400);
 
-  const { result } = await req.oauthProvider.getB2BToken({ app: body.app });
+  const { result } = await expressOAuthProvider.getB2BToken({ app: body.app });
 
   const serverUrl = serversMap[body.app];
   const axiosResponse = await axios.get(`${serverUrl}/protected/b2b-info`, {
