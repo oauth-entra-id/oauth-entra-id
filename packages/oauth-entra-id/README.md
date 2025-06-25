@@ -41,6 +41,8 @@ Built for simplicity, speed, and type safety. It abstracts away the complexity o
 npm install oauth-entra-id
 ```
 
+Requires Node.js 16 or higher.
+
 ## Azure Portal Setup 🛠️
 
 Basic setup for Microsoft Entra ID (Azure AD):

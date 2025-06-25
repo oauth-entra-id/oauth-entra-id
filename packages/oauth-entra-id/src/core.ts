@@ -598,11 +598,10 @@ export class OAuthProvider {
       }
 
       return $ok({ payload: decodedJwt.payload });
-    } catch {
+    } catch (err) {
       return $err('jwt_error', {
         error: 'Unauthorized',
-        description:
-          "Failed to verify JWT token. Check your Azure Portal, make sure the 'accessTokenAcceptedVersion' is set to '2' in the 'Manifest' area",
+        description: `Failed to verify JWT token. Check your Azure Portal, make sure the 'accessTokenAcceptedVersion' is set to '2' in the 'Manifest' area. Error: ${err instanceof Error ? err.message : err}`,
         status: 401,
       });
     }
