@@ -16,14 +16,13 @@ import type {
   NonEmptyArray,
   OAuthConfig,
   OAuthSettings,
-  OboService,
   WebApiCryptoKey,
 } from './types';
 import { $cookieOptions } from './utils/cookie-options';
 import { $compressObj, $decompressObj } from './utils/crypto/compress';
 import { $decrypt, $decryptObj, $encrypt, $encryptObj, $generateUuid } from './utils/crypto/encrypt';
 import { $getAudAndExp, $getKid } from './utils/crypto/jwt';
-import { $constructorHelper, $coreErrors, $mapAndFilter } from './utils/helpers';
+import { $constructorHelper, $coreErrors, $mapAndFilter, TIME_SKEW } from './utils/helpers';
 import {
   $prettyErr,
   zAccessTokenStructure,
@@ -56,8 +55,6 @@ export class OAuthProvider {
   private readonly serverCallbackUrl: string;
   private readonly defaultCookieOptions: Cookies['DefaultCookieOptions'];
   private readonly encryptionKeys: EncryptionKeys;
-  private readonly b2bMap: Map<string, B2BApp> | undefined;
-  private readonly oboMap: Map<string, OboService> | undefined;
   private readonly msalCryptoProvider: CryptoProvider;
   private readonly jwksClient: JwksClient;
   readonly settings: OAuthSettings;
@@ -81,8 +78,6 @@ export class OAuthProvider {
     this.serverCallbackUrl = result.serverCallbackUrl;
     this.defaultCookieOptions = result.defaultCookieOptions;
     this.encryptionKeys = result.encryptionKeys;
-    this.b2bMap = result.b2bMap;
-    this.oboMap = result.oboMap;
     this.msalCryptoProvider = result.msalCryptoProvider;
     this.jwksClient = result.jwksClient;
     this.settings = result.settings;
@@ -435,13 +430,15 @@ export class OAuthProvider {
   async getB2BToken(
     params: { app: string } | { apps: string[] },
   ): Promise<{ result: GetB2BTokenResult } | { results: GetB2BTokenResult[] }> {
-    if (!this.b2bMap) throw new OAuthError('misconfiguration', { error: 'B2B apps not configured', status: 500 });
+    if (!this.azure.b2bApps) {
+      throw new OAuthError('misconfiguration', { error: 'B2B apps not configured', status: 500 });
+    }
 
     const { data: parsedParams, error: paramsError } = zMethods.getB2BToken.safeParse(params);
     if (paramsError)
       throw new OAuthError('bad_request', { error: 'Invalid params', description: $prettyErr(paramsError) });
 
-    const apps = parsedParams.apps.map((app) => this.b2bMap?.get(app)).filter((app) => !!app);
+    const apps = parsedParams.apps.map((app) => this.azure.b2bApps?.get(app)).filter((app) => !!app);
     if (!apps || apps.length === 0) {
       throw new OAuthError('bad_request', { error: 'Invalid params', description: 'B2B app not found' });
     }
@@ -468,11 +465,11 @@ export class OAuthProvider {
         const { aud, exp, error: audError } = $getAudAndExp(msalResponse.accessToken);
         if (audError) return null;
 
-        this.b2bMap?.set(app.appName, {
+        this.azure.b2bApps?.set(app.appName, {
           appName: app.appName,
           scope: app.scope,
           token: msalResponse.accessToken,
-          exp: exp - 5 * 60, // 5 minutes before expiration
+          exp: exp - TIME_SKEW,
           aud: aud,
           msalResponse: msalResponse,
         } satisfies B2BApp);
@@ -521,14 +518,18 @@ export class OAuthProvider {
   async getTokenOnBehalfOf(
     params: { accessToken: string; service: string } | { accessToken: string; services: string[] },
   ): Promise<{ result: GetTokenOnBehalfOfResult } | { results: GetTokenOnBehalfOfResult[] }> {
-    if (!this.oboMap) throw new OAuthError('misconfiguration', { error: 'OBO services not configured', status: 500 });
+    if (!this.azure.oboApps) {
+      throw new OAuthError('misconfiguration', { error: 'OBO services not configured', status: 500 });
+    }
 
     const { data: parsedParams, error: paramsError } = zMethods.getTokenOnBehalfOf.safeParse(params);
     if (paramsError) {
       throw new OAuthError('bad_request', { error: 'Invalid params', description: $prettyErr(paramsError) });
     }
 
-    const services = parsedParams.services.map((service) => this.oboMap?.get(service)).filter((service) => !!service);
+    const services = parsedParams.services
+      .map((service) => this.azure.oboApps?.get(service))
+      .filter((service) => !!service);
 
     if (!services || services.length === 0) {
       throw new OAuthError('bad_request', { error: 'Invalid params', description: 'OBO service not found' });

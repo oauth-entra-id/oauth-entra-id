@@ -4,6 +4,7 @@ import { createMiddleware } from 'hono/factory';
 import { HTTPException } from 'hono/http-exception';
 import { type JwtPayload, OAuthError } from 'oauth-entra-id';
 import { oauthProvider } from '~/oauth';
+import { getRandomNumber } from '~/utils/generate';
 
 export const protectRoute = createMiddleware<ProtectRoute>(async (c, next) => {
   const authorizationHeader = c.req.header('Authorization');
@@ -80,10 +81,6 @@ function setUserInfo(
           injectedData: params.injectedData,
         },
   );
-}
-
-function getRandomNumber() {
-  return Math.floor(Math.random() * 100);
 }
 
 export type ProtectRoute = {

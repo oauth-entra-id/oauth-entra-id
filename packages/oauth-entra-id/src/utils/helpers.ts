@@ -17,6 +17,9 @@ import { $cookieOptions } from './cookie-options';
 import { $createSecretKeys } from './crypto/encrypt';
 import { $prettyErr, zConfig } from './zod';
 
+/** Time skew in seconds to account for clock drift between client and server */
+export const TIME_SKEW = 5 * 60;
+
 export function $constructorHelper(config: OAuthConfig): Result<{
   azure: Azure;
   frontendUrls: NonEmptyArray<string>;
@@ -34,19 +37,6 @@ export function $constructorHelper(config: OAuthConfig): Result<{
   if (configError) {
     return $err('misconfiguration', { error: 'Invalid config', description: $prettyErr(configError), status: 500 });
   }
-
-  const azure: Azure = {
-    clientId: parsedConfig.azure.clientId,
-    tenantId: parsedConfig.azure.tenantId,
-    scopes: parsedConfig.azure.scopes as NonEmptyArray<string>,
-    cca: new ConfidentialClientApplication({
-      auth: {
-        clientId: parsedConfig.azure.clientId,
-        authority: `https://login.microsoftonline.com/${parsedConfig.azure.tenantId}`,
-        clientSecret: parsedConfig.azure.clientSecret,
-      },
-    }),
-  };
 
   const frontendUrls: NonEmptyArray<string> = parsedConfig.frontendUrl as NonEmptyArray<string>;
   const frontendHosts = new Set(frontendUrls.map((url) => new URL(url).host));
@@ -82,6 +72,21 @@ export function $constructorHelper(config: OAuthConfig): Result<{
     error: oboMapError,
   } = $getOboInfo(parsedConfig.azure.downstreamServices, defaultCookieOptions.accessToken.options, serverHost);
   if (oboMapError) return $err(oboMapError);
+
+  const azure: Azure = {
+    clientId: parsedConfig.azure.clientId,
+    tenantId: parsedConfig.azure.tenantId,
+    scopes: parsedConfig.azure.scopes as NonEmptyArray<string>,
+    cca: new ConfidentialClientApplication({
+      auth: {
+        clientId: parsedConfig.azure.clientId,
+        authority: `https://login.microsoftonline.com/${parsedConfig.azure.tenantId}`,
+        clientSecret: parsedConfig.azure.clientSecret,
+      },
+    }),
+    b2bApps: b2bMap,
+    oboApps: oboMap,
+  };
 
   const msalCryptoProvider = new CryptoProvider();
 

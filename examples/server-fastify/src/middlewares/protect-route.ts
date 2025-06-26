@@ -2,6 +2,7 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 import { type JwtPayload, OAuthError } from 'oauth-entra-id';
 import { HttpException } from '~/error/HttpException';
 import { oauthProvider } from '~/oauth';
+import { getRandomNumber } from '~/utils/generate';
 
 export async function protectRoute(req: FastifyRequest, reply: FastifyReply) {
   const authorizationHeader = req.headers.authorization;
@@ -75,10 +76,6 @@ function setUserInfo(
         email: params.payload.preferred_username,
         injectedData: params.injectedData,
       };
-}
-
-function getRandomNumber() {
-  return Math.floor(Math.random() * 100);
 }
 
 declare module 'fastify' {

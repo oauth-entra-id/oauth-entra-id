@@ -2,8 +2,9 @@ import axios from 'axios';
 import express, { type Router } from 'express';
 import { expressOAuthProvider, handleOnBehalfOf } from 'oauth-entra-id/express';
 import { z } from 'zod/v4';
-import { env } from '~/env';
+import { serversMap } from '~/env';
 import { HttpException } from '~/error/HttpException';
+import { generateRandomPokemon } from '~/utils/generate';
 
 const zAvailableServers = z.enum(['nestjs', 'fastify', 'honojs']);
 const zGetB2BInfoBody = z.object({ app: zAvailableServers });
@@ -15,6 +16,16 @@ protectedRouter.get('/user-info', (req, res) => {
 });
 
 protectedRouter.post('/on-behalf-of', handleOnBehalfOf());
+
+protectedRouter.get('/b2b-info', (req, res) => {
+  if (req.userInfo?.isApp === false) throw new HttpException('Unauthorized', 401);
+  res.status(200).json({ pokemon: generateRandomPokemon(), server: 'express' });
+});
+
+const zB2BResponse = z.object({
+  pokemon: z.string().trim().min(1).max(32),
+  server: zAvailableServers,
+});
 
 protectedRouter.post('/get-b2b-info', async (req, res) => {
   const { data: body, error: bodyError } = zGetB2BInfoBody.safeParse(req.body);
@@ -31,49 +42,3 @@ protectedRouter.post('/get-b2b-info', async (req, res) => {
   if (b2bResError) throw new HttpException('Invalid B2B response', 500);
   res.status(200).json(b2bRes);
 });
-
-protectedRouter.get('/b2b-info', (req, res) => {
-  if (req.userInfo?.isApp === false) throw new HttpException('Unauthorized', 401);
-  const randomPokemon = pokemon[Math.floor(Math.random() * pokemon.length)];
-  res.status(200).json({ pokemon: randomPokemon, server: 'express' });
-});
-
-const zB2BResponse = z.object({
-  pokemon: z.string().trim().min(1).max(32),
-  server: zAvailableServers,
-});
-
-const serversMap = {
-  nestjs: env.NESTJS_URL,
-  fastify: env.FASTIFY_URL,
-  honojs: env.HONOJS_URL,
-};
-
-const pokemon = [
-  'Bulbasaur',
-  'Charmander',
-  'Squirtle',
-  'Caterpie',
-  'Butterfree',
-  'Pidgey',
-  'Rattata',
-  'Ekans',
-  'Pikachu',
-  'Vulpix',
-  'Jigglypuff',
-  'Zubat',
-  'Diglett',
-  'Meowth',
-  'Psyduck',
-  'Poliwag',
-  'Abra',
-  'Machop',
-  'Geodude',
-  'Haunter',
-  'Onix',
-  'Cubone',
-  'Magikarp',
-  'Eevee',
-  'Snorlax',
-  'Mew',
-];

@@ -1,11 +1,12 @@
 import { ValidationPipe } from '@nestjs/common';
-import { HttpAdapterHost, NestFactory } from '@nestjs/core';
+import { HttpAdapterHost, NestFactory, Reflector } from '@nestjs/core';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import { authConfig } from 'oauth-entra-id/nestjs';
 import { AppModule } from './app.module';
 import { env } from './env';
 import { ErrorCatcher } from './error/error-catcher.filter';
+import { ProtectRouteGuard } from './guards/protect-route.guard';
 import { oauthConfig } from './oauth';
 
 async function bootstrap() {
@@ -69,8 +70,10 @@ async function bootstrap() {
     }),
   );
 
-  const httpAdapter = app.get(HttpAdapterHost);
+  const reflector = app.get(Reflector);
+  app.useGlobalGuards(new ProtectRouteGuard(reflector));
 
+  const httpAdapter = app.get(HttpAdapterHost);
   app.useGlobalFilters(new ErrorCatcher(httpAdapter));
 
   await app.listen(env.SERVER_PORT);

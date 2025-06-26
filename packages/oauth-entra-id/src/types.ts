@@ -54,6 +54,8 @@ export interface Azure {
   tenantId: LooseString<'common'>;
   scopes: NonEmptyArray<string>;
   cca: ConfidentialClientApplication;
+  b2bApps: Map<string, B2BApp> | undefined;
+  oboApps: Map<string, OboService> | undefined;
 }
 
 export type EncryptionKeys = {

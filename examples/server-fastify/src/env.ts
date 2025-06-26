@@ -68,3 +68,10 @@ export const env = {
   SERVER_URL: parsedEnv.data.FASTIFY_URL,
   SERVER_PORT: parsedEnv.data.FASTIFY_PORT,
 };
+
+export const serversMap = {
+  express: env.EXPRESS_URL,
+  nestjs: env.NESTJS_URL,
+  fastify: env.FASTIFY_URL,
+  honojs: env.HONOJS_URL,
+};

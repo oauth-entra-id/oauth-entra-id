@@ -2,10 +2,11 @@ import type { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox';
 import { Type as t } from '@sinclair/typebox';
 import axios from 'axios';
 import { z } from 'zod/v4';
-import { env } from '~/env';
+import { serversMap } from '~/env';
 import { HttpException } from '~/error/HttpException';
 import { protectRoute } from '~/middlewares/protect-route';
 import { oauthProvider } from '~/oauth';
+import { generateRandomPokemon } from '~/utils/generate';
 
 const tSchemas = {
   onBehalfOf: t.Object({
@@ -15,6 +16,11 @@ const tSchemas = {
     app: t.Union([t.Literal('express'), t.Literal('nestjs'), t.Literal('honojs')]),
   }),
 };
+
+const zB2BResponse = z.object({
+  pokemon: z.string().trim().min(1).max(32),
+  server: z.enum(['express', 'nestjs', 'honojs']),
+});
 
 export const protectedRouter: FastifyPluginAsyncTypebox = async (app) => {
   app.addHook('preHandler', protectRoute);
@@ -40,6 +46,11 @@ export const protectedRouter: FastifyPluginAsyncTypebox = async (app) => {
     return { tokensSet: results.length };
   });
 
+  app.get('/b2b-info', (req, reply) => {
+    if (req.userInfo?.isApp === false) throw new HttpException('Unauthorized', 401);
+    return { pokemon: generateRandomPokemon(), server: 'fastify' };
+  });
+
   app.post('/get-b2b-info', { schema: { body: tSchemas.getB2BInfo } }, async (req, reply) => {
     const { app } = req.body;
     const { result } = await oauthProvider.getB2BToken({ app });
@@ -53,50 +64,4 @@ export const protectedRouter: FastifyPluginAsyncTypebox = async (app) => {
     if (b2bResError) throw new HttpException('Invalid response from B2B service', 500);
     return b2bRes;
   });
-
-  app.get('/b2b-info', (req, reply) => {
-    if (req.userInfo?.isApp === false) throw new HttpException('Unauthorized', 401);
-    const randomPokemon = pokemon[Math.floor(Math.random() * pokemon.length)];
-    return { pokemon: randomPokemon, server: 'fastify' };
-  });
 };
-
-const zB2BResponse = z.object({
-  pokemon: z.string().trim().min(1).max(32),
-  server: z.enum(['express', 'nestjs', 'honojs']),
-});
-
-const serversMap = {
-  express: env.EXPRESS_URL,
-  nestjs: env.NESTJS_URL,
-  honojs: env.HONOJS_URL,
-};
-
-const pokemon = [
-  'Bulbasaur',
-  'Charmander',
-  'Squirtle',
-  'Caterpie',
-  'Butterfree',
-  'Pidgey',
-  'Rattata',
-  'Ekans',
-  'Pikachu',
-  'Vulpix',
-  'Jigglypuff',
-  'Zubat',
-  'Diglett',
-  'Meowth',
-  'Psyduck',
-  'Poliwag',
-  'Abra',
-  'Machop',
-  'Geodude',
-  'Haunter',
-  'Onix',
-  'Cubone',
-  'Magikarp',
-  'Eevee',
-  'Snorlax',
-  'Mew',
-];
