@@ -132,28 +132,12 @@ Usually methods with this return type will start with the prefix `try` or `verif
 
 If the return type is not `Result<T>`, it will throw an `OAuthError` with a specific error type and message.
 
-**Error Type:**
+Both `ResultErr` and `OAuthError` give you the following properties:
 
-```typescript
-type ResultErr = {
-  type: ErrorTypes;
-  message: string;
-  description?: string;
-  statusCode: HttpErrorCodes;
-};
-```
-
-**Object Example:**
-
-```typescript
-type Result<{ x: string; y: number }> = { success: true; x: string; y: number } | { success: false; error: ResultErr };
-```
-
-**Primitive Example:**
-
-```typescript
-type Result<string> = { success: true; result: string } | { success: false; error: ResultErr };
-```
+- `type` - The type of the error for example `nullish_value`
+- `message` - A human-readable error message that can be shown to the user.
+- `statusCode` - The HTTP status code for the error, useful for API responses.
+- `description` - A detailed description of the error, useful for debugging. Don't show this to the user, to avoid leaking sensitive information.
 
 ## Usage 🎯
 
