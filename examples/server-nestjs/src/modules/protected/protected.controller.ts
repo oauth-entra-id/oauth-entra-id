@@ -1,19 +1,17 @@
-import { Body, Controller, Get, HttpException, Post, Req, Res, UseGuards } from '@nestjs/common';
-import axios from 'axios';
+import { Body, Controller, Get, Post, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import type { OAuthProvider as OAuthProviderType, UserInfo as UserInfoType } from 'oauth-entra-id';
 import { handleOnBehalfOf } from 'oauth-entra-id/nestjs';
-import { z } from 'zod/v4';
-import { OAuthProvider } from '~/decorators/oauth.decorator';
-import { UserInfo } from '~/decorators/user-info.decorator';
-import { env } from '~/env';
-import { ProtectRouteGuard } from '~/guards/protect-route.guard';
+import { IsApp } from '~/decorators/app.decorator';
+import { generateRandomPokemon } from '~/utils/generate';
 // biome-ignore lint/style/useImportType: NestJS
 import { GetB2BInfoDto } from './protected.dto';
+// biome-ignore lint/style/useImportType: NestJS
+import { ProtectedService } from './protected.service';
 
 @Controller('protected')
-@UseGuards(ProtectRouteGuard)
 export class ProtectedController {
+  constructor(private readonly protectedService: ProtectedService) {}
+
   @Get('user-info')
   getUserInfo(@Req() req: Request) {
     return { user: req.userInfo };
@@ -24,64 +22,14 @@ export class ProtectedController {
     await handleOnBehalfOf(req, res);
   }
 
-  @Post('get-b2b-info')
-  async getB2BInfo(@Body() body: GetB2BInfoDto, @OAuthProvider() oauthProvider: OAuthProviderType) {
-    const { result } = await oauthProvider.getB2BToken({ appName: body.appName });
-
-    const serverUrl = serversMap[body.appName];
-    const axiosResponse = await axios.get(`${serverUrl}/protected/b2b-info`, {
-      headers: { Authorization: `Bearer ${result.accessToken}` },
-    });
-
-    const { data: b2bRes, error: b2bResError } = zB2BResponse.safeParse(axiosResponse.data);
-    if (b2bResError) throw new HttpException('Invalid B2B response', 500);
-    return b2bRes;
+  @IsApp()
+  @Get('b2b-info')
+  sendB2BInfo() {
+    return { pokemon: generateRandomPokemon(), server: 'nestjs' };
   }
 
-  @Get('b2b-info')
-  sendB2BInfo(@UserInfo() userInfo: UserInfoType) {
-    if (userInfo?.isApp === false) throw new HttpException('Unauthorized', 401);
-    const randomPokemon = pokemon[Math.floor(Math.random() * pokemon.length)];
-    return { pokemon: randomPokemon, server: 'nestjs' };
+  @Post('get-b2b-info')
+  async getB2BInfo(@Body() body: GetB2BInfoDto) {
+    return await this.protectedService.fetchB2BInfo(body.app);
   }
 }
-
-const zB2BResponse = z.object({
-  pokemon: z.string().trim().min(1).max(32),
-  server: z.enum(['express', 'fastify', 'honojs']),
-});
-
-const serversMap = {
-  express: env.EXPRESS_URL,
-  fastify: env.FASTIFY_URL,
-  honojs: env.HONOJS_URL,
-};
-
-const pokemon = [
-  'Bulbasaur',
-  'Charmander',
-  'Squirtle',
-  'Caterpie',
-  'Butterfree',
-  'Pidgey',
-  'Rattata',
-  'Ekans',
-  'Pikachu',
-  'Vulpix',
-  'Jigglypuff',
-  'Zubat',
-  'Diglett',
-  'Meowth',
-  'Psyduck',
-  'Poliwag',
-  'Abra',
-  'Machop',
-  'Geodude',
-  'Haunter',
-  'Onix',
-  'Cubone',
-  'Magikarp',
-  'Eevee',
-  'Snorlax',
-  'Mew',
-];

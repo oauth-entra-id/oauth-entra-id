@@ -4,15 +4,16 @@ import { Hono } from 'hono';
 import { setCookie } from 'hono/cookie';
 import { HTTPException } from 'hono/http-exception';
 import { z } from 'zod/v4';
-import { env } from '~/env';
+import { serversMap } from '~/env';
 import { type ProtectRoute, protectRoute } from '~/middlewares/protect-route';
 import { oauthProvider } from '~/oauth';
+import { generateRandomPokemon } from '~/utils/generate';
 
 const zAvailableServers = z.enum(['express', 'nestjs', 'fastify']);
 
 const zSchemas = {
-  onBehalfOf: z.object({ serviceNames: z.array(z.string()) }),
-  getB2BInfo: z.object({ appName: zAvailableServers }),
+  onBehalfOf: z.object({ services: z.array(z.string()) }),
+  getB2BInfo: z.object({ app: zAvailableServers }),
 };
 
 export const protectedRouter = new Hono<ProtectRoute>();
@@ -26,10 +27,10 @@ protectedRouter.get('/user-info', (c) => {
 protectedRouter.post('/on-behalf-of', zValidator('json', zSchemas.onBehalfOf), async (c) => {
   if (c.get('userInfo')?.isApp === true) throw new HTTPException(401, { message: 'B2B users cannot use OBO' });
 
-  const { serviceNames } = c.req.valid('json');
+  const { services } = c.req.valid('json');
   const { results } = await oauthProvider.getTokenOnBehalfOf({
     accessToken: c.get('accessTokenInfo').jwt,
-    serviceNames,
+    services,
   });
 
   for (const { accessToken } of results) {
@@ -38,23 +39,9 @@ protectedRouter.post('/on-behalf-of', zValidator('json', zSchemas.onBehalfOf), a
   return c.json({ tokensSet: results.length });
 });
 
-protectedRouter.post('/get-b2b-info', zValidator('json', zSchemas.getB2BInfo), async (c) => {
-  const { appName } = c.req.valid('json');
-  const { result } = await oauthProvider.getB2BToken({ appName });
-
-  const serverUrl = serversMap[appName];
-  const axiosResponse = await axios.get(`${serverUrl}/protected/b2b-info`, {
-    headers: { Authorization: `Bearer ${result.accessToken}` },
-  });
-  const { data: b2bRes, error: b2bResError } = zB2BResponse.safeParse(axiosResponse.data);
-  if (b2bResError) throw new HTTPException(500, { message: 'Invalid response from B2B server' });
-  return c.json(b2bRes);
-});
-
 protectedRouter.get('/b2b-info', (c) => {
   if (c.get('userInfo')?.isApp === false) throw new HTTPException(401, { message: 'Unauthorized' });
-  const randomPokemon = pokemon[Math.floor(Math.random() * pokemon.length)];
-  return c.json({ pokemon: randomPokemon, server: 'honojs' });
+  return c.json({ pokemon: generateRandomPokemon(), server: 'honojs' });
 });
 
 const zB2BResponse = z.object({
@@ -62,37 +49,15 @@ const zB2BResponse = z.object({
   server: zAvailableServers,
 });
 
-const serversMap = {
-  express: env.EXPRESS_URL,
-  nestjs: env.NESTJS_URL,
-  fastify: env.FASTIFY_URL,
-};
+protectedRouter.post('/get-b2b-info', zValidator('json', zSchemas.getB2BInfo), async (c) => {
+  const { app } = c.req.valid('json');
+  const { result } = await oauthProvider.getB2BToken({ app });
 
-const pokemon = [
-  'Bulbasaur',
-  'Charmander',
-  'Squirtle',
-  'Caterpie',
-  'Butterfree',
-  'Pidgey',
-  'Rattata',
-  'Ekans',
-  'Pikachu',
-  'Vulpix',
-  'Jigglypuff',
-  'Zubat',
-  'Diglett',
-  'Meowth',
-  'Psyduck',
-  'Poliwag',
-  'Abra',
-  'Machop',
-  'Geodude',
-  'Haunter',
-  'Onix',
-  'Cubone',
-  'Magikarp',
-  'Eevee',
-  'Snorlax',
-  'Mew',
-];
+  const serverUrl = serversMap[app];
+  const axiosResponse = await axios.get(`${serverUrl}/protected/b2b-info`, {
+    headers: { Authorization: `Bearer ${result.token}` },
+  });
+  const { data: b2bRes, error: b2bResError } = zB2BResponse.safeParse(axiosResponse.data);
+  if (b2bResError) throw new HTTPException(500, { message: 'Invalid response from B2B server' });
+  return c.json(b2bRes);
+});

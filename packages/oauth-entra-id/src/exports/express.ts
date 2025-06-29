@@ -14,7 +14,7 @@ import type { OAuthConfig } from '~/types';
 
 const ERROR_MESSAGE = 'Make sure you used Express export and you used authConfig';
 
-let globalExpressOAuthProvider: OAuthProvider | null = null;
+export let expressOAuthProvider: OAuthProvider = undefined as unknown as OAuthProvider;
 
 /**
  * Factory that binds a singleton OAuthProvider to every Express request.
@@ -23,11 +23,11 @@ let globalExpressOAuthProvider: OAuthProvider | null = null;
  */
 export function authConfig(config: OAuthConfig) {
   return (req: Request, res: Response, next: NextFunction) => {
-    if (!globalExpressOAuthProvider) {
-      globalExpressOAuthProvider = new OAuthProvider(config);
+    if (!expressOAuthProvider) {
+      expressOAuthProvider = new OAuthProvider(config);
     }
 
-    req.oauthProvider = globalExpressOAuthProvider;
+    req.oauthProvider = expressOAuthProvider;
     req.serverType = 'express';
 
     next();

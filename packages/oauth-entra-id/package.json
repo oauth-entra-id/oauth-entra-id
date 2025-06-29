@@ -1,7 +1,7 @@
 {
   "name": "oauth-entra-id",
-  "version": "3.0.0",
-  "description": "🛡️ Simple and Secure Way to Implement OAuth 2.0 with Microsoft Entra ID",
+  "version": "3.1.0",
+  "description": "🛡️ A secure, performant, and feature-rich OAuth 2.0 integration for Microsoft Entra ID — fully abstracted and production-ready.",
   "homepage": "https://github.com/oauth-entra-id/oauth-entra-id",
   "repository": {
     "type": "git",
@@ -84,5 +84,5 @@
     "vitest": "^3.2.4"
   },
   "license": "MIT",
-  "keywords": ["auth", "oauth2", "typescript", "microsoft", "entra-id", "azure", "jwt", "express", "nestjs"]
+  "keywords": ["auth", "oauth2", "secure", "typescript", "microsoft", "entra-id", "azure", "jwt", "express", "nestjs"]
 }

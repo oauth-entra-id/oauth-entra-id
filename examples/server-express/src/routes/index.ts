@@ -1,6 +1,7 @@
 import express, { type Router } from 'express';
 import { type CallbackFunction, OAuthError } from 'oauth-entra-id';
 import { protectRoute } from 'oauth-entra-id/express';
+import { getRandomNumber } from '~/utils/generate';
 import { authRouter } from './auth';
 import { protectedRouter } from './protected';
 import { publicRouter } from './public';
@@ -17,7 +18,3 @@ const callbackFunc: CallbackFunction = async ({ userInfo, tryInjectData }) => {
 routesRouter.use('/', publicRouter);
 routesRouter.use('/auth', authRouter);
 routesRouter.use('/protected', protectRoute(callbackFunc), protectedRouter);
-
-function getRandomNumber() {
-  return Math.floor(Math.random() * 100);
-}

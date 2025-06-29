@@ -1,7 +1,9 @@
 import { Controller, HttpCode, Post, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { handleAuthentication, handleCallback, handleLogout } from 'oauth-entra-id/nestjs';
+import { Public } from '~/decorators/public.decorator';
 
+@Public()
 @Controller('auth')
 export class AuthController {
   @Post('authenticate')

@@ -16,14 +16,13 @@ import type {
   NonEmptyArray,
   OAuthConfig,
   OAuthSettings,
-  OboService,
   WebApiCryptoKey,
 } from './types';
 import { $cookieOptions } from './utils/cookie-options';
 import { $compressObj, $decompressObj } from './utils/crypto/compress';
 import { $decrypt, $decryptObj, $encrypt, $encryptObj, $generateUuid } from './utils/crypto/encrypt';
-import { $getAud, $getKid } from './utils/crypto/jwt';
-import { $constructorHelper, $coreErrors, $mapAndFilter } from './utils/helpers';
+import { $getAudAndExp, $getKid } from './utils/crypto/jwt';
+import { $constructorHelper, $coreErrors, $mapAndFilter, TIME_SKEW } from './utils/helpers';
 import {
   $prettyErr,
   zAccessTokenStructure,
@@ -56,8 +55,6 @@ export class OAuthProvider {
   private readonly serverCallbackUrl: string;
   private readonly defaultCookieOptions: Cookies['DefaultCookieOptions'];
   private readonly encryptionKeys: EncryptionKeys;
-  private readonly b2bMap: Map<string, B2BApp> | undefined;
-  private readonly oboMap: Map<string, OboService> | undefined;
   private readonly msalCryptoProvider: CryptoProvider;
   private readonly jwksClient: JwksClient;
   readonly settings: OAuthSettings;
@@ -81,8 +78,6 @@ export class OAuthProvider {
     this.serverCallbackUrl = result.serverCallbackUrl;
     this.defaultCookieOptions = result.defaultCookieOptions;
     this.encryptionKeys = result.encryptionKeys;
-    this.b2bMap = result.b2bMap;
-    this.oboMap = result.oboMap;
     this.msalCryptoProvider = result.msalCryptoProvider;
     this.jwksClient = result.jwksClient;
     this.settings = result.settings;
@@ -418,6 +413,7 @@ export class OAuthProvider {
 
   /**
    * Acquire client-credential tokens for one or multiple B2B apps.
+   * Caches tokens for better performance.
    *
    * @overload
    * @param params.appName - The name of the B2B app to get the token for.
@@ -429,38 +425,62 @@ export class OAuthProvider {
    * @returns Results containing an array of B2B app tokens and metadata.
    * @throws {OAuthError} if something goes wrong.
    */
-  async getB2BToken(params: { appName: string }): Promise<{ result: GetB2BTokenResult }>;
-  async getB2BToken(params: { appsNames: string[] }): Promise<{ results: GetB2BTokenResult[] }>;
+  async getB2BToken(params: { app: string }): Promise<{ result: GetB2BTokenResult }>;
+  async getB2BToken(params: { apps: string[] }): Promise<{ results: GetB2BTokenResult[] }>;
   async getB2BToken(
-    params: { appName: string } | { appsNames: string[] },
+    params: { app: string } | { apps: string[] },
   ): Promise<{ result: GetB2BTokenResult } | { results: GetB2BTokenResult[] }> {
-    if (!this.b2bMap) throw new OAuthError('misconfiguration', { error: 'B2B apps not configured', status: 500 });
+    if (!this.azure.b2bApps) {
+      throw new OAuthError('misconfiguration', { error: 'B2B apps not configured', status: 500 });
+    }
 
     const { data: parsedParams, error: paramsError } = zMethods.getB2BToken.safeParse(params);
     if (paramsError)
       throw new OAuthError('bad_request', { error: 'Invalid params', description: $prettyErr(paramsError) });
 
-    const apps = parsedParams.appNames.map((appName) => this.b2bMap?.get(appName)).filter((app) => !!app);
+    const apps = parsedParams.apps.map((app) => this.azure.b2bApps?.get(app)).filter((app) => !!app);
     if (!apps || apps.length === 0) {
       throw new OAuthError('bad_request', { error: 'Invalid params', description: 'B2B app not found' });
     }
 
     try {
       const results = await $mapAndFilter(apps, async (app) => {
+        if (app.token && app.exp > Date.now() / 1000) {
+          return {
+            appName: app.appName,
+            clientId: app.aud,
+            token: app.token,
+            msalResponse: app.msalResponse,
+            isCached: true,
+            expiresAt: app.exp,
+          } satisfies GetB2BTokenResult;
+        }
+
         const msalResponse = await this.azure.cca.acquireTokenByClientCredential({
           scopes: [app.scope],
           skipCache: true,
         });
         if (!msalResponse) return null;
 
-        const { result: clientId, error: clientIdError } = $getAud(msalResponse.accessToken);
-        if (clientIdError) return null;
+        const { aud, exp, error: audError } = $getAudAndExp(msalResponse.accessToken);
+        if (audError) return null;
+
+        this.azure.b2bApps?.set(app.appName, {
+          appName: app.appName,
+          scope: app.scope,
+          token: msalResponse.accessToken,
+          exp: exp - TIME_SKEW,
+          aud: aud,
+          msalResponse: msalResponse,
+        } satisfies B2BApp);
 
         return {
           appName: app.appName,
-          clientId: clientId,
-          accessToken: msalResponse.accessToken,
+          clientId: aud,
+          token: msalResponse.accessToken,
           msalResponse: msalResponse,
+          isCached: false,
+          expiresAt: 0,
         } satisfies GetB2BTokenResult;
       });
 
@@ -468,7 +488,7 @@ export class OAuthProvider {
         throw new OAuthError('internal', { error: 'Failed to get B2B token', status: 500 });
       }
 
-      return 'appName' in params ? { result: results[0] as GetB2BTokenResult } : { results };
+      return 'app' in params ? { result: results[0] as GetB2BTokenResult } : { results };
     } catch (err) {
       throw new OAuthError($coreErrors(err, 'getB2BToken'));
     }
@@ -489,24 +509,26 @@ export class OAuthProvider {
    * @returns Results containing an array of OBO tokens and metadata for the specified services.
    * @throws {OAuthError} if something goes wrong.
    */
-  async getTokenOnBehalfOf(params: { accessToken: string; serviceName: string }): Promise<{
+  async getTokenOnBehalfOf(params: { accessToken: string; service: string }): Promise<{
     result: GetTokenOnBehalfOfResult;
   }>;
-  async getTokenOnBehalfOf(params: { accessToken: string; serviceNames: string[] }): Promise<{
+  async getTokenOnBehalfOf(params: { accessToken: string; services: string[] }): Promise<{
     results: GetTokenOnBehalfOfResult[];
   }>;
   async getTokenOnBehalfOf(
-    params: { accessToken: string; serviceName: string } | { accessToken: string; serviceNames: string[] },
+    params: { accessToken: string; service: string } | { accessToken: string; services: string[] },
   ): Promise<{ result: GetTokenOnBehalfOfResult } | { results: GetTokenOnBehalfOfResult[] }> {
-    if (!this.oboMap) throw new OAuthError('misconfiguration', { error: 'OBO services not configured', status: 500 });
+    if (!this.azure.oboApps) {
+      throw new OAuthError('misconfiguration', { error: 'OBO services not configured', status: 500 });
+    }
 
     const { data: parsedParams, error: paramsError } = zMethods.getTokenOnBehalfOf.safeParse(params);
     if (paramsError) {
       throw new OAuthError('bad_request', { error: 'Invalid params', description: $prettyErr(paramsError) });
     }
 
-    const services = parsedParams.serviceNames
-      .map((serviceName) => this.oboMap?.get(serviceName))
+    const services = parsedParams.services
+      .map((service) => this.azure.oboApps?.get(service))
       .filter((service) => !!service);
 
     if (!services || services.length === 0) {
@@ -525,8 +547,8 @@ export class OAuthProvider {
         });
         if (!msalResponse) return null;
 
-        const { result: clientId, error: clientIdError } = $getAud(msalResponse.accessToken);
-        if (clientIdError) return null;
+        const { aud, error: audError } = $getAudAndExp(msalResponse.accessToken);
+        if (audError) return null;
 
         const { encryptedAccessToken, error } = await this.$encryptAccessToken(msalResponse.accessToken, {
           cryptoType: service.cryptoType,
@@ -535,7 +557,7 @@ export class OAuthProvider {
         if (error) return null;
 
         const cookieOptions = $cookieOptions({
-          clientId,
+          clientId: aud,
           secure: service.isSecure,
           sameSite: service.isSamesite,
           timeUnit: this.settings.cookies.timeUnit,
@@ -544,7 +566,7 @@ export class OAuthProvider {
 
         return {
           serviceName: service.serviceName,
-          clientId: clientId,
+          clientId: aud,
           accessToken: { value: encryptedAccessToken, ...cookieOptions.accessToken },
           msalResponse: msalResponse,
         } satisfies GetTokenOnBehalfOfResult;
@@ -554,7 +576,7 @@ export class OAuthProvider {
         throw new OAuthError('internal', { error: 'Failed to get OBO token', status: 500 });
       }
 
-      return 'serviceName' in params ? { result: results[0] as GetTokenOnBehalfOfResult } : { results };
+      return 'service' in params ? { result: results[0] as GetTokenOnBehalfOfResult } : { results };
     } catch (err) {
       throw new OAuthError($coreErrors(err, 'getTokenOnBehalfOf'));
     }
@@ -598,11 +620,10 @@ export class OAuthProvider {
       }
 
       return $ok({ payload: decodedJwt.payload });
-    } catch {
+    } catch (err) {
       return $err('jwt_error', {
         error: 'Unauthorized',
-        description:
-          "Failed to verify JWT token. Check your Azure Portal, make sure the 'accessTokenAcceptedVersion' is set to '2' in the 'Manifest' area",
+        description: `Failed to verify JWT token. Check your Azure Portal, make sure the 'accessTokenAcceptedVersion' is set to '2' in the 'Manifest' area. Error: ${err instanceof Error ? err.message : err}`,
         status: 401,
       });
     }

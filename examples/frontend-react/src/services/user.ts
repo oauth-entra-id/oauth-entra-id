@@ -51,7 +51,7 @@ const zGetTokensOnBehalfOf = z.object({
 export async function getTokensOnBehalfOf(serviceNames: Color[]) {
   if (!serviceNames || serviceNames.length === 0) throw new Error('No client IDs provided');
   const serverUrl = useServerStore.getState().serverUrl;
-  const res = await axiosFetch.post(`${serverUrl}/protected/on-behalf-of`, { serviceNames });
+  const res = await axiosFetch.post(`${serverUrl}/protected/on-behalf-of`, { services: serviceNames });
   const parsed = zGetTokensOnBehalfOf.safeParse(res?.data);
   if (parsed.error) throw new Error('Invalid on-behalf-of tokens');
   return parsed.data.tokensSet;

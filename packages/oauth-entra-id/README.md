@@ -4,9 +4,9 @@
   <h1 align="center" style="font-weight:900;">oauth-entra-id</h1>
 
   <p align="center">
-    Simple and Secure Way <br/>
-    to Implement OAuth 2.0 with <br/>
-    Microsoft Entra ID
+    A secure, performant, and feature-rich</br>
+    OAuth 2.0 integration for Microsoft Entra ID <br/>
+    fully abstracted and production-ready.
   </p>
 </p>
 
@@ -20,18 +20,21 @@
 
 ## About 📖
 
-A lightweight, secure, and framework-agnostic wrapper for Microsoft Entra ID (formerly called Microsoft Azure AD).
-Built for simplicity, speed, and type safety. It abstracts away the complexity of OAuth 2.0, allowing developers to focus on building their applications without worrying about the underlying authentication and authorization mechanisms.
+A secure, performant, and feature-rich OAuth 2.0 integration for Microsoft Entra ID — fully abstracted and production-ready.
+
+This library simplifies the Authorization Code Grant flow (with PKCE), token rotation, B2B authentication, and the On-Behalf-Of (OBO) flow with a strong focus on type safety, security and performance.
+
+Designed to be framework-agnostic and developer-friendly, it eliminates the complexity of managing Microsoft Entra ID authentication — so you can focus on building your application, not your auth layer.
 
 ## Features 🌟
 
-- 🔐 Secure backend-driven OAuth 2.0 Authorization Code Grant flow with PKCE.
-- ⚡ Fast performance with minimal dependencies.
-- 🍪 Built-in cookie-based authentication with token management and rotation.
-- 📢 On-Behalf-Of (OBO) flow for downstream services
+- 🔐 Secure backend-driven OAuth 2.0 Authorization Code Grant flow with PKCE
+- ⚡ High performance optimized for production environments
+- 🍪 Built-in cookie-based authentication with token management and rotation
+- 📢 On-Behalf-Of (OBO) flow for downstream services access
 - 🤝 B2B app support (client credentials)
 - 🧩 Fully typed results and errors via `Result<T>` and `OAuthError`
-- 🦾 Framework-agnostic core (Express and NestJS bindings included)
+- 🦾 Framework-agnostic core with Express and NestJS bindings
 
 ## Getting Started 🚀
 
@@ -40,6 +43,8 @@ Built for simplicity, speed, and type safety. It abstracts away the complexity o
 ```bash
 npm install oauth-entra-id
 ```
+
+Requires Node.js 16 or higher.
 
 ## Azure Portal Setup 🛠️
 
@@ -127,28 +132,12 @@ Usually methods with this return type will start with the prefix `try` or `verif
 
 If the return type is not `Result<T>`, it will throw an `OAuthError` with a specific error type and message.
 
-**Error Type:**
+Both `ResultErr` and `OAuthError` give you the following properties:
 
-```typescript
-type ResultErr = {
-  type: ErrorTypes;
-  message: string;
-  description?: string;
-  statusCode: HttpErrorCodes;
-};
-```
-
-**Object Example:**
-
-```typescript
-type Result<{ x: string; y: number }> = { success: true; x: string; y: number } | { success: false; error: ResultErr };
-```
-
-**Primitive Example:**
-
-```typescript
-type Result<string> = { success: true; result: string } | { success: false; error: ResultErr };
-```
+- `type` - The type of the error for example `nullish_value`
+- `message` - A human-readable error message that can be shown to the user.
+- `statusCode` - The HTTP status code for the error, useful for API responses.
+- `description` - A detailed description of the error, useful for debugging. Don't show this to the user, to avoid leaking sensitive information.
 
 ## Usage 🎯
 
@@ -434,6 +423,7 @@ Returns:
 #### `getB2BToken()`
 
 Acquire an app token for a specific app, using the client credentials flow.
+Caches tokens for better performance.
 
 This method is useful for B2B applications that need to authenticate and authorize themselves against other services.
 
@@ -442,7 +432,7 @@ Note: This method is only available if `b2bTargetedApps` is configured in the `a
 Parameters:
 
 - `params`:
-  - `appName` or `appsNames` - The name of the B2B app or an array of app names to generate tokens for.
+  - `app` or `apps` - The name of the B2B app or an array of app names to generate tokens for.
 
 Returns:
 
@@ -450,15 +440,17 @@ Returns:
   - `result` or `results` - An object or an array of objects (based on the parameters) containing:
     - `appName` - The name of the B2B app.
     - `clientId` - The client ID of the B2B app.
-    - `accessToken` - The B2B access token string.
+    - `token` - The B2B access token string.
     - `msalResponse` - The MSAL response object for extra information if needed.
+    - `isCached` - A boolean indicating if the token was cached or not.
+    - `expiresAt` - The expiration time of the token minus 5 minutes.
 
 ```typescript
 protectedRouter.post('/get-b2b-info', async (c) => {
-  const { appName } = await c.req.json();
-  const { result } = await oauthProvider.getB2BToken({ appName });
+  const { app } = await c.req.json();
+  const { result } = await oauthProvider.getB2BToken({ app });
   const res = await axios.get(env.OTHER_SERVER, {
-    headers: { Authorization: `Bearer ${result.accessToken}` },
+    headers: { Authorization: `Bearer ${result.token}` },
   });
   return c.json({ data: res.data });
 });
@@ -476,7 +468,7 @@ Parameters:
 
 - `params`:
   - `accessToken` - The access token string either encrypted or in JWT format.
-  - `serviceName` or `serviceNames` - The name of the downstream service or an array of service names to acquire tokens for.
+  - `service` or `services` - The name of the downstream service or an array of service names to acquire tokens for.
 
 Returns:
 
@@ -490,9 +482,9 @@ Returns:
 
 ```typescript
 app.post('/on-behalf-of', protectRoute, async (c) => {
-  const { serviceNames } = await c.req.json();
+  const { services } = await c.req.json();
   const accessToken = c.get('userInfo').accessToken;
-  const { results } = await oauthProvider.getOnBehalfOfToken({ accessToken, serviceNames });
+  const { results } = await oauthProvider.getOnBehalfOfToken({ accessToken, services });
 
   for (const { accessToken } of results) {
     setCookie(c, accessToken.name, accessToken.value, accessToken.options);
