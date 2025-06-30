@@ -19,21 +19,20 @@ import type {
   WebApiCryptoKey,
 } from './types';
 import { $cookieOptions } from './utils/cookie-options';
-import { $compressObj, $decompressObj } from './utils/crypto/compress';
-import { $decrypt, $decryptObj, $encrypt, $encryptObj, $generateUuid } from './utils/crypto/encrypt';
-import { $getAudAndExp, $getKid, $verifyJwt } from './utils/crypto/jwt';
-import { $constructorHelper, $coreErrors, $mapAndFilter, TIME_SKEW } from './utils/helpers';
+import { $generateUuid } from './utils/crypto/encrypt';
+import { $getAudAndExp, $verifyJwt } from './utils/crypto/jwt';
 import {
-  $prettyErr,
-  zAccessTokenStructure,
-  zEncrypted,
-  zInjectedData,
-  zJwt,
-  zLooseBase64,
-  zMethods,
-  zState,
-  zUuid,
-} from './utils/zod';
+  $decryptAccessToken,
+  $decryptRefreshToken,
+  $decryptState,
+  $decryptTicket,
+  $encryptAccessToken,
+  $encryptRefreshToken,
+  $encryptState,
+  $encryptTicket,
+} from './utils/crypto/tokens';
+import { $constructorHelper, $coreErrors, $mapAndFilter, TIME_SKEW } from './utils/helpers';
+import { $prettyErr, zInjectedData, zMethods, type zState } from './utils/zod';
 
 /**
  * Core OAuth2/PKCE provider for Microsoft Entra ID (Azure AD).
@@ -113,9 +112,9 @@ export class OAuthProvider {
     if (uuidError) throw new OAuthError(uuidError);
 
     try {
-      const [pkce, { encryptedTicket, error: ticketError }] = await Promise.all([
+      const [pkce, { encrypted: encryptedTicket, error: ticketError }] = await Promise.all([
         this.msalCryptoProvider.generatePkceCodes(),
-        this.$encryptTicket(ticketId),
+        this.$encryptToken('ticket', ticketId),
       ]);
       if (ticketError) throw new OAuthError(ticketError);
 
@@ -128,7 +127,7 @@ export class OAuthProvider {
             : undefined;
 
       const params = { nonce: this.msalCryptoProvider.createNewGuid(), loginHint: parsedParams.email, prompt };
-      const { encryptedState, error: encryptError } = await this.$encryptState({
+      const { encrypted: encryptedState, error: encryptError } = await this.$encryptToken('state', {
         frontendUrl: parsedParams.frontendUrl ?? this.frontendUrls[0],
         codeVerifier: pkce.verifier,
         ticketId: ticketId,
@@ -179,7 +178,7 @@ export class OAuthProvider {
       throw new OAuthError('bad_request', { error: 'Invalid params', description: $prettyErr(paramsError) });
     }
 
-    const { state, error: decryptError } = await this.$decryptState(parsedParams.state);
+    const { decrypted: state, error: decryptError } = await this.$decryptToken('state', parsedParams.state);
     if (decryptError) throw new OAuthError(decryptError);
 
     if (!this.frontendWhitelist.has(new URL(state.frontendUrl).host)) {
@@ -271,11 +270,11 @@ export class OAuthProvider {
     }>
   > {
     const {
-      rawAccessToken,
+      decrypted: rawAccessToken,
       injectedData,
       wasEncrypted,
       error: decryptError,
-    } = await this.$decryptAccessToken<T>(accessToken);
+    } = await this.$decryptToken<T>('accessToken', accessToken);
 
     if (decryptError) {
       return $err(decryptError.type, { error: 'Unauthorized', description: decryptError.description, status: 401 });
@@ -326,7 +325,7 @@ export class OAuthProvider {
       return $err('nullish_value', { error: 'Unauthorized', description: 'Refresh token is required', status: 401 });
     }
 
-    const { rawRefreshToken, error: decryptError } = await this.$decryptRefreshToken(refreshToken);
+    const { decrypted: rawRefreshToken, error: decryptError } = await this.$decryptToken('refreshToken', refreshToken);
     if (decryptError) {
       return $err(decryptError.type, { error: 'Unauthorized', description: decryptError.description, status: 401 });
     }
@@ -381,7 +380,7 @@ export class OAuthProvider {
   async tryInjectData<T extends object = Record<string, any>>(params: { accessToken: string; data: T }): Promise<
     Result<{ injectedAccessToken: Cookies['AccessToken']; injectedData: T }>
   > {
-    const { rawAccessToken, error } = await this.$decryptAccessToken(params.accessToken);
+    const { decrypted: rawAccessToken, error } = await this.$decryptToken('accessToken', params.accessToken);
     if (error) return $err(error);
 
     const { data: dataToInject, error: dataToInjectError } = zInjectedData.safeParse(params.data);
@@ -389,13 +388,13 @@ export class OAuthProvider {
       return $err('invalid_format', { error: 'Invalid data', description: $prettyErr(dataToInjectError) });
     }
 
-    const { encryptedAccessToken, error: encryptError } = await this.$encryptAccessToken(rawAccessToken, {
+    const { encrypted, error: encryptError } = await this.$encryptToken('accessToken', rawAccessToken, {
       dataToInject,
     });
     if (encryptError) return $err(encryptError);
 
     return $ok({
-      injectedAccessToken: { value: encryptedAccessToken, ...this.defaultCookieOptions.accessToken },
+      injectedAccessToken: { value: encrypted, ...this.defaultCookieOptions.accessToken },
       injectedData: dataToInject as T,
     });
   }
@@ -408,7 +407,9 @@ export class OAuthProvider {
    * @returns A result containing the ticket ID (returned by getTokenByCode).
    */
   async tryDecryptTicket(ticket: string): Promise<Result<{ ticketId: string }>> {
-    return await this.$decryptTicket(ticket);
+    const { decrypted, error } = await this.$decryptToken('ticket', ticket);
+    if (error) return $err(error);
+    return $ok({ ticketId: decrypted });
   }
 
   /**
@@ -535,7 +536,7 @@ export class OAuthProvider {
       throw new OAuthError('bad_request', { error: 'Invalid params', description: 'OBO service not found' });
     }
 
-    const { rawAccessToken, error } = await this.$decryptAccessToken(parsedParams.accessToken);
+    const { decrypted: rawAccessToken, error } = await this.$decryptToken('accessToken', parsedParams.accessToken);
     if (error) throw new OAuthError(error);
 
     try {
@@ -550,7 +551,7 @@ export class OAuthProvider {
         const { aud, error: audError } = $getAudAndExp(msalResponse.accessToken);
         if (audError) return null;
 
-        const { encryptedAccessToken, error } = await this.$encryptAccessToken(msalResponse.accessToken, {
+        const { encrypted, error } = await this.$encryptToken('accessToken', msalResponse.accessToken, {
           cryptoType: service.cryptoType,
           otherSecretKey: `access-token-${service.encryptionKey}`,
         });
@@ -567,7 +568,7 @@ export class OAuthProvider {
         return {
           serviceName: service.serviceName,
           clientId: aud,
-          accessToken: { value: encryptedAccessToken, ...cookieOptions.accessToken },
+          accessToken: { value: encrypted, ...cookieOptions.accessToken },
           msalResponse: msalResponse,
         } satisfies GetTokenOnBehalfOfResult;
       });
@@ -592,7 +593,7 @@ export class OAuthProvider {
     msalResponse: MsalResponse,
   ): Promise<Result<{ encryptedAccessToken: string; encryptedRefreshToken: string | null }>> {
     const [accessTokenRes, refreshTokenRes] = await Promise.all([
-      this.$encryptAccessToken(msalResponse.accessToken),
+      this.$encryptToken('accessToken', msalResponse.accessToken),
       this.$obtainRefreshToken(msalResponse),
     ]);
 
@@ -600,13 +601,13 @@ export class OAuthProvider {
     // ! If the refresh token has any error, we still return the access token
 
     return $ok({
-      encryptedAccessToken: accessTokenRes.encryptedAccessToken,
-      encryptedRefreshToken: refreshTokenRes.encryptedRefreshToken ?? null,
+      encryptedAccessToken: accessTokenRes.encrypted,
+      encryptedRefreshToken: refreshTokenRes.encrypted ?? null,
     });
   }
 
   /** Extracts the refresh token from the cache that msal created, and removes the account from the cache. */
-  private async $obtainRefreshToken(msalResponse: MsalResponse): Promise<Result<{ encryptedRefreshToken: string }>> {
+  private async $obtainRefreshToken(msalResponse: MsalResponse): Promise<Result<{ encrypted: string }>> {
     try {
       const cache = this.azure.cca.getTokenCache();
       const serializedCache = JSON.parse(cache.serialize());
@@ -614,7 +615,7 @@ export class OAuthProvider {
       const refreshTokenKey = Object.keys(refreshTokens).find((key) => key.startsWith(msalResponse.uniqueId));
       if (msalResponse.account) await cache.removeAccount(msalResponse.account);
       const refreshToken = refreshTokenKey ? (refreshTokens[refreshTokenKey].secret as string) : null;
-      return await this.$encryptRefreshToken(refreshToken);
+      return await this.$encryptToken('refreshToken', refreshToken);
     } catch {
       return $err('internal', {
         error: 'Failed to obtain refresh token',
@@ -633,218 +634,83 @@ export class OAuthProvider {
     }
   }
 
-  private async $encryptAccessToken<T extends object = Record<string, any>>(
+  private async $encryptToken<T extends object = Record<string, any>>(
+    keyType: 'accessToken',
     value: string | null,
-    params?: {
-      dataToInject?: T;
-      otherSecretKey?: string;
-      cryptoType?: CryptoType;
-    },
-  ): Promise<Result<{ encryptedAccessToken: string }>> {
-    const { data: accessToken, error: jwtError } = zJwt.safeParse(value);
-    if (jwtError) {
-      return $err('invalid_format', { error: 'Invalid access token format', description: $prettyErr(jwtError) });
+    params?: { dataToInject?: T; otherSecretKey?: string; cryptoType?: CryptoType },
+  ): Promise<Result<{ encrypted: string }>>;
+  private async $encryptToken(
+    keyType: 'refreshToken' | 'ticket',
+    value: string | null,
+  ): Promise<Result<{ encrypted: string }>>;
+  private async $encryptToken(keyType: 'state', value: object | null): Promise<Result<{ encrypted: string }>>;
+  private async $encryptToken<T extends object = Record<string, any>>(
+    keyType: keyof typeof this.encryptionKeys,
+    value: string | object | null,
+    params?: { dataToInject?: T; otherSecretKey?: string; cryptoType?: CryptoType },
+  ): Promise<Result<{ encrypted: string }>> {
+    const baseParams = {
+      key: params?.otherSecretKey ?? this.encryptionKeys[keyType],
+      cryptoType: params?.cryptoType ?? this.settings.cryptoType,
+      $updateSecretKey: this.$updateSecretKey.bind(this),
+    };
+    switch (keyType) {
+      case 'accessToken':
+        return $encryptAccessToken<T>(value as string | null, {
+          ...baseParams,
+          isOtherKey: !!params?.otherSecretKey,
+          dataToInject: params?.dataToInject,
+          disableCompression: this.settings.disableCompression,
+        });
+      case 'refreshToken':
+        return $encryptRefreshToken(value as string | null, baseParams);
+      case 'state':
+        return $encryptState(value as object | null, baseParams);
+      case 'ticket':
+        return $encryptTicket(value as string | null, baseParams);
+      default:
+        return $err('misconfiguration', {
+          error: 'Invalid encryption key type',
+          description: `Key type '${keyType}' is not supported for encryption`,
+        });
     }
-
-    const { data: dataToInject, error: injectError } = zInjectedData.safeParse(params?.dataToInject);
-    if (injectError) {
-      return $err('invalid_format', { error: 'Invalid injected data format', description: $prettyErr(injectError) });
-    }
-
-    const injectedData = dataToInject ? $compressObj(dataToInject, this.settings.disableCompression) : undefined;
-    if (injectedData?.error) return $err(injectedData.error);
-
-    const { encrypted, newSecretKey, error } = await $encryptObj(
-      params?.cryptoType ?? this.settings.cryptoType,
-      { at: accessToken, inj: injectedData?.result } satisfies z.infer<typeof zAccessTokenStructure>,
-      params?.otherSecretKey ?? this.encryptionKeys.accessToken,
-    );
-    if (error) {
-      return $err('crypto_error', { error: 'Failed to encrypt access token', description: error.description });
-    }
-
-    if (!params?.otherSecretKey) this.$updateSecretKey('accessToken', newSecretKey);
-
-    if (encrypted.length > 4096) {
-      return $err('invalid_format', {
-        error: 'Token too long',
-        description: `Encrypted access token exceeds 4096 characters. Encrypted length: ${encrypted.length}, original length: ${accessToken.length}, injected data length: ${injectedData?.result.length ?? 0}`,
-      });
-    }
-
-    return $ok({ encryptedAccessToken: encrypted });
   }
 
-  private async $decryptAccessToken<T extends object = Record<string, any>>(
+  private async $decryptToken<T extends object = Record<string, any>>(
+    keyType: 'accessToken',
     value: string | undefined,
-  ): Promise<Result<{ rawAccessToken: string; injectedData?: T; wasEncrypted: boolean }>> {
-    const { data: jwtToken, success: jwtSuccess } = zJwt.safeParse(value);
-    if (jwtSuccess) return $ok({ rawAccessToken: jwtToken, injectedData: undefined, wasEncrypted: false });
-
-    const { data: encryptedAccessToken, error: encryptedAccessTokenError } = zEncrypted.safeParse(value);
-    if (encryptedAccessTokenError) {
-      return $err('invalid_format', { error: 'Unauthorized', description: 'Invalid access token format' });
+  ): Promise<Result<{ decrypted: string; injectedData?: T; wasEncrypted: boolean }>>;
+  private async $decryptToken(
+    keyType: 'refreshToken' | 'ticket',
+    value: string | undefined,
+  ): Promise<Result<{ decrypted: string }>>;
+  private async $decryptToken(
+    keyType: 'state',
+    value: string | undefined,
+  ): Promise<Result<{ decrypted: z.infer<typeof zState> }>>;
+  private async $decryptToken<T extends object = Record<string, any>>(
+    keyType: keyof typeof this.encryptionKeys,
+    value: string | undefined,
+  ): Promise<Result<{ decrypted: string | z.infer<typeof zState>; injectedData?: T; wasEncrypted?: boolean }>> {
+    const baseParams = {
+      key: this.encryptionKeys[keyType],
+      cryptoType: this.settings.cryptoType,
+      $updateSecretKey: this.$updateSecretKey.bind(this),
+    };
+    switch (keyType) {
+      case 'accessToken':
+        return $decryptAccessToken(value, baseParams);
+      case 'refreshToken':
+        return $decryptRefreshToken(value, baseParams);
+      case 'state':
+        return $decryptState(value, baseParams);
+      case 'ticket':
+        return $decryptTicket(value, baseParams);
+      default:
+        return $err('misconfiguration', {
+          error: 'Invalid encryption key type',
+          description: `Key type '${keyType}' is not supported for encryption`,
+        });
     }
-
-    const { result, newSecretKey, error } = await $decryptObj(
-      this.settings.cryptoType,
-      encryptedAccessToken,
-      this.encryptionKeys.accessToken,
-    );
-    if (error) {
-      return $err('crypto_error', { error: 'Failed to decrypt access token', description: error.description });
-    }
-
-    this.$updateSecretKey('accessToken', newSecretKey);
-
-    const { data: accessTokenStruct, error: accessTokenStructError } = zAccessTokenStructure.safeParse(result);
-    if (accessTokenStructError) {
-      return $err('invalid_format', {
-        error: 'Invalid access token format',
-        description: $prettyErr(accessTokenStructError),
-      });
-    }
-
-    const decompressedInjectedData = accessTokenStruct.inj ? $decompressObj(accessTokenStruct.inj) : undefined;
-    if (decompressedInjectedData?.error) return $err(decompressedInjectedData.error);
-
-    return $ok({
-      rawAccessToken: accessTokenStruct.at,
-      injectedData: decompressedInjectedData ? (decompressedInjectedData.result as T) : undefined,
-      wasEncrypted: true,
-    });
-  }
-
-  private async $encryptRefreshToken(value: string | null): Promise<Result<{ encryptedRefreshToken: string }>> {
-    const { data, error: parseError } = zLooseBase64.safeParse(value);
-    if (parseError) {
-      return $err('invalid_format', { error: 'Invalid refresh token format', description: $prettyErr(parseError) });
-    }
-
-    const { encrypted, newSecretKey, error } = await $encrypt(
-      this.settings.cryptoType,
-      data,
-      this.encryptionKeys.refreshToken,
-    );
-    if (error) {
-      return $err('crypto_error', { error: 'Failed to encrypt refresh token', description: error.description });
-    }
-
-    this.$updateSecretKey('refreshToken', newSecretKey);
-
-    if (encrypted.length > 4096) {
-      return $err('invalid_format', {
-        error: 'Token too long',
-        description: `Encrypted refresh token exceeds 4096 characters. Encrypted length: ${encrypted.length}, original length: ${data.length}`,
-      });
-    }
-
-    return $ok({ encryptedRefreshToken: encrypted });
-  }
-
-  private async $decryptRefreshToken(value: string | undefined): Promise<Result<{ rawRefreshToken: string }>> {
-    const { data: encryptedRefreshToken, error: encryptedRefreshTokenError } = zEncrypted.safeParse(value);
-    if (encryptedRefreshTokenError) {
-      return $err('invalid_format', { error: 'Unauthorized', description: 'Invalid refresh token format' });
-    }
-
-    const { result, newSecretKey, error } = await $decrypt(
-      this.settings.cryptoType,
-      encryptedRefreshToken,
-      this.encryptionKeys.refreshToken,
-    );
-    if (error) {
-      return $err('crypto_error', { error: 'Failed to decrypt refresh token', description: error.description });
-    }
-
-    this.$updateSecretKey('refreshToken', newSecretKey);
-
-    return $ok({ rawRefreshToken: result });
-  }
-
-  private async $encryptState(value: object | null): Promise<Result<{ encryptedState: string }>> {
-    const { data, error: parseError } = zState.safeParse(value);
-    if (parseError) {
-      return $err('invalid_format', { error: 'Invalid state format', description: $prettyErr(parseError) });
-    }
-
-    const { encrypted, newSecretKey, error } = await $encryptObj(
-      this.settings.cryptoType,
-      data,
-      this.encryptionKeys.state,
-    );
-    if (error) {
-      return $err('crypto_error', { error: 'Failed to encrypt state', description: error.description });
-    }
-
-    this.$updateSecretKey('state', newSecretKey);
-
-    return $ok({ encryptedState: encrypted });
-  }
-
-  private async $decryptState(value: string | undefined): Promise<Result<{ state: z.infer<typeof zState> }>> {
-    const { data: encryptedState, error: encryptedStateError } = zEncrypted.safeParse(value);
-    if (encryptedStateError) {
-      return $err('invalid_format', { error: 'Invalid state format', description: $prettyErr(encryptedStateError) });
-    }
-
-    const { result, newSecretKey, error } = await $decryptObj(
-      this.settings.cryptoType,
-      encryptedState,
-      this.encryptionKeys.state,
-    );
-    if (error) {
-      return $err('crypto_error', { error: 'Failed to decrypt state', description: error.description });
-    }
-
-    this.$updateSecretKey('state', newSecretKey);
-
-    const { data: state, error: stateError } = zState.safeParse(result);
-    if (stateError) {
-      return $err('invalid_format', { error: 'Invalid state format', description: $prettyErr(stateError) });
-    }
-
-    return $ok({ state });
-  }
-
-  private async $encryptTicket(ticketId: string): Promise<Result<{ encryptedTicket: string }>> {
-    const { data, error: parseError } = zUuid.safeParse(ticketId);
-    if (parseError) {
-      return $err('invalid_format', { error: 'Invalid ticket format', description: $prettyErr(parseError) });
-    }
-
-    const { encrypted, newSecretKey, error } = await $encrypt(
-      this.settings.cryptoType,
-      data,
-      this.encryptionKeys.state,
-    );
-    if (error) {
-      return $err('crypto_error', { error: 'Failed to encrypt ticket', description: error.description });
-    }
-
-    this.$updateSecretKey('ticket', newSecretKey);
-
-    return $ok({ encryptedTicket: encrypted });
-  }
-
-  private async $decryptTicket(value: string | undefined): Promise<Result<{ ticketId: string }>> {
-    const { data, error: encryptedStateError } = zEncrypted.safeParse(value);
-    if (encryptedStateError) {
-      return $err('invalid_format', { error: 'Invalid ticket format', description: $prettyErr(encryptedStateError) });
-    }
-
-    const { result, newSecretKey, error } = await $decrypt(this.settings.cryptoType, data, this.encryptionKeys.state);
-    if (error) {
-      return $err('crypto_error', { error: 'Failed to decrypt ticket', description: error.description });
-    }
-
-    this.$updateSecretKey('ticket', newSecretKey);
-
-    const { data: ticketId, error: stateError } = zUuid.safeParse(result);
-    if (stateError) {
-      return $err('invalid_format', { error: 'Invalid state format', description: $prettyErr(stateError) });
-    }
-
-    return $ok({ ticketId });
   }
 }
