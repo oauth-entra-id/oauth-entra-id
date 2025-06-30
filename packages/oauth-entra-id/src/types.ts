@@ -12,6 +12,9 @@ export type EncryptionKey = NodeCryptoKey | WebApiCryptoKey | string;
 export type LooseString<T extends string> = T | (string & {});
 export type NonEmptyArray<T> = [T, ...T[]];
 export type OneOrMore<T> = T | [T, ...T[]];
+export type BaseWithExtended<TBase extends object, TExtended extends object> =
+  | { [KBase in keyof TBase]: TBase[KBase] }
+  | ({ [KBase in keyof TBase]: TBase[KBase] } & { [KExtended in keyof TExtended]: TExtended[KExtended] });
 
 /**
  * Configuration object for initializing the OAuthProvider.
@@ -56,6 +59,18 @@ export interface Azure {
   cca: ConfidentialClientApplication;
   b2bApps: Map<string, B2BApp> | undefined;
   oboApps: Map<string, OboService> | undefined;
+}
+
+export type JwtClientConfig = BaseWithExtended<
+  { clientId: string; tenantId: LooseString<'common'> },
+  { clientSecret: string; b2bApps: NonEmptyArray<{ appName: string; scope: string }> }
+>;
+
+export interface MinimalAzure {
+  clientId: string;
+  tenantId: LooseString<'common'>;
+  cca: ConfidentialClientApplication | undefined;
+  b2bApps: Map<string, B2BApp> | undefined;
 }
 
 export type EncryptionKeys = {
@@ -161,7 +176,7 @@ export interface Cookies {
   };
 }
 
-export interface GetB2BTokenResult {
+export interface tryGetB2BTokenResult {
   appName: string;
   clientId: string;
   token: string;

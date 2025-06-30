@@ -12,7 +12,8 @@ const zB2BResponse = z.object({
 @Injectable()
 export class ProtectedService {
   async fetchB2BInfo(app: string) {
-    const { result } = await nestjsOAuthProvider.getB2BToken({ app: app });
+    const { result, error } = await nestjsOAuthProvider.tryGetB2BToken({ app: app });
+    if (error) throw new HttpException('Failed to get B2B token', 500);
 
     const serverUrl = serversMap[app];
     const axiosResponse = await axios.get(`${serverUrl}/protected/b2b-info`, {

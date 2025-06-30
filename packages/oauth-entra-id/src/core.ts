@@ -9,7 +9,6 @@ import type {
   Cookies,
   CryptoType,
   EncryptionKeys,
-  GetB2BTokenResult,
   GetTokenOnBehalfOfResult,
   LoginPrompt,
   MsalResponse,
@@ -17,6 +16,7 @@ import type {
   OAuthConfig,
   OAuthSettings,
   WebApiCryptoKey,
+  tryGetB2BTokenResult,
 } from './types';
 import { $cookieOptions } from './utils/cookie-options';
 import { $generateUuid } from './utils/crypto/encrypt';
@@ -31,7 +31,7 @@ import {
   $encryptState,
   $encryptTicket,
 } from './utils/crypto/tokens';
-import { $constructorHelper, $coreErrors, $mapAndFilter, TIME_SKEW } from './utils/helpers';
+import { $coreErrors, $mapAndFilter, TIME_SKEW, oauthProviderHelper } from './utils/helpers';
 import { $prettyErr, zInjectedData, zMethods, type zState } from './utils/zod';
 
 /**
@@ -68,7 +68,7 @@ export class OAuthProvider {
    * @throws {OAuthError} if the config fails validation or has duplicate service names
    */
   constructor(configuration: OAuthConfig) {
-    const result = $constructorHelper(configuration);
+    const result = oauthProviderHelper(configuration);
     if (result.error) throw new OAuthError(result.error);
 
     this.azure = result.azure;
@@ -426,22 +426,21 @@ export class OAuthProvider {
    * @returns Results containing an array of B2B app tokens and metadata.
    * @throws {OAuthError} if something goes wrong.
    */
-  async getB2BToken(params: { app: string }): Promise<{ result: GetB2BTokenResult }>;
-  async getB2BToken(params: { apps: string[] }): Promise<{ results: GetB2BTokenResult[] }>;
-  async getB2BToken(
+  async tryGetB2BToken(params: { app: string }): Promise<Result<{ result: tryGetB2BTokenResult }>>;
+  async tryGetB2BToken(params: { apps: string[] }): Promise<Result<{ results: tryGetB2BTokenResult[] }>>;
+  async tryGetB2BToken(
     params: { app: string } | { apps: string[] },
-  ): Promise<{ result: GetB2BTokenResult } | { results: GetB2BTokenResult[] }> {
+  ): Promise<Result<{ result: tryGetB2BTokenResult } | { results: tryGetB2BTokenResult[] }>> {
     if (!this.azure.b2bApps) {
-      throw new OAuthError('misconfiguration', { error: 'B2B apps not configured', status: 500 });
+      return $err('misconfiguration', { error: 'B2B apps not configured', status: 500 });
     }
 
-    const { data: parsedParams, error: paramsError } = zMethods.getB2BToken.safeParse(params);
-    if (paramsError)
-      throw new OAuthError('bad_request', { error: 'Invalid params', description: $prettyErr(paramsError) });
+    const { data: parsedParams, error: paramsError } = zMethods.tryGetB2BToken.safeParse(params);
+    if (paramsError) return $err('bad_request', { error: 'Invalid params', description: $prettyErr(paramsError) });
 
     const apps = parsedParams.apps.map((app) => this.azure.b2bApps?.get(app)).filter((app) => !!app);
     if (!apps || apps.length === 0) {
-      throw new OAuthError('bad_request', { error: 'Invalid params', description: 'B2B app not found' });
+      return $err('bad_request', { error: 'Invalid params', description: 'B2B app not found' });
     }
 
     try {
@@ -454,7 +453,7 @@ export class OAuthProvider {
             msalResponse: app.msalResponse,
             isCached: true,
             expiresAt: app.exp,
-          } satisfies GetB2BTokenResult;
+          } satisfies tryGetB2BTokenResult;
         }
 
         const msalResponse = await this.azure.cca.acquireTokenByClientCredential({
@@ -482,16 +481,16 @@ export class OAuthProvider {
           msalResponse: msalResponse,
           isCached: false,
           expiresAt: 0,
-        } satisfies GetB2BTokenResult;
+        } satisfies tryGetB2BTokenResult;
       });
 
       if (!results || results.length === 0) {
-        throw new OAuthError('internal', { error: 'Failed to get B2B token', status: 500 });
+        return $err('internal', { error: 'Failed to get B2B token', status: 500 });
       }
 
-      return 'app' in params ? { result: results[0] as GetB2BTokenResult } : { results };
+      return $ok('app' in params ? { result: results[0] as tryGetB2BTokenResult } : { results });
     } catch (err) {
-      throw new OAuthError($coreErrors(err, 'getB2BToken'));
+      return $coreErrors(err, 'tryGetB2BToken');
     }
   }
 

@@ -420,7 +420,7 @@ Returns:
 - Promise of a `Result` object:
   - `ticketId` - The decrypted ticket ID.
 
-#### `getB2BToken()`
+#### `tryGetB2BToken()`
 
 Acquire an app token for a specific app, using the client credentials flow.
 Caches tokens for better performance.
@@ -448,7 +448,7 @@ Returns:
 ```typescript
 protectedRouter.post('/get-b2b-info', async (c) => {
   const { app } = await c.req.json();
-  const { result } = await oauthProvider.getB2BToken({ app });
+  const { result } = await oauthProvider.tryGetB2BToken({ app });
   const res = await axios.get(env.OTHER_SERVER, {
     headers: { Authorization: `Bearer ${result.token}` },
   });

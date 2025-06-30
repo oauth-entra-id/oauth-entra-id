@@ -8,6 +8,8 @@ import type {
   B2BApp,
   Cookies,
   EncryptionKeys,
+  JwtClientConfig,
+  MinimalAzure,
   NonEmptyArray,
   OAuthConfig,
   OAuthSettings,
@@ -15,12 +17,57 @@ import type {
 } from '~/types';
 import { $cookieOptions } from './cookie-options';
 import { $createSecretKeys } from './crypto/encrypt';
-import { $prettyErr, zConfig } from './zod';
+import { $prettyErr, zConfig, zJwtClientConfig } from './zod';
 
 /** Time skew in seconds to account for clock drift between client and server */
 export const TIME_SKEW = 5 * 60;
 
-export function $constructorHelper(config: OAuthConfig): Result<{
+function $createJwksClient(tenantId: string): Result<{ jwksClient: JwksClient }> {
+  try {
+    return $ok({
+      jwksClient: new JwksClient({
+        cache: true,
+        cacheMaxEntries: 5,
+        cacheMaxAge: 10 * 60 * 1000,
+        jwksUri: `https://login.microsoftonline.com/${tenantId}/discovery/v2.0/keys`,
+      }),
+    });
+  } catch (error) {
+    return $err('misconfiguration', {
+      error: 'Failed to create JWKS client',
+      description: `Error creating JWKS client for tenant ${tenantId}: ${error instanceof Error ? error.message : String(error)}`,
+      status: 500,
+    });
+  }
+}
+
+function $createConfidentialClientApplication(params: {
+  clientId: string;
+  tenantId: string;
+  clientSecret: string;
+}): Result<{ cca: ConfidentialClientApplication }> {
+  try {
+    return $ok({
+      cca: new ConfidentialClientApplication({
+        auth: {
+          clientId: params.clientId,
+          authority: `https://login.microsoftonline.com/${params.tenantId}`,
+          clientSecret: params.clientSecret,
+        },
+      }),
+    });
+  } catch (error) {
+    return $err('misconfiguration', {
+      error: 'Failed to create Confidential Client Application',
+      description: `Error creating Confidential Client Application for clientId ${params.clientId} and tenantId ${params.tenantId}: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+      status: 500,
+    });
+  }
+}
+
+export function oauthProviderHelper(config: OAuthConfig): Result<{
   azure: Azure;
   frontendUrls: NonEmptyArray<string>;
   frontendWhitelist: Set<string>;
@@ -73,29 +120,26 @@ export function $constructorHelper(config: OAuthConfig): Result<{
   } = $getOboInfo(parsedConfig.azure.downstreamServices, defaultCookieOptions.accessToken.options, serverHost);
   if (oboMapError) return $err(oboMapError);
 
+  const { cca, error: ccaError } = $createConfidentialClientApplication({
+    clientId: parsedConfig.azure.clientId,
+    tenantId: parsedConfig.azure.tenantId,
+    clientSecret: parsedConfig.azure.clientSecret,
+  });
+  if (ccaError) return $err(ccaError);
+
   const azure: Azure = {
     clientId: parsedConfig.azure.clientId,
     tenantId: parsedConfig.azure.tenantId,
     scopes: parsedConfig.azure.scopes as NonEmptyArray<string>,
-    cca: new ConfidentialClientApplication({
-      auth: {
-        clientId: parsedConfig.azure.clientId,
-        authority: `https://login.microsoftonline.com/${parsedConfig.azure.tenantId}`,
-        clientSecret: parsedConfig.azure.clientSecret,
-      },
-    }),
+    cca: cca,
     b2bApps: b2bMap,
     oboApps: oboMap,
   };
 
   const msalCryptoProvider = new CryptoProvider();
 
-  const jwksClient = new JwksClient({
-    cache: true,
-    cacheMaxEntries: 5,
-    cacheMaxAge: 10 * 60 * 1000, // 10 minutes
-    jwksUri: `https://login.microsoftonline.com/${parsedConfig.azure.tenantId}/discovery/v2.0/keys`,
-  });
+  const { jwksClient, error: jwksError } = $createJwksClient(parsedConfig.azure.tenantId);
+  if (jwksError) return $err(jwksError);
 
   const settings: OAuthSettings = {
     loginPrompt: parsedConfig.advanced.loginPrompt,
@@ -127,6 +171,51 @@ export function $constructorHelper(config: OAuthConfig): Result<{
     msalCryptoProvider: msalCryptoProvider,
     jwksClient: jwksClient,
     settings: settings,
+  });
+}
+
+export function $jwtClientHelper(config: JwtClientConfig): Result<{
+  azure: MinimalAzure;
+  jwksClient: JwksClient;
+}> {
+  const { data: parsedConfig, error: configError } = zJwtClientConfig.safeParse(config);
+  if (configError) {
+    return $err('misconfiguration', { error: 'Invalid config', description: $prettyErr(configError), status: 500 });
+  }
+
+  const { jwksClient, error: jwksError } = $createJwksClient(parsedConfig.azure.tenantId);
+  if (jwksError) return $err(jwksError);
+
+  if (!('clientSecret' in parsedConfig.azure)) {
+    return $ok({
+      azure: {
+        clientId: parsedConfig.azure.clientId,
+        tenantId: parsedConfig.azure.tenantId,
+        cca: undefined,
+        b2bApps: undefined,
+      },
+      jwksClient: jwksClient,
+    });
+  }
+
+  const { b2bMap, error: b2bMapError } = $getB2BInfo(parsedConfig.azure.b2bApps);
+  if (b2bMapError) return $err(b2bMapError);
+
+  const { cca, error: ccaError } = $createConfidentialClientApplication({
+    clientId: parsedConfig.azure.clientId,
+    tenantId: parsedConfig.azure.tenantId,
+    clientSecret: parsedConfig.azure.clientSecret,
+  });
+  if (ccaError) return $err(ccaError);
+
+  return $ok({
+    azure: {
+      clientId: parsedConfig.azure.clientId,
+      tenantId: parsedConfig.azure.tenantId,
+      cca: cca,
+      b2bApps: b2bMap,
+    },
+    jwksClient: jwksClient,
   });
 }
 

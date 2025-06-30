@@ -10,7 +10,7 @@ export async function $verifyJwt({
   jwtToken,
 }: {
   jwksClient: JwksClient;
-  azure: Azure;
+  azure: { clientId: string; tenantId: string };
   jwtToken: string;
 }): Promise<Result<{ payload: jwt.JwtPayload }>> {
   const kid = $getKid(jwtToken);

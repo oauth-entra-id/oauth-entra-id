@@ -31,7 +31,8 @@ protectedRouter.post('/get-b2b-info', async (req, res) => {
   const { data: body, error: bodyError } = zGetB2BInfoBody.safeParse(req.body);
   if (bodyError) throw new HttpException('Invalid params', 400);
 
-  const { result } = await expressOAuthProvider.getB2BToken({ app: body.app });
+  const { result, error } = await expressOAuthProvider.tryGetB2BToken({ app: body.app });
+  if (error) throw new HttpException('Failed to get B2B token', 500);
 
   const serverUrl = serversMap[body.app];
   const axiosResponse = await axios.get(`${serverUrl}/protected/b2b-info`, {

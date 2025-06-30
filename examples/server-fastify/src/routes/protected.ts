@@ -53,7 +53,8 @@ export const protectedRouter: FastifyPluginAsyncTypebox = async (app) => {
 
   app.post('/get-b2b-info', { schema: { body: tSchemas.getB2BInfo } }, async (req, reply) => {
     const { app } = req.body;
-    const { result } = await oauthProvider.getB2BToken({ app });
+    const { result, error } = await oauthProvider.tryGetB2BToken({ app });
+    if (error) throw new HttpException('Failed to get B2B token', 500);
 
     const serverUrl = serversMap[app];
     const axiosResponse = await axios.get(`${serverUrl}/protected/b2b-info`, {
