@@ -436,7 +436,7 @@ Parameters:
 
 Returns:
 
-- Promise of an object:
+- Promise of a `Result` of an object with:
   - `result` or `results` - An object or an array of objects (based on the parameters) containing:
     - `appName` - The name of the B2B app.
     - `clientId` - The client ID of the B2B app.
@@ -448,7 +448,9 @@ Returns:
 ```typescript
 protectedRouter.post('/get-b2b-info', async (c) => {
   const { app } = await c.req.json();
-  const { result } = await oauthProvider.tryGetB2BToken({ app });
+  const { result, error } = await oauthProvider.tryGetB2BToken({ app });
+  if (error) throw new HttpException(error.statusCode, { message: error.message });
+
   const res = await axios.get(env.OTHER_SERVER, {
     headers: { Authorization: `Bearer ${result.token}` },
   });
