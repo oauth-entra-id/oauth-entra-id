@@ -1,5 +1,5 @@
 import type { CryptoProvider } from '@azure/msal-node';
-import jwt from 'jsonwebtoken';
+import type jwt from 'jsonwebtoken';
 import type { JwksClient } from 'jwks-rsa';
 import type { z } from 'zod/v4';
 import { $err, $ok, OAuthError, type Result } from './error';
@@ -21,7 +21,7 @@ import type {
 import { $cookieOptions } from './utils/cookie-options';
 import { $compressObj, $decompressObj } from './utils/crypto/compress';
 import { $decrypt, $decryptObj, $encrypt, $encryptObj, $generateUuid } from './utils/crypto/encrypt';
-import { $getAudAndExp, $getKid } from './utils/crypto/jwt';
+import { $getAudAndExp, $getKid, $verifyJwt } from './utils/crypto/jwt';
 import { $constructorHelper, $coreErrors, $mapAndFilter, TIME_SKEW } from './utils/helpers';
 import {
   $prettyErr,
@@ -582,51 +582,9 @@ export class OAuthProvider {
     }
   }
 
-  /** Retrieves and caches the public key for a given key ID (kid) from the JWKS endpoint. */
-  private $getPublicKey(keyId: string): Promise<string> {
-    return new Promise((resolve, reject) => {
-      this.jwksClient.getSigningKey(keyId, (err, key) => {
-        if (err || !key) {
-          reject(new Error('Error retrieving signing key'));
-          return;
-        }
-        const publicKey = key.getPublicKey();
-        if (!publicKey) {
-          reject(new Error('Public key not found'));
-          return;
-        }
-        resolve(publicKey);
-      });
-    });
-  }
-
   /** Verifies the JWT token and returns its payload. */
   private async $verifyJwt(jwtToken: string): Promise<Result<{ payload: jwt.JwtPayload }>> {
-    const kid = $getKid(jwtToken);
-    if (kid.error) return $err('jwt_error', { error: 'Unauthorized', description: kid.error.description, status: 401 });
-
-    try {
-      const publicKey = await this.$getPublicKey(kid.result);
-
-      const decodedJwt = jwt.verify(jwtToken, publicKey, {
-        algorithms: ['RS256'],
-        audience: this.azure.clientId,
-        issuer: `https://login.microsoftonline.com/${this.azure.tenantId}/v2.0`,
-        complete: true,
-      });
-
-      if (typeof decodedJwt.payload === 'string') {
-        return $err('jwt_error', { error: 'Unauthorized', description: 'Payload is a string', status: 401 });
-      }
-
-      return $ok({ payload: decodedJwt.payload });
-    } catch (err) {
-      return $err('jwt_error', {
-        error: 'Unauthorized',
-        description: `Failed to verify JWT token. Check your Azure Portal, make sure the 'accessTokenAcceptedVersion' is set to '2' in the 'Manifest' area. Error: ${err instanceof Error ? err.message : err}`,
-        status: 401,
-      });
-    }
+    return $verifyJwt({ jwtToken: jwtToken, jwksClient: this.jwksClient, azure: this.azure });
   }
 
   /** Extracts and encrypts both tokens */
@@ -667,38 +625,11 @@ export class OAuthProvider {
   }
 
   /** Updates the secret key for a specific token type if it is a string. */
-  private $updateSecretKey(
-    type: 'accessToken' | 'refreshToken' | 'state' | 'ticket',
-    secretKey: WebApiCryptoKey | undefined,
-  ): void {
-    if (this.settings.cryptoType === 'web-api' && secretKey) {
-      switch (type) {
-        case 'accessToken':
-          if (typeof this.encryptionKeys.accessToken === 'string') {
-            this.encryptionKeys.accessToken = secretKey;
-          }
-          break;
-        case 'refreshToken':
-          if (typeof this.encryptionKeys.refreshToken === 'string') {
-            this.encryptionKeys.refreshToken = secretKey;
-          }
-          break;
-        case 'state':
-          if (typeof this.encryptionKeys.state === 'string') {
-            this.encryptionKeys.state = secretKey;
-          }
-          break;
-        case 'ticket':
-          if (typeof this.encryptionKeys.ticket === 'string') {
-            this.encryptionKeys.ticket = secretKey;
-          }
-          break;
-        default:
-          throw new OAuthError('misconfiguration', {
-            error: 'Invalid secret key type',
-            description: `Unknown type: ${type}`,
-          });
-      }
+  private $updateSecretKey(keyType: keyof typeof this.encryptionKeys, secretKey: WebApiCryptoKey | undefined) {
+    if (this.settings.cryptoType !== 'web-api' || !secretKey) return;
+    const currentKey = this.encryptionKeys[keyType];
+    if (typeof currentKey === 'string') {
+      this.encryptionKeys[keyType] = secretKey;
     }
   }
 
