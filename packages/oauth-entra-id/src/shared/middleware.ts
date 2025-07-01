@@ -33,11 +33,11 @@ export async function $sharedMiddleware(
   const authHeader = req.headers.authorization;
   if (oauthProvider.settings.acceptB2BRequests && authHeader) {
     const token = authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : undefined;
-    const bearerAt = await oauthProvider.verifyAccessToken(token);
-    if (bearerAt.error) throw new OAuthError(bearerAt.error);
+    const bearer = await oauthProvider.verifyAccessToken(token);
+    if (bearer.error) throw new OAuthError(bearer.error);
 
-    const userInfo = $setUserInfo(req, bearerAt.meta);
-    req.accessTokenInfo = { jwt: bearerAt.rawJwt, payload: bearerAt.payload };
+    const userInfo = $setUserInfo(req, bearer.meta);
+    req.accessTokenInfo = { jwt: bearer.rawJwt, payload: bearer.payload };
 
     return {
       userInfo,
