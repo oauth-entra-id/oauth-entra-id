@@ -8,7 +8,7 @@ import type {
   B2BApp,
   Cookies,
   EncryptionKeys,
-  JwtClientConfig,
+  LiteConfig,
   MinimalAzure,
   NonEmptyArray,
   OAuthConfig,
@@ -174,7 +174,7 @@ export function oauthProviderHelper(config: OAuthConfig): Result<{
   });
 }
 
-export function $jwtClientHelper(config: JwtClientConfig): Result<{
+export function $jwtClientHelper(config: LiteConfig): Result<{
   azure: MinimalAzure;
   jwksClient: JwksClient;
 }> {

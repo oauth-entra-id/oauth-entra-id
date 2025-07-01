@@ -1,5 +1,4 @@
 import type { CryptoProvider } from '@azure/msal-node';
-import type jwt from 'jsonwebtoken';
 import type { JwksClient } from 'jwks-rsa';
 import type { z } from 'zod/v4';
 import { $err, $ok, OAuthError, type Result } from './error';
@@ -10,6 +9,7 @@ import type {
   Cookies,
   CryptoType,
   EncryptionKeys,
+  JwtPayload,
   LoginPrompt,
   Metadata,
   MsalResponse,
@@ -263,7 +263,7 @@ export class OAuthProvider {
     accessToken: string | undefined,
   ): Promise<
     Result<{
-      payload: jwt.JwtPayload;
+      payload: JwtPayload;
       meta: Metadata;
       rawJwt: string;
       injectedData: T | undefined;
@@ -318,7 +318,7 @@ export class OAuthProvider {
     Result<{
       newAccessToken: Cookies['AccessToken'];
       newRefreshToken: Cookies['RefreshToken'] | null;
-      payload: jwt.JwtPayload;
+      payload: JwtPayload;
       meta: Metadata;
       rawAccessToken: string;
       msalResponse: MsalResponse;
@@ -425,12 +425,10 @@ export class OAuthProvider {
    * @overload
    * @param params.appName - The name of the B2B app to get the token for.
    * @returns A result containing the B2B app token and metadata.
-   * @throws {OAuthError} if something goes wrong.
    *
    * @overload
    * @param params.appsNames - An array of B2B app names to get tokens for.
    * @returns Results containing an array of B2B app tokens and metadata.
-   * @throws {OAuthError} if something goes wrong.
    */
   async tryGetB2BToken(params: { app: string }): Promise<Result<{ result: B2BResult }>>;
   async tryGetB2BToken(params: { apps: string[] }): Promise<Result<{ results: B2BResult[] }>>;

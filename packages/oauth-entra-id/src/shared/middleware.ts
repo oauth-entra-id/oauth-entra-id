@@ -69,7 +69,6 @@ export async function $sharedMiddleware(
   if (at.success) {
     req.accessTokenInfo = { jwt: at.rawJwt, payload: at.payload };
     const userInfo = $setUserInfo(req, at.meta, at.injectedData);
-
     return { userInfo, tryInjectData: (data) => InjectFunc(at.rawJwt, data) };
   }
 

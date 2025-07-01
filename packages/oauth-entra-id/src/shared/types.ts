@@ -1,6 +1,6 @@
-import type { JwtPayload } from 'jsonwebtoken';
 import type { OAuthProvider } from '~/core';
 import type { Result } from '~/error';
+import type { JwtPayload } from '~/types';
 
 /** Supported server frameworks for binding the OAuthProvider */
 export type ServerType = 'express' | 'nestjs';

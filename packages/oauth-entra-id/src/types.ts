@@ -1,11 +1,13 @@
 import type { webcrypto } from 'node:crypto';
 import type nodeCrypto from 'node:crypto';
 import type { AuthenticationResult, ConfidentialClientApplication } from '@azure/msal-node';
+import type jwt from 'jsonwebtoken';
 import type { ACCESS_TOKEN_NAME, REFRESH_TOKEN_NAME } from './utils/cookie-options';
 
 export type LoginPrompt = 'email' | 'select-account' | 'sso';
 export type TimeUnit = 'ms' | 'sec';
 export type CryptoType = 'node' | 'web-api';
+export type JwtPayload = jwt.JwtPayload;
 export type WebApiCryptoKey = webcrypto.CryptoKey;
 export type NodeCryptoKey = nodeCrypto.KeyObject;
 export type EncryptionKey = NodeCryptoKey | WebApiCryptoKey | string;
@@ -61,7 +63,7 @@ export interface Azure {
   oboApps: Map<string, OboService> | undefined;
 }
 
-export type JwtClientConfig = BaseWithExtended<
+export type LiteConfig = BaseWithExtended<
   { clientId: string; tenantId: LooseString<'common'> },
   { clientSecret: string; b2bApps: NonEmptyArray<{ appName: string; scope: string }> }
 >;
