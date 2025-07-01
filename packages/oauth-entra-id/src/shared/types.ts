@@ -34,9 +34,11 @@ export type UserInfo<T extends object = Record<string, any>> =
  *
  * @template T  Shape of the object to inject.
  * @param data  Arbitrary JSON to embed.
- * @returns A `Result<void>` indicating success or failure.
+ * @returns A `Result<{ injectedData: T }>` containing the injected data.
  */
-export type InjectDataFunction<T extends object = Record<string, any>> = (data: T) => Promise<Result<void>>;
+export type InjectDataFunction<T extends object = Record<string, any>> = (
+  data: T,
+) => Promise<Result<{ injectedData: T }>>;
 
 /**
  * Optional callback invoked once a request is authenticated.
@@ -44,10 +46,9 @@ export type InjectDataFunction<T extends object = Record<string, any>> = (data: 
  * @param params.userInfo - Information about the authenticated user or service principal.
  * @param params.tryInjectData - Function to inject additional data into the access token.
  */
-export type CallbackFunction = (params: {
-  userInfo: UserInfo;
-  tryInjectData: InjectDataFunction;
-}) => Promise<void> | void;
+export type CallbackFunction =
+  | (() => Promise<void> | void)
+  | ((params: { userInfo: UserInfo; tryInjectData: InjectDataFunction }) => Promise<void> | void);
 
 export interface Endpoints {
   Authenticate: {

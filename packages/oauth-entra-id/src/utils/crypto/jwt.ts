@@ -1,8 +1,41 @@
 import jwt from 'jsonwebtoken';
 import type { JwksClient } from 'jwks-rsa';
 import { $err, $ok, type Result } from '~/error';
-import type { Azure } from '~/types';
+import type { Metadata } from '~/types';
 import { $isString } from '../zod';
+
+export function $extractDataFromPayload(payload: jwt.JwtPayload | string): Result<{ meta: Metadata }> {
+  if (!payload || typeof payload === 'string') {
+    return $err('jwt_error', { error: 'Unauthorized', description: 'Payload is a string or null', status: 401 });
+  }
+
+  const isApp = payload.sub === payload.oid;
+
+  return $ok({
+    meta: {
+      audience: payload.aud as string | undefined,
+      issuer: payload.iss,
+      subject: payload.sub,
+      issuedAt: payload.iat,
+      expiration: payload.exp,
+      uniqueId: payload.oid as string | undefined,
+      appClientId: payload.aud as string | undefined,
+      appTenantId: payload.tid as string | undefined,
+      roles: payload.roles as string[] | undefined,
+      uniqueTokenId: payload.uti as string | undefined,
+      ...(isApp
+        ? {
+            isApp: true as const,
+            appId: payload.azp as string | undefined,
+          }
+        : {
+            isApp: false as const,
+            name: payload.name as string | undefined,
+            email: payload.preferred_username as string | undefined,
+          }),
+    },
+  });
+}
 
 export async function $verifyJwt({
   jwksClient,
@@ -12,8 +45,8 @@ export async function $verifyJwt({
   jwksClient: JwksClient;
   azure: { clientId: string; tenantId: string };
   jwtToken: string;
-}): Promise<Result<{ payload: jwt.JwtPayload }>> {
-  const kid = $getKid(jwtToken);
+}): Promise<Result<{ payload: jwt.JwtPayload; meta: Metadata }>> {
+  const kid = $getKeyId(jwtToken);
   if (kid.error) return $err('jwt_error', { error: 'Unauthorized', description: kid.error.description, status: 401 });
 
   try {
@@ -26,11 +59,10 @@ export async function $verifyJwt({
       complete: true,
     });
 
-    if (typeof decodedJwt.payload === 'string') {
-      return $err('jwt_error', { error: 'Unauthorized', description: 'Payload is a string', status: 401 });
-    }
+    const { meta, error } = $extractDataFromPayload(decodedJwt.payload);
+    if (error) return $err(error);
 
-    return $ok({ payload: decodedJwt.payload });
+    return $ok({ payload: decodedJwt.payload as jwt.JwtPayload, meta: meta });
   } catch (err) {
     return $err('jwt_error', {
       error: 'Unauthorized',
@@ -70,7 +102,7 @@ export function $decodeJwt(jwtToken: string): Result<{ decodedJwt: jwt.Jwt }> {
   }
 }
 
-export function $getAudAndExp(jwtToken: string): Result<{ aud: string; exp: number }> {
+export function $getAudienceAndExpiry(jwtToken: string): Result<{ aud: string; exp: number }> {
   const { decodedJwt, error } = $decodeJwt(jwtToken);
   if (error) return $err(error);
 
@@ -95,7 +127,7 @@ export function $getAudAndExp(jwtToken: string): Result<{ aud: string; exp: numb
   return $ok({ aud, exp });
 }
 
-export function $getKid(jwtToken: string): Result<string> {
+export function $getKeyId(jwtToken: string): Result<string> {
   const { decodedJwt, error } = $decodeJwt(jwtToken);
   if (error) return $err(error);
 

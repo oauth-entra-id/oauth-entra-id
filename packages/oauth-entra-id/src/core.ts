@@ -6,21 +6,22 @@ import { $err, $ok, OAuthError, type Result } from './error';
 import type {
   Azure,
   B2BApp,
+  B2BResult,
   Cookies,
   CryptoType,
   EncryptionKeys,
-  GetTokenOnBehalfOfResult,
   LoginPrompt,
+  Metadata,
   MsalResponse,
   NonEmptyArray,
   OAuthConfig,
   OAuthSettings,
+  OboResult,
   WebApiCryptoKey,
-  tryGetB2BTokenResult,
 } from './types';
 import { $cookieOptions } from './utils/cookie-options';
 import { $generateUuid } from './utils/crypto/encrypt';
-import { $getAudAndExp, $verifyJwt } from './utils/crypto/jwt';
+import { $getAudienceAndExpiry, $verifyJwt } from './utils/crypto/jwt';
 import {
   $decryptAccessToken,
   $decryptRefreshToken,
@@ -263,29 +264,26 @@ export class OAuthProvider {
   ): Promise<
     Result<{
       payload: jwt.JwtPayload;
-      rawAccessToken: string;
+      meta: Metadata;
+      rawJwt: string;
       injectedData: T | undefined;
       hasInjectedData: boolean;
-      isApp: boolean;
     }>
   > {
-    const {
-      decrypted: rawAccessToken,
-      injectedData,
-      wasEncrypted,
-      error: decryptError,
-    } = await this.$decryptToken<T>('accessToken', accessToken);
+    const { decrypted, injectedData, wasEncrypted, error } = await this.$decryptToken<T>('accessToken', accessToken);
 
-    if (decryptError) {
-      return $err(decryptError.type, { error: 'Unauthorized', description: decryptError.description, status: 401 });
+    if (error) {
+      return $err(error.type, { error: 'Unauthorized', description: error.description, status: 401 });
     }
 
-    const { payload, error: payloadError } = await this.$verifyJwt(rawAccessToken);
-    if (payloadError) return $err(payloadError);
+    const at = await $verifyJwt({
+      jwtToken: decrypted,
+      jwksClient: this.jwksClient,
+      azure: this.azure,
+    });
+    if (at.error) return $err(at.error);
 
-    const isApp = payload.sub === payload.oid;
-
-    if (this.settings.acceptB2BRequests === false && isApp === true) {
+    if (this.settings.acceptB2BRequests === false && at.meta.isApp === true) {
       return $err('misconfiguration', {
         error: 'B2B requests not allowed',
         description: 'B2B requests are not allowed, please enable them in the configuration',
@@ -293,7 +291,7 @@ export class OAuthProvider {
       });
     }
 
-    if (isApp === wasEncrypted) {
+    if (at.meta.isApp === wasEncrypted) {
       return $err('bad_request', {
         error: 'Unauthorized',
         description: 'User tokens must be encrypted, app tokens must not be encrypted',
@@ -301,7 +299,13 @@ export class OAuthProvider {
       });
     }
 
-    return $ok({ rawAccessToken, payload, injectedData, hasInjectedData: !!injectedData, isApp });
+    return $ok({
+      rawJwt: decrypted,
+      payload: at.payload,
+      meta: at.meta,
+      injectedData,
+      hasInjectedData: !!injectedData,
+    });
   }
 
   /**
@@ -312,11 +316,10 @@ export class OAuthProvider {
    */
   async tryRefreshTokens(refreshToken: string | undefined): Promise<
     Result<{
-      newTokens: {
-        accessToken: Cookies['AccessToken'];
-        refreshToken: Cookies['RefreshToken'] | null;
-      };
+      newAccessToken: Cookies['AccessToken'];
+      newRefreshToken: Cookies['RefreshToken'] | null;
       payload: jwt.JwtPayload;
+      meta: Metadata;
       rawAccessToken: string;
       msalResponse: MsalResponse;
     }>
@@ -344,9 +347,13 @@ export class OAuthProvider {
         });
       }
 
-      const { payload, error: payloadError } = await this.$verifyJwt(msalResponse.accessToken);
-      if (payloadError) {
-        return $err(payloadError.type, { error: 'Unauthorized', description: payloadError.description, status: 401 });
+      const at = await $verifyJwt({
+        jwtToken: msalResponse.accessToken,
+        jwksClient: this.jwksClient,
+        azure: this.azure,
+      });
+      if (at.error) {
+        return $err(at.error.type, { error: 'Unauthorized', description: at.error.description, status: 401 });
       }
 
       const { encryptedAccessToken, encryptedRefreshToken, error } = await this.$extractTokens(msalResponse);
@@ -354,13 +361,12 @@ export class OAuthProvider {
 
       return $ok({
         rawAccessToken: msalResponse.accessToken,
-        payload,
-        newTokens: {
-          accessToken: { value: encryptedAccessToken, ...this.defaultCookieOptions.accessToken },
-          refreshToken: encryptedRefreshToken
-            ? { value: encryptedRefreshToken, ...this.defaultCookieOptions.refreshToken }
-            : null,
-        },
+        payload: at.payload,
+        meta: at.meta,
+        newAccessToken: { value: encryptedAccessToken, ...this.defaultCookieOptions.accessToken },
+        newRefreshToken: encryptedRefreshToken
+          ? { value: encryptedRefreshToken, ...this.defaultCookieOptions.refreshToken }
+          : null,
         msalResponse: msalResponse,
       });
     } catch (err) {
@@ -378,7 +384,7 @@ export class OAuthProvider {
    * @template T - Type of the data to inject into the access token.
    */
   async tryInjectData<T extends object = Record<string, any>>(params: { accessToken: string; data: T }): Promise<
-    Result<{ injectedAccessToken: Cookies['AccessToken']; injectedData: T }>
+    Result<{ newAccessToken: Cookies['AccessToken']; injectedData: T }>
   > {
     const { decrypted: rawAccessToken, error } = await this.$decryptToken('accessToken', params.accessToken);
     if (error) return $err(error);
@@ -394,7 +400,7 @@ export class OAuthProvider {
     if (encryptError) return $err(encryptError);
 
     return $ok({
-      injectedAccessToken: { value: encrypted, ...this.defaultCookieOptions.accessToken },
+      newAccessToken: { value: encrypted, ...this.defaultCookieOptions.accessToken },
       injectedData: dataToInject as T,
     });
   }
@@ -426,11 +432,11 @@ export class OAuthProvider {
    * @returns Results containing an array of B2B app tokens and metadata.
    * @throws {OAuthError} if something goes wrong.
    */
-  async tryGetB2BToken(params: { app: string }): Promise<Result<{ result: tryGetB2BTokenResult }>>;
-  async tryGetB2BToken(params: { apps: string[] }): Promise<Result<{ results: tryGetB2BTokenResult[] }>>;
+  async tryGetB2BToken(params: { app: string }): Promise<Result<{ result: B2BResult }>>;
+  async tryGetB2BToken(params: { apps: string[] }): Promise<Result<{ results: B2BResult[] }>>;
   async tryGetB2BToken(
     params: { app: string } | { apps: string[] },
-  ): Promise<Result<{ result: tryGetB2BTokenResult } | { results: tryGetB2BTokenResult[] }>> {
+  ): Promise<Result<{ result: B2BResult } | { results: B2BResult[] }>> {
     if (!this.azure.b2bApps) {
       return $err('misconfiguration', { error: 'B2B apps not configured', status: 500 });
     }
@@ -453,7 +459,7 @@ export class OAuthProvider {
             msalResponse: app.msalResponse,
             isCached: true,
             expiresAt: app.exp,
-          } satisfies tryGetB2BTokenResult;
+          } satisfies B2BResult;
         }
 
         const msalResponse = await this.azure.cca.acquireTokenByClientCredential({
@@ -462,7 +468,7 @@ export class OAuthProvider {
         });
         if (!msalResponse) return null;
 
-        const { aud, exp, error: audError } = $getAudAndExp(msalResponse.accessToken);
+        const { aud, exp, error: audError } = $getAudienceAndExpiry(msalResponse.accessToken);
         if (audError) return null;
 
         this.azure.b2bApps?.set(app.appName, {
@@ -481,14 +487,14 @@ export class OAuthProvider {
           msalResponse: msalResponse,
           isCached: false,
           expiresAt: 0,
-        } satisfies tryGetB2BTokenResult;
+        } satisfies B2BResult;
       });
 
       if (!results || results.length === 0) {
         return $err('internal', { error: 'Failed to get B2B token', status: 500 });
       }
 
-      return $ok('app' in params ? { result: results[0] as tryGetB2BTokenResult } : { results });
+      return $ok('app' in params ? { result: results[0] as B2BResult } : { results });
     } catch (err) {
       return $coreErrors(err, 'tryGetB2BToken');
     }
@@ -510,14 +516,14 @@ export class OAuthProvider {
    * @throws {OAuthError} if something goes wrong.
    */
   async getTokenOnBehalfOf(params: { accessToken: string; service: string }): Promise<{
-    result: GetTokenOnBehalfOfResult;
+    result: OboResult;
   }>;
   async getTokenOnBehalfOf(params: { accessToken: string; services: string[] }): Promise<{
-    results: GetTokenOnBehalfOfResult[];
+    results: OboResult[];
   }>;
   async getTokenOnBehalfOf(
     params: { accessToken: string; service: string } | { accessToken: string; services: string[] },
-  ): Promise<{ result: GetTokenOnBehalfOfResult } | { results: GetTokenOnBehalfOfResult[] }> {
+  ): Promise<{ result: OboResult } | { results: OboResult[] }> {
     if (!this.azure.oboApps) {
       throw new OAuthError('misconfiguration', { error: 'OBO services not configured', status: 500 });
     }
@@ -547,7 +553,7 @@ export class OAuthProvider {
         });
         if (!msalResponse) return null;
 
-        const { aud, error: audError } = $getAudAndExp(msalResponse.accessToken);
+        const { aud, error: audError } = $getAudienceAndExpiry(msalResponse.accessToken);
         if (audError) return null;
 
         const { encrypted, error } = await this.$encryptToken('accessToken', msalResponse.accessToken, {
@@ -569,22 +575,17 @@ export class OAuthProvider {
           clientId: aud,
           accessToken: { value: encrypted, ...cookieOptions.accessToken },
           msalResponse: msalResponse,
-        } satisfies GetTokenOnBehalfOfResult;
+        } satisfies OboResult;
       });
 
       if (!results || results.length === 0) {
         throw new OAuthError('internal', { error: 'Failed to get OBO token', status: 500 });
       }
 
-      return 'service' in params ? { result: results[0] as GetTokenOnBehalfOfResult } : { results };
+      return 'service' in params ? { result: results[0] as OboResult } : { results };
     } catch (err) {
       throw new OAuthError($coreErrors(err, 'getTokenOnBehalfOf'));
     }
-  }
-
-  /** Verifies the JWT token and returns its payload. */
-  private async $verifyJwt(jwtToken: string): Promise<Result<{ payload: jwt.JwtPayload }>> {
-    return $verifyJwt({ jwtToken: jwtToken, jwksClient: this.jwksClient, azure: this.azure });
   }
 
   /** Extracts and encrypts both tokens */

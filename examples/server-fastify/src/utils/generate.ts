@@ -1,5 +1,5 @@
 export function getRandomNumber() {
-  return Math.floor(Math.random() * 100);
+  return { randomNumber: Math.floor(Math.random() * 100) };
 }
 
 export function generateRandomPokemon() {

@@ -9,7 +9,7 @@ import { getRandomNumber } from '~/utils/generate';
 
 const callbackFunc: CallbackFunction = async ({ userInfo, tryInjectData }) => {
   if (!userInfo.isApp && !userInfo.injectedData) {
-    const { error } = await tryInjectData({ randomNumber: getRandomNumber() });
+    const { error } = await tryInjectData(getRandomNumber());
     if (error) throw new OAuthError(error);
   }
 };

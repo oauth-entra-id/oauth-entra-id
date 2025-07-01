@@ -176,7 +176,7 @@ export interface Cookies {
   };
 }
 
-export interface tryGetB2BTokenResult {
+export interface B2BResult {
   appName: string;
   clientId: string;
   token: string;
@@ -185,9 +185,35 @@ export interface tryGetB2BTokenResult {
   expiresAt: number;
 }
 
-export interface GetTokenOnBehalfOfResult {
+export interface OboResult {
   serviceName: string;
   clientId: string;
   accessToken: Cookies['AccessToken'];
   msalResponse: MsalResponse;
 }
+
+export type Metadata = {
+  audience: string | undefined;
+  issuer: string | undefined;
+  subject: string | undefined;
+  issuedAt: number | undefined;
+  expiration: number | undefined;
+  uniqueId: string | undefined;
+  appClientId: string | undefined;
+  appTenantId: string | undefined;
+  roles: string[] | undefined;
+  uniqueTokenId: string | undefined;
+} & (
+  | {
+      isApp: true;
+      appId: string | undefined;
+      name?: undefined;
+      email?: undefined;
+    }
+  | {
+      isApp: false;
+      appId?: undefined;
+      name: string | undefined;
+      email: string | undefined;
+    }
+);

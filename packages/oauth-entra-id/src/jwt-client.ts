@@ -1,8 +1,8 @@
 import type jwt from 'jsonwebtoken';
 import type { JwksClient } from 'jwks-rsa';
 import { $err, $ok, OAuthError, type Result } from './error';
-import type { B2BApp, JwtClientConfig, MinimalAzure, tryGetB2BTokenResult } from './types';
-import { $getAudAndExp, $verifyJwt } from './utils/crypto/jwt';
+import type { B2BApp, B2BResult, JwtClientConfig, MinimalAzure } from './types';
+import { $getAudienceAndExpiry, $verifyJwt } from './utils/crypto/jwt';
 import { $coreErrors, $jwtClientHelper, $mapAndFilter, TIME_SKEW } from './utils/helpers';
 import { $prettyErr, zMethods } from './utils/zod';
 
@@ -48,11 +48,11 @@ export class JwtClient {
    * @returns Results containing an array of B2B app tokens and metadata.
    * @throws {OAuthError} if something goes wrong.
    */
-  async tryGetB2BToken(params: { app: string }): Promise<Result<{ result: tryGetB2BTokenResult }>>;
-  async tryGetB2BToken(params: { apps: string[] }): Promise<Result<{ results: tryGetB2BTokenResult[] }>>;
+  async tryGetB2BToken(params: { app: string }): Promise<Result<{ result: B2BResult }>>;
+  async tryGetB2BToken(params: { apps: string[] }): Promise<Result<{ results: B2BResult[] }>>;
   async tryGetB2BToken(
     params: { app: string } | { apps: string[] },
-  ): Promise<Result<{ result: tryGetB2BTokenResult } | { results: tryGetB2BTokenResult[] }>> {
+  ): Promise<Result<{ result: B2BResult } | { results: B2BResult[] }>> {
     if (!this.azure.b2bApps || !this.azure.cca) {
       return $err('misconfiguration', { error: 'B2B apps not configured', status: 500 });
     }
@@ -75,7 +75,7 @@ export class JwtClient {
             msalResponse: app.msalResponse,
             isCached: true,
             expiresAt: app.exp,
-          } satisfies tryGetB2BTokenResult;
+          } satisfies B2BResult;
         }
 
         const msalResponse = await this.azure.cca?.acquireTokenByClientCredential({
@@ -84,7 +84,7 @@ export class JwtClient {
         });
         if (!msalResponse) return null;
 
-        const { aud, exp, error: audError } = $getAudAndExp(msalResponse.accessToken);
+        const { aud, exp, error: audError } = $getAudienceAndExpiry(msalResponse.accessToken);
         if (audError) return null;
 
         this.azure.b2bApps?.set(app.appName, {
@@ -103,14 +103,14 @@ export class JwtClient {
           msalResponse: msalResponse,
           isCached: false,
           expiresAt: 0,
-        } satisfies tryGetB2BTokenResult;
+        } satisfies B2BResult;
       });
 
       if (!results || results.length === 0) {
         return $err('internal', { error: 'Failed to get B2B token', status: 500 });
       }
 
-      return $ok('app' in params ? { result: results[0] as tryGetB2BTokenResult } : { results });
+      return $ok('app' in params ? { result: results[0] as B2BResult } : { results });
     } catch (err) {
       return $coreErrors(err, 'tryGetB2BToken');
     }
