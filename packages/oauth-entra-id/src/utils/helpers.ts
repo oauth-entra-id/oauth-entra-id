@@ -6,9 +6,11 @@ import { $err, $ok, type HttpErrorCodes, OAuthError, type Result } from '~/error
 import type {
   Azure,
   B2BApp,
+  B2BResult,
   Cookies,
   EncryptionKeys,
   LiteConfig,
+  LoginPrompt,
   MinimalAzure,
   NonEmptyArray,
   OAuthConfig,
@@ -17,7 +19,8 @@ import type {
 } from '~/types';
 import { $cookieOptions } from './cookie-options';
 import { $createSecretKeys } from './crypto/encrypt';
-import { $prettyErr, zConfig, zJwtClientConfig } from './zod';
+import { $getAudienceAndExpiry } from './crypto/jwt';
+import { $prettyErr, zConfig, zJwtClientConfig, zMethods } from './zod';
 
 /** Time skew in seconds to account for clock drift between client and server */
 export const TIME_SKEW = 5 * 60;
@@ -327,4 +330,78 @@ export function $coreErrors(
     description: `method: ${method}, error: ${JSON.stringify(err)}`,
     status: defaultStatusCode,
   });
+}
+
+export function $transformToMsalPrompt(
+  prompt: LoginPrompt,
+  email: string | undefined,
+): 'login' | 'select_account' | undefined {
+  if (email || prompt === 'email') return 'login';
+  if (prompt === 'select-account') return 'select_account';
+  return undefined;
+}
+
+export async function $tryGetB2BToken(
+  params: { app: string } | { apps: string[] },
+  b2bApps: Map<string, B2BApp> | undefined,
+  cca: ConfidentialClientApplication | undefined,
+): Promise<Result<{ result: B2BResult } | { results: B2BResult[] }>> {
+  if (!b2bApps || !cca) {
+    return $err('misconfiguration', { error: 'B2B apps not configured', status: 500 });
+  }
+
+  const { data: parsedParams, error: paramsError } = zMethods.tryGetB2BToken.safeParse(params);
+  if (paramsError) return $err('bad_request', { error: 'Invalid params', description: $prettyErr(paramsError) });
+
+  const apps = parsedParams.apps.map((app) => b2bApps.get(app)).filter((app) => !!app);
+  if (!apps || apps.length === 0) {
+    return $err('bad_request', { error: 'Invalid params', description: 'B2B app not found' });
+  }
+
+  try {
+    const results = await $mapAndFilter(apps, async (app) => {
+      if (app.token && app.exp > Date.now() / 1000) {
+        return {
+          appName: app.appName,
+          clientId: app.aud,
+          token: app.token,
+          msalResponse: app.msalResponse,
+          isCached: true,
+          expiresAt: app.exp,
+        } satisfies B2BResult;
+      }
+
+      const msalResponse = await cca.acquireTokenByClientCredential({ scopes: [app.scope], skipCache: true });
+      if (!msalResponse) return null;
+
+      const { aud, exp, error: audError } = $getAudienceAndExpiry(msalResponse.accessToken);
+      if (audError) return null;
+
+      b2bApps.set(app.appName, {
+        appName: app.appName,
+        scope: app.scope,
+        token: msalResponse.accessToken,
+        exp: exp - TIME_SKEW,
+        aud: aud,
+        msalResponse: msalResponse,
+      } satisfies B2BApp);
+
+      return {
+        appName: app.appName,
+        clientId: aud,
+        token: msalResponse.accessToken,
+        msalResponse: msalResponse,
+        isCached: false,
+        expiresAt: 0,
+      } satisfies B2BResult;
+    });
+
+    if (!results || results.length === 0) {
+      return $err('internal', { error: 'Failed to get B2B token', status: 500 });
+    }
+
+    return $ok('app' in params ? { result: results[0] as B2BResult } : { results });
+  } catch (err) {
+    return $coreErrors(err, 'tryGetB2BToken');
+  }
 }

@@ -91,10 +91,7 @@ function $setUserInfo<T extends object = Record<any, string>>(req: Request, meta
     uniqueId: meta.uniqueId as string,
     roles: meta.roles as string[],
     ...(meta.isApp
-      ? {
-          isApp: true as const,
-          appId: meta.appId as string,
-        }
+      ? { isApp: true as const, appId: meta.appId as string }
       : {
           isApp: false as const,
           name: meta.name as string,

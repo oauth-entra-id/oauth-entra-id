@@ -38,14 +38,18 @@ export function $extractDataFromPayload(payload: JwtPayload | string): Result<{ 
 }
 
 export async function $verifyJwt({
+  jwtToken,
   jwksClient,
   azure,
-  jwtToken,
 }: {
+  jwtToken: string | undefined;
   jwksClient: JwksClient;
   azure: { clientId: string; tenantId: string };
-  jwtToken: string;
 }): Promise<Result<{ payload: JwtPayload; meta: Metadata }>> {
+  if (!jwtToken) {
+    return $err('nullish_value', { error: 'Unauthorized', description: 'Access token is required', status: 401 });
+  }
+
   const kid = $getKeyId(jwtToken);
   if (kid.error) return $err('jwt_error', { error: 'Unauthorized', description: kid.error.description, status: 401 });
 
