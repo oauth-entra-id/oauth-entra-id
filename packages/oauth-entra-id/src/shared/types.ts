@@ -10,12 +10,25 @@ export type ServerType = 'express' | 'nestjs';
  *
  * @template T  Type of any injected metadata for a user.
  */
-export type UserInfo<T extends object = Record<string, any>> = Readonly<
-  { uniqueId: string; roles: string[] } & (
-    | { isApp: false; name: string; email: string; injectedData?: T; appId?: undefined }
-    | { isApp: true; name?: undefined; email?: undefined; injectedData?: undefined; appId: string }
-  )
->;
+export type UserInfo<T extends object = Record<string, any>> = {
+  readonly uniqueId: string;
+  readonly roles: string[];
+} & (
+  | {
+      readonly isApp: false;
+      readonly name: string;
+      readonly email: string;
+      readonly injectedData?: T;
+      readonly appId?: undefined;
+    }
+  | {
+      readonly isApp: true;
+      readonly appId: string;
+      readonly name?: undefined;
+      readonly email?: undefined;
+      readonly injectedData?: undefined;
+    }
+);
 
 /**
  * Adds metadata into an existing access token.

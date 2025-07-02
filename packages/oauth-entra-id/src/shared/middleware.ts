@@ -81,9 +81,9 @@ export async function $sharedMiddleware(
   }
 
   const userInfo = $setUserInfo(req, rt.meta);
-  req.accessTokenInfo = { jwt: rt.rawAccessToken, payload: rt.payload };
+  req.accessTokenInfo = { jwt: rt.rawJwt, payload: rt.payload };
 
-  return { userInfo, tryInjectData: (data) => InjectFunc(rt.rawAccessToken, data) };
+  return { userInfo, tryInjectData: (data) => InjectFunc(rt.rawJwt, data) };
 }
 
 function $setUserInfo<T extends object = Record<any, string>>(req: Request, meta: Metadata, injectedData?: T) {

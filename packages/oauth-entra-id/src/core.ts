@@ -319,7 +319,7 @@ export class OAuthProvider {
       newRefreshToken: Cookies['RefreshToken'] | null;
       payload: JwtPayload;
       meta: Metadata;
-      rawAccessToken: string;
+      rawJwt: string;
       msalResponse: MsalResponse;
     }>
   > {
@@ -359,7 +359,7 @@ export class OAuthProvider {
       if (error) return $err(error.type, { error: 'Unauthorized', description: error.description, status: 401 });
 
       return $ok({
-        rawAccessToken: msalResponse.accessToken,
+        rawJwt: msalResponse.accessToken,
         payload: at.payload,
         meta: at.meta,
         newAccessToken: { value: encryptedAccessToken, ...this.defaultCookieOptions.accessToken },

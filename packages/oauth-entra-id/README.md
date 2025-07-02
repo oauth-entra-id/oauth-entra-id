@@ -147,6 +147,9 @@ The package provides three main modules for different frameworks:
 - `oauth-entra-id/express` - For Express.js applications (recommended). Jump to **[Express](#usage---express-)**.
 - `oauth-entra-id/nestjs` - For NestJS applications (recommended). Jump to **[NestJS](#usage---nestjs-)**.
 
+There is another provider called `LiteProvider`, that you can import from the core package. This class has 2 methods `verifyJwt` and `tryGetB2BToken`(which is the same as the normal method).
+You can use this provider if your server is a B2B only server with unencrypted JWT tokens, and you don't need the full OAuth 2.0 flow.
+
 ## Usage - Core 🧱
 
 The core package provides the flexibility to integrate OAuth 2.0 with Entra ID in any Node.js framework.
@@ -289,11 +292,11 @@ Parameters:
 Returns:
 
 - Promise of a `Result` object:
+  - `meta` - Metadata about the user that has been extracted from the payload.
   - `payload` - The payload of the access token.
-  - `rawAccessToken` - The access token in JWT format.
+  - `rawJwt` - The access token in JWT format.
   - `injectedData` - If the token has been injected with extra data, it will be returned here with the type `T`.
   - `hasInjectedData` - If the token has injected data, this will be `true`. Otherwise, it will be `false`.
-  - `isApp` - If the token is an app token, this will be `true`. Otherwise, it will be `false`.
 
 `T` is a generic type if you want to specify the type of the injected data.
 It will remain `undefined` if the token does not have injected data.
@@ -311,11 +314,11 @@ Parameters:
 Returns:
 
 - Promise of a `Result` object:
-  - `newTokens` - An object containing:
-    - `accessToken` - The new access token object containing the token value, suggested name, and options.
-    - `refreshToken` - The new refresh token object containing the token value, suggested name, and options.
+  - `newAccessToken` - The new access token object containing the token value, suggested name, and options.
+  - `newRefreshToken` - The new refresh token object containing the token value, suggested name, and options.
+  - `meta` - Metadata about the user that has been extracted from the payload.
   - `payload` - The payload of the access token.
-  - `rawAccessToken` - The access token in JWT format.
+  - `rawJwt` - The access token in JWT format.
   - `msalResponse` - The MSAL response object for extra information if needed.
 
 An example will be shown below.
@@ -335,7 +338,7 @@ Parameters:
 Returns:
 
 - Promise of a `Result` object:
-  - `injectedAccessToken` - The access token object containing the token value, suggested name, and options.
+  - `newAccessToken` - New access token that has been injected with the data.
   - `injectedData` - The injected data of type `T`.
 
 `T` is a generic type if you want to specify the type of the injected data.
@@ -350,57 +353,43 @@ export const protectRoute = createMiddleware(async (c, next) => {
   const refreshToken = getCookie(c, refreshTokenName);
   if (!accessToken && !refreshToken) throw new HTTPException(401, { message: 'Unauthorized' });
 
-  const accessTokenInfo = await oauthProvider.verifyAccessToken<{ randomNumber: number }>(accessToken);
-  if (accessTokenInfo.success) {
-    // The access token is valid with injected data
-    if (accessTokenInfo.hasInjectedData) {
+  const at = await oauthProvider.verifyAccessToken<{ randomNumber: number }>(accessToken);
+  if (at.success) {
+    if (at.hasInjectedData) {
       c.set('userInfo', {
-        uniqueId: accessTokenInfo.payload.oid,
-        email: accessTokenInfo.payload.preferred_username,
-        name: accessTokenInfo.payload.name,
-        injectedData: accessTokenInfo.injectedData,
+        uniqueId: at.meta.uniqueId,
+        email: at.meta.email,
+        name: at.meta.name,
+        injectedData: at.injectedData,
       });
       return await next();
     }
 
-    // The access token is valid without injected data, inject some data
-    const { injectedAccessToken, success, injectedData } = await oauthProvider.injectData({
-      accessToken: accessTokenInfo.rawAccessToken,
-      data: { randomNumber: getRandomNumber() },
-    });
-
-    if (success) setCookie(c, injectedAccessToken.name, injectedAccessToken.value, injectedAccessToken.options);
+    const inj = await oauthProvider.tryInjectData({ accessToken: at.rawJwt, data: getRandomNumber() });
+    if (inj.success) setCookie(c, inj.newAccessToken.name, inj.newAccessToken.value, inj.newAccessToken.options);
     c.set('userInfo', {
-      uniqueId: accessTokenInfo.payload.oid,
-      email: accessTokenInfo.payload.preferred_username,
-      name: accessTokenInfo.payload.name,
-      injectedData: injectedData,
+      uniqueId: at.meta.uniqueId,
+      email: at.meta.email,
+      name: at.meta.name,
+      injectedData: inj.injectedData,
     });
     return await next();
   }
 
-  // The access token is invalid, try to refresh it
-  const refreshTokenInfo = await oauthProvider.tryRefreshTokens(refreshToken);
-  if (refreshTokenInfo.error)
-    throw new HTTPException(refreshTokenInfo.error.statusCode, { message: refreshTokenInfo.error.message });
-  const { newTokens } = refreshTokenInfo;
+  const rt = await oauthProvider.tryRefreshTokens(refreshToken);
+  if (rt.error) throw new HttpException(rt.error.statusCode, { message: rt.error.message });
 
-  const { injectedAccessToken, success, injectedData } = await oauthProvider.injectData({
-    accessToken: refreshTokenInfo.rawAccessToken,
-    data: { randomNumber: getRandomNumber() },
-  });
+  const inj = await oauthProvider.tryInjectData({ accessToken: rt.rawJwt, data: getRandomNumber() });
+  const final = inj.success ? inj.newAccessToken : rt.newAccessToken;
 
-  const finalAccessToken = success ? injectedAccessToken : newTokens.accessToken;
-  setCookie(c, finalAccessToken.name, finalAccessToken.value, finalAccessToken.options);
-  if (newTokens.refreshToken) {
-    setCookie(c, newTokens.refreshToken.name, newTokens.refreshToken.value, newTokens.refreshToken.options);
-  }
+  setCookie(c, final.name, final.value, final.options);
+  if (rt.newRefreshToken) setCookie(c, rt.newRefreshToken.name, rt.newRefreshToken.value, rt.newRefreshToken.options);
 
   c.set('userInfo', {
-    uniqueId: refreshTokenInfo.payload.oid,
-    email: refreshTokenInfo.payload.preferred_username,
-    name: refreshTokenInfo.payload.name,
-    injectedData: injectedData,
+    uniqueId: rt.meta.uniqueId,
+    email: rt.meta.email,
+    name: rt.meta.name,
+    injectedData: inj.injectedData,
   });
   return await next();
 });

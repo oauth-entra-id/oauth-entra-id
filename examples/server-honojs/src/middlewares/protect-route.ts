@@ -39,12 +39,12 @@ export const protectRoute = createMiddleware<ProtectRoute>(async (c, next) => {
 
   const rt = await oauthProvider.tryRefreshTokens(refreshToken);
   if (rt.error) throw new OAuthError(rt.error);
-  c.set('accessTokenInfo', { jwt: rt.rawAccessToken, payload: rt.payload });
+  c.set('accessTokenInfo', { jwt: rt.rawJwt, payload: rt.payload });
 
-  const inj = await oauthProvider.tryInjectData({ accessToken: rt.rawAccessToken, data: getRandomNumber() });
-  const finalAccessToken = inj.success ? inj.newAccessToken : rt.newAccessToken;
+  const inj = await oauthProvider.tryInjectData({ accessToken: rt.rawJwt, data: getRandomNumber() });
+  const final = inj.success ? inj.newAccessToken : rt.newAccessToken;
 
-  setCookie(c, finalAccessToken.name, finalAccessToken.value, finalAccessToken.options);
+  setCookie(c, final.name, final.value, final.options);
   if (rt.newRefreshToken) setCookie(c, rt.newRefreshToken.name, rt.newRefreshToken.value, rt.newRefreshToken.options);
 
   setUserInfo(c, rt.meta, inj.injectedData);

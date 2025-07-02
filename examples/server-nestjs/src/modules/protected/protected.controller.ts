@@ -1,7 +1,9 @@
 import { Body, Controller, Get, Post, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import type { UserInfo as UserInfoType } from 'oauth-entra-id';
 import { handleOnBehalfOf } from 'oauth-entra-id/nestjs';
 import { IsApp } from '~/decorators/app.decorator';
+import { UserInfo } from '~/decorators/user-info.decorator';
 import { generateRandomPokemon } from '~/utils/generate';
 // biome-ignore lint/style/useImportType: NestJS
 import { GetB2BInfoDto } from './protected.dto';
@@ -13,8 +15,8 @@ export class ProtectedController {
   constructor(private readonly protectedService: ProtectedService) {}
 
   @Get('user-info')
-  getUserInfo(@Req() req: Request) {
-    return { user: req.userInfo };
+  getUserInfo(@UserInfo() userInfo: UserInfoType) {
+    return { user: userInfo };
   }
 
   @Post('on-behalf-of')

@@ -37,12 +37,12 @@ export async function protectRoute(req: FastifyRequest, reply: FastifyReply) {
 
   const rt = await oauthProvider.tryRefreshTokens(refreshToken);
   if (rt.error) throw new OAuthError(rt.error);
-  req.accessTokenInfo = { jwt: rt.rawAccessToken, payload: rt.payload };
+  req.accessTokenInfo = { jwt: rt.rawJwt, payload: rt.payload };
 
-  const inj = await oauthProvider.tryInjectData({ accessToken: rt.rawAccessToken, data: getRandomNumber() });
-  const finalAccessToken = inj.success ? inj.newAccessToken : rt.newAccessToken;
+  const inj = await oauthProvider.tryInjectData({ accessToken: rt.rawJwt, data: getRandomNumber() });
+  const final = inj.success ? inj.newAccessToken : rt.newAccessToken;
 
-  reply.setCookie(finalAccessToken.name, finalAccessToken.value, finalAccessToken.options);
+  reply.setCookie(final.name, final.value, final.options);
   if (rt.newRefreshToken) {
     reply.setCookie(rt.newRefreshToken.name, rt.newRefreshToken.value, rt.newRefreshToken.options);
   }
