@@ -22,7 +22,7 @@ export let expressOAuthProvider: OAuthProvider = undefined as unknown as OAuthPr
  * @param config  OAuthConfig for your Microsoft Entra ID app.
  */
 export function authConfig(config: OAuthConfig) {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return (req: Request, _res: Response, next: NextFunction) => {
     if (!expressOAuthProvider) {
       expressOAuthProvider = new OAuthProvider(config);
     }

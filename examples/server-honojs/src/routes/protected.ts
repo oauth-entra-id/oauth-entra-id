@@ -51,7 +51,8 @@ const zB2BResponse = z.object({
 
 protectedRouter.post('/get-b2b-info', zValidator('json', zSchemas.getB2BInfo), async (c) => {
   const { app } = c.req.valid('json');
-  const { result } = await oauthProvider.getB2BToken({ app });
+  const { result, error } = await oauthProvider.tryGetB2BToken({ app });
+  if (error) throw new HTTPException(500, { message: 'Failed to get B2B token' });
 
   const serverUrl = serversMap[app];
   const axiosResponse = await axios.get(`${serverUrl}/protected/b2b-info`, {

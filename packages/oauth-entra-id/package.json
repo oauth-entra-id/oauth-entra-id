@@ -1,6 +1,6 @@
 {
   "name": "oauth-entra-id",
-  "version": "3.1.0",
+  "version": "3.2.0-beta.2",
   "description": "🛡️ A secure, performant, and feature-rich OAuth 2.0 integration for Microsoft Entra ID — fully abstracted and production-ready.",
   "homepage": "https://github.com/oauth-entra-id/oauth-entra-id",
   "repository": {
@@ -45,12 +45,21 @@
   },
   "typesVersions": {
     "*": {
-      "*": ["./dist/index.d.ts"],
-      "express": ["./dist/express.d.ts"],
-      "nestjs": ["./dist/nestjs.d.ts"]
+      "*": [
+        "./dist/index.d.ts"
+      ],
+      "express": [
+        "./dist/express.d.ts"
+      ],
+      "nestjs": [
+        "./dist/nestjs.d.ts"
+      ]
     }
   },
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "sideEffects": false,
   "scripts": {
     "build": "tsup",
@@ -60,7 +69,7 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@azure/msal-node": "^3.6.1",
+    "@azure/msal-node": "^3.6.2",
     "jsonwebtoken": "^9.0.2",
     "jwks-rsa": "^3.2.0",
     "pako": "^2.1.0",
@@ -77,12 +86,23 @@
   "devDependencies": {
     "@types/express": "^5.0.3",
     "@types/jsonwebtoken": "^9.0.10",
-    "@types/node": "^24.0.3",
+    "@types/node": "^24.0.10",
     "@types/pako": "^2.0.3",
     "tsup": "^8.5.0",
     "typescript": "^5.8.3",
     "vitest": "^3.2.4"
   },
   "license": "MIT",
-  "keywords": ["auth", "oauth2", "secure", "typescript", "microsoft", "entra-id", "azure", "jwt", "express", "nestjs"]
+  "keywords": [
+    "auth",
+    "oauth2",
+    "secure",
+    "typescript",
+    "microsoft",
+    "entra-id",
+    "azure",
+    "jwt",
+    "express",
+    "nestjs"
+  ]
 }

@@ -3,15 +3,15 @@ import { env } from '~/env';
 
 export const publicRouter: Router = express.Router();
 
-publicRouter.get('/', (req, res) => {
+publicRouter.get('/', (_req, res) => {
   res.status(200).json({ message: 'Hello World' });
 });
 
-publicRouter.get('/health', (req, res) => {
+publicRouter.get('/health', (_req, res) => {
   res.status(200).send('OK');
 });
 
-publicRouter.get('/app-info', (req, res) => {
+publicRouter.get('/app-info', (_req, res) => {
   res.status(200).send({
     current: 'yellow',
     blue: env.AZURE_BLUE_CLIENT_ID,

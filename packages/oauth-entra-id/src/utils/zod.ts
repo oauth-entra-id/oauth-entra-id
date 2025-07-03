@@ -45,14 +45,16 @@ const zOneOrMoreUrls = z.union([zUrl.max(2048).transform((url) => [url]), z.arra
 export const zEncrypted = zStr.max(4096).regex(encryptedRegex);
 export const zJwt = z.jwt().max(4096);
 
+export const zTenantId = z.union([z.literal('common'), zUuid]);
 export const zScope = zStr.min(3).max(128);
 export const zEncryptionKey = zStr.min(32).max(64);
 export const zServiceName = zStr.min(1).max(64);
+const zJwtClientConfigBase = z.object({ clientId: zUuid, tenantId: zTenantId });
 
 export const zConfig = z.object({
   azure: z.object({
     clientId: zUuid,
-    tenantId: z.union([z.literal('common'), zUuid]),
+    tenantId: zTenantId,
     scopes: z.array(zScope).min(1),
     clientSecret: zStr.min(32).max(128),
     downstreamServices: z
@@ -95,6 +97,19 @@ export const zConfig = z.object({
     .prefault({}),
 });
 
+export const zJwtClientConfig = z.object({
+  azure: z.union([
+    zJwtClientConfigBase,
+    zJwtClientConfigBase.extend({
+      clientSecret: zStr.min(32).max(128),
+      b2bApps: z
+        .array(z.object({ appName: zServiceName, scope: zScope }))
+        .min(1)
+        .optional(),
+    }),
+  ]),
+});
+
 export const zState = z.object({
   frontendUrl: zUrl.max(2048),
   codeVerifier: zStr.max(256),
@@ -129,7 +144,7 @@ export const zMethods = {
     .default({}),
   getTokenByCode: z.object({ code: zStr.max(2048).regex(base64urlWithDotRegex), state: zEncrypted }),
   getLogoutUrl: z.object({ frontendUrl: zUrl.max(4096).optional() }).default({}),
-  getB2BToken: z.union([
+  tryGetB2BToken: z.union([
     z.object({ app: zServiceName }).transform((data) => ({ apps: [data.app] })),
     z.object({ apps: z.array(zServiceName).min(1) }),
   ]),

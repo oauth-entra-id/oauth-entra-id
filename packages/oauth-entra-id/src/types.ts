@@ -1,17 +1,22 @@
-import type { webcrypto } from 'node:crypto';
 import type nodeCrypto from 'node:crypto';
+import type { webcrypto } from 'node:crypto';
 import type { AuthenticationResult, ConfidentialClientApplication } from '@azure/msal-node';
+import type jwt from 'jsonwebtoken';
 import type { ACCESS_TOKEN_NAME, REFRESH_TOKEN_NAME } from './utils/cookie-options';
 
 export type LoginPrompt = 'email' | 'select-account' | 'sso';
 export type TimeUnit = 'ms' | 'sec';
 export type CryptoType = 'node' | 'web-api';
+export type JwtPayload = jwt.JwtPayload;
 export type WebApiCryptoKey = webcrypto.CryptoKey;
 export type NodeCryptoKey = nodeCrypto.KeyObject;
 export type EncryptionKey = NodeCryptoKey | WebApiCryptoKey | string;
 export type LooseString<T extends string> = T | (string & {});
 export type NonEmptyArray<T> = [T, ...T[]];
 export type OneOrMore<T> = T | [T, ...T[]];
+export type BaseWithExtended<TBase extends object, TExtended extends object> =
+  | { [KBase in keyof TBase]: TBase[KBase] }
+  | ({ [KBase in keyof TBase]: TBase[KBase] } & { [KExtended in keyof TExtended]: TExtended[KExtended] });
 
 /**
  * Configuration object for initializing the OAuthProvider.
@@ -56,6 +61,18 @@ export interface Azure {
   cca: ConfidentialClientApplication;
   b2bApps: Map<string, B2BApp> | undefined;
   oboApps: Map<string, OboService> | undefined;
+}
+
+export type LiteConfig = BaseWithExtended<
+  { clientId: string; tenantId: LooseString<'common'> },
+  { clientSecret: string; b2bApps: NonEmptyArray<{ appName: string; scope: string }> }
+>;
+
+export interface MinimalAzure {
+  clientId: string;
+  tenantId: LooseString<'common'>;
+  cca: ConfidentialClientApplication | undefined;
+  b2bApps: Map<string, B2BApp> | undefined;
 }
 
 export type EncryptionKeys = {
@@ -161,7 +178,7 @@ export interface Cookies {
   };
 }
 
-export interface GetB2BTokenResult {
+export interface B2BResult {
   appName: string;
   clientId: string;
   token: string;
@@ -170,9 +187,35 @@ export interface GetB2BTokenResult {
   expiresAt: number;
 }
 
-export interface GetTokenOnBehalfOfResult {
+export interface OboResult {
   serviceName: string;
   clientId: string;
   accessToken: Cookies['AccessToken'];
   msalResponse: MsalResponse;
 }
+
+export type Metadata = {
+  audience: string | undefined;
+  issuer: string | undefined;
+  subject: string | undefined;
+  issuedAt: number | undefined;
+  expiration: number | undefined;
+  uniqueId: string | undefined;
+  appClientId: string | undefined;
+  appTenantId: string | undefined;
+  roles: string[] | undefined;
+  uniqueTokenId: string | undefined;
+} & (
+  | {
+      isApp: true;
+      appId: string | undefined;
+      name?: undefined;
+      email?: undefined;
+    }
+  | {
+      isApp: false;
+      appId?: undefined;
+      name: string | undefined;
+      email: string | undefined;
+    }
+);

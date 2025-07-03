@@ -1,6 +1,6 @@
-import type { JwtPayload } from 'jsonwebtoken';
 import type { OAuthProvider } from '~/core';
 import type { Result } from '~/error';
+import type { JwtPayload } from '~/types';
 
 /** Supported server frameworks for binding the OAuthProvider */
 export type ServerType = 'express' | 'nestjs';
@@ -10,14 +10,16 @@ export type ServerType = 'express' | 'nestjs';
  *
  * @template T  Type of any injected metadata for a user.
  */
-export type UserInfo<T extends object = Record<string, any>> =
+export type UserInfo<T extends object = Record<string, any>> = {
+  readonly uniqueId: string;
+  readonly roles: string[];
+} & (
   | {
       readonly isApp: false;
       readonly name: string;
       readonly email: string;
       readonly injectedData?: T;
-      readonly uniqueId: string;
-      readonly roles: string[];
+      readonly appId?: undefined;
     }
   | {
       readonly isApp: true;
@@ -25,18 +27,19 @@ export type UserInfo<T extends object = Record<string, any>> =
       readonly name?: undefined;
       readonly email?: undefined;
       readonly injectedData?: undefined;
-      readonly uniqueId: string;
-      readonly roles: string[];
-    };
+    }
+);
 
 /**
  * Adds metadata into an existing access token.
  *
  * @template T  Shape of the object to inject.
  * @param data  Arbitrary JSON to embed.
- * @returns A `Result<void>` indicating success or failure.
+ * @returns A `Result<{ injectedData: T }>` containing the injected data.
  */
-export type InjectDataFunction<T extends object = Record<string, any>> = (data: T) => Promise<Result<void>>;
+export type InjectDataFunction<T extends object = Record<string, any>> = (
+  data: T,
+) => Promise<Result<{ injectedData: T }>>;
 
 /**
  * Optional callback invoked once a request is authenticated.
@@ -44,10 +47,9 @@ export type InjectDataFunction<T extends object = Record<string, any>> = (data: 
  * @param params.userInfo - Information about the authenticated user or service principal.
  * @param params.tryInjectData - Function to inject additional data into the access token.
  */
-export type CallbackFunction = (params: {
-  userInfo: UserInfo;
-  tryInjectData: InjectDataFunction;
-}) => Promise<void> | void;
+export type CallbackFunction =
+  | (() => Promise<void> | void)
+  | ((params: { userInfo: UserInfo; tryInjectData: InjectDataFunction }) => Promise<void> | void);
 
 export interface Endpoints {
   Authenticate: {

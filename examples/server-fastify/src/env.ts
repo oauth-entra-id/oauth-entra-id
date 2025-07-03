@@ -1,3 +1,4 @@
+/** biome-ignore-all lint/style/noProcessEnv: env.ts file */
 import dotenv from 'dotenv';
 import { z } from 'zod/v4';
 

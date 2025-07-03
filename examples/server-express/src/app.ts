@@ -1,6 +1,6 @@
 import cors from 'cors';
-import express from 'express';
 import type { Application, NextFunction, Request, Response } from 'express';
+import express from 'express';
 import rateLimiter from 'express-rate-limit';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -70,7 +70,7 @@ export default function createApp(): Application {
       windowMs: 60 * 1000,
       limit: 100,
       skip: (req) => req.ip === '127.0.0.6',
-      handler: (req, res) => {
+      handler: (_req, res) => {
         res.status(429).json({ error: 'Too many requests from this IP, please try again after a break' });
       },
     }),
@@ -89,7 +89,7 @@ export default function createApp(): Application {
 
   app.use(notFound);
 
-  app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
+  app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     const { message, statusCode, description } = new HttpException(err);
     res.status(statusCode).json({ error: message, statusCode, description });
   });
