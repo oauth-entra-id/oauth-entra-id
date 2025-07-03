@@ -1,5 +1,5 @@
-import type { webcrypto } from 'node:crypto';
 import type nodeCrypto from 'node:crypto';
+import type { webcrypto } from 'node:crypto';
 import type { AuthenticationResult, ConfidentialClientApplication } from '@azure/msal-node';
 import type jwt from 'jsonwebtoken';
 import type { ACCESS_TOKEN_NAME, REFRESH_TOKEN_NAME } from './utils/cookie-options';

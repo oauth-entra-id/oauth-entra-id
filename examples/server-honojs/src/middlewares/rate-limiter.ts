@@ -1,8 +1,8 @@
 import { getConnInfo } from '@hono/node-server/conninfo';
-import { rateLimiter as rateLimiterMiddleware } from 'hono-rate-limiter';
 import { every } from 'hono/combine';
 import { createMiddleware } from 'hono/factory';
 import { HTTPException } from 'hono/http-exception';
+import { rateLimiter as rateLimiterMiddleware } from 'hono-rate-limiter';
 
 const checkIp = createMiddleware(async (c, next) => {
   const connInfo = getConnInfo(c);

@@ -1,11 +1,10 @@
-import { scan } from 'react-scan';
-
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools as QueryDevTools } from '@tanstack/react-query-devtools';
-import { RouterProvider, createRouter } from '@tanstack/react-router';
+import { createRouter, RouterProvider } from '@tanstack/react-router';
 import { TanStackRouterDevtools as RouterDevTools } from '@tanstack/react-router-devtools';
 import { StrictMode } from 'react';
 import ReactDOM from 'react-dom/client';
+import { scan } from 'react-scan';
 
 import { routeTree } from './routeTree.gen';
 

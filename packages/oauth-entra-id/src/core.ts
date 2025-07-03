@@ -382,9 +382,10 @@ export class OAuthProvider {
    * @returns A result containing the new encrypted access token with injected data and the injected data.
    * @template T - Type of the data to inject into the access token.
    */
-  async tryInjectData<T extends object = Record<string, any>>(params: { accessToken: string; data: T }): Promise<
-    Result<{ newAccessToken: Cookies['AccessToken']; injectedData: T }>
-  > {
+  async tryInjectData<T extends object = Record<string, any>>(params: {
+    accessToken: string;
+    data: T;
+  }): Promise<Result<{ newAccessToken: Cookies['AccessToken']; injectedData: T }>> {
     const { decrypted: rawAccessToken, error } = await this.$decryptToken('accessToken', params.accessToken);
     if (error) return $err(error);
 

@@ -8,15 +8,15 @@ const zEnv = z.object({
   VITE_HONOJS_URL: zUrl,
 });
 
-const parsedEnv = zEnv.safeParse(import.meta.env);
+const { data: parsedEnv, error: envError } = zEnv.safeParse(import.meta.env);
 
-if (parsedEnv.error) {
-  throw new Error(`❌ Invalid environment variables: ${parsedEnv.error.format()}`);
+if (envError) {
+  throw new Error(`❌ Invalid environment variables: ${z.prettifyError(envError)}`);
 }
 
 export const env = {
-  EXPRESS_SERVER: parsedEnv.data.VITE_EXPRESS_URL,
-  NESTJS_SERVER: parsedEnv.data.VITE_NESTJS_URL,
-  FASTIFY_SERVER: parsedEnv.data.VITE_FASTIFY_URL,
-  HONOJS_SERVER: parsedEnv.data.VITE_HONOJS_URL,
+  EXPRESS_SERVER: parsedEnv.VITE_EXPRESS_URL,
+  NESTJS_SERVER: parsedEnv.VITE_NESTJS_URL,
+  FASTIFY_SERVER: parsedEnv.VITE_FASTIFY_URL,
+  HONOJS_SERVER: parsedEnv.VITE_HONOJS_URL,
 };

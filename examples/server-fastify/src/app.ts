@@ -66,7 +66,7 @@ export default async function createApp() {
     },
   });
 
-  app.addHook('preParsing', async (req, reply, payload) => {
+  app.addHook('preParsing', async (req, _reply, payload) => {
     const contentType = req.headers['content-type'];
     if ((!contentType || contentType.includes('application/json')) && !req.body) {
       req.body = {};
@@ -79,7 +79,7 @@ export default async function createApp() {
 
   await app.register(routesRouter, { prefix: new URL(env.SERVER_URL).pathname });
 
-  app.setErrorHandler((error, req, reply) => {
+  app.setErrorHandler((error, _req, reply) => {
     const { message, statusCode, description } = new HttpException(error);
     reply.status(statusCode).send({ error: message, statusCode, description });
   });

@@ -25,7 +25,7 @@ const zB2BResponse = z.object({
 export const protectedRouter: FastifyPluginAsyncTypebox = async (app) => {
   app.addHook('preHandler', protectRoute);
 
-  app.get('/user-info', (req, reply) => {
+  app.get('/user-info', (req, _reply) => {
     return { user: req.userInfo };
   });
 
@@ -46,12 +46,12 @@ export const protectedRouter: FastifyPluginAsyncTypebox = async (app) => {
     return { tokensSet: results.length };
   });
 
-  app.get('/b2b-info', (req, reply) => {
+  app.get('/b2b-info', (req, _reply) => {
     if (req.userInfo?.isApp === false) throw new HttpException('Unauthorized', 401);
     return { pokemon: generateRandomPokemon(), server: 'fastify' };
   });
 
-  app.post('/get-b2b-info', { schema: { body: tSchemas.getB2BInfo } }, async (req, reply) => {
+  app.post('/get-b2b-info', { schema: { body: tSchemas.getB2BInfo } }, async (req, _reply) => {
     const { app } = req.body;
     const { result, error } = await oauthProvider.tryGetB2BToken({ app });
     if (error) throw new HttpException('Failed to get B2B token', 500);

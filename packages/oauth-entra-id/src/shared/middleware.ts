@@ -41,7 +41,7 @@ export async function $sharedMiddleware(
 
     return {
       userInfo,
-      tryInjectData: (data) =>
+      tryInjectData: (_data) =>
         Promise.resolve(
           $err('bad_request', {
             error: 'Injecting data is not supported for B2B requests',

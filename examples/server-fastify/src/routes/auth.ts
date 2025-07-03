@@ -18,7 +18,7 @@ const tSchemas = {
 };
 
 export const authRouter: FastifyPluginAsyncTypebox = async (app) => {
-  app.post('/authenticate', { schema: { body: tSchemas.authenticate } }, async (req, reply) => {
+  app.post('/authenticate', { schema: { body: tSchemas.authenticate } }, async (req, _reply) => {
     const body = req.body;
 
     const { authUrl } = await oauthProvider.getAuthUrl({

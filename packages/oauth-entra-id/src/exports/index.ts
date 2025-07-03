@@ -1,6 +1,6 @@
 export * from '~/core';
-export * from '~/lite';
+export type { ErrorTypes, HttpErrorCodes, Result, ResultErr } from '~/error';
 export { OAuthError } from '~/error';
-export type { Result, ResultErr, ErrorTypes, HttpErrorCodes } from '~/error';
-export type { OAuthConfig, MsalResponse, Metadata, LiteConfig, JwtPayload } from '~/types';
-export type { UserInfo, CallbackFunction } from '~/shared/types';
+export * from '~/lite';
+export type { CallbackFunction, UserInfo } from '~/shared/types';
+export type { JwtPayload, LiteConfig, Metadata, MsalResponse, OAuthConfig } from '~/types';
