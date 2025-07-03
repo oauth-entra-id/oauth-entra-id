@@ -5,10 +5,10 @@ import { handleOnBehalfOf } from 'oauth-entra-id/nestjs';
 import { IsApp } from '~/decorators/app.decorator';
 import { UserInfo } from '~/decorators/user-info.decorator';
 import { generateRandomPokemon } from '~/utils/generate';
-// biome-ignore lint/style/useImportType: NestJS
+// biome-ignore-start lint/style/useImportType: NestJS
 import { GetB2BInfoDto } from './protected.dto';
-// biome-ignore lint/style/useImportType: NestJS
 import { ProtectedService } from './protected.service';
+// biome-ignore-end lint/style/useImportType: NestJS
 
 @Controller('protected')
 export class ProtectedController {
