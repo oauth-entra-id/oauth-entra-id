@@ -736,17 +736,25 @@ You can explore the demo apps to see how to integrate the package into your appl
 
 ## Architecture 🏗️
 
-### Authentication Flow 🚪
+### Browser Authentication Flow 🚪
 
-![oauth-entra-id-flow](https://github.com/oauth-entra-id/oauth-entra-id/blob/main/assets/authentication-flow.png)
+![oauth-entra-id-flow](https://github.com/oauth-entra-id/oauth-entra-id/blob/main/assets/browser-authentication-flow.png)
 
-### Middleware Flow ✅
+### Browser Middleware Flow ✅
 
-![oauth-entra-id-flow](https://github.com/oauth-entra-id/oauth-entra-id/blob/main/assets/middleware-flow.png)
+![oauth-entra-id-flow](https://github.com/oauth-entra-id/oauth-entra-id/blob/main/assets/browser-middleware-flow.png)
 
-### On-Behalf-Of Flow 🌊
+### Browser On-Behalf-Of Flow 🌊
 
-![oauth-entra-id-flow](https://github.com/oauth-entra-id/oauth-entra-id/blob/main/assets/on-behalf-of-flow.png)
+![oauth-entra-id-flow](https://github.com/oauth-entra-id/oauth-entra-id/blob/main/assets/browser-on-behalf-of-flow.png)
+
+### Mobile Authentication Flow 🚪
+
+![oauth-entra-id-flow](https://github.com/oauth-entra-id/oauth-entra-id/blob/main/assets/mobile-authentication-flow.png)
+
+### Mobile Middleware Flow ✅
+
+![oauth-entra-id-flow](https://github.com/oauth-entra-id/oauth-entra-id/blob/main/assets/mobile-middleware-flow.png)
 
 ## Notes❗
 
