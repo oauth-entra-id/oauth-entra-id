@@ -724,7 +724,7 @@ You can explore the demo apps to see how to integrate the package into your appl
 
 - [React Demo App](https://github.com/oauth-entra-id/oauth-entra-id/tree/main/examples/frontend-react/) 🖥️ - React 19 frontend showcasing best practices for frontend integration in an OAuth 2.0 cookie-based flow.
 
-  > React 19, TanStack Router, TanStack Query (React Query), TanStack Form, Zustand, Tailwind, ShadCN Components, Axios and Zod.
+  > React 19, React Router, TanStack Query (React Query), TanStack Form, Zustand, Tailwind, ShadCN Components, Axios and Zod.
 
 - [Express Demo App](https://github.com/oauth-entra-id/oauth-entra-id/tree/main/examples/server-express/) 📫- Express server, implements `oauth-entra-id/express` for authentication.
 - [NestJS Demo App](https://github.com/oauth-entra-id/oauth-entra-id/tree/main/examples/server-nestjs/) 🪺 - NestJS server, implements `oauth-entra-id/nestjs` for authentication.
