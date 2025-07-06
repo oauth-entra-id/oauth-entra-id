@@ -7,16 +7,7 @@
   },
   "files": {
     "ignoreUnknown": false,
-    "includes": [
-      "**",
-      "!**/node_modules",
-      "!**/dist",
-      "!**/build",
-      "!**/coverage",
-      "!**/.turbo",
-      "!**/.turbo/**",
-      "!**/routeTree.gen.ts"
-    ]
+    "includes": ["**", "!**/node_modules", "!**/dist", "!**/build", "!**/coverage", "!**/.turbo/**"]
   },
   "formatter": {
     "enabled": true,

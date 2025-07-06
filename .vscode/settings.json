@@ -6,15 +6,6 @@
   "editor.codeActionsOnSave": {
     "source.organizeImports.biome": "explicit"
   },
-  "files.watcherExclude": {
-    "**/routeTree.gen.ts": true
-  },
-  "search.exclude": {
-    "**/routeTree.gen.ts": true
-  },
-  "files.readonlyInclude": {
-    "**/routeTree.gen.ts": true
-  },
 
   "css.lint.unknownAtRules": "ignore",
 
@@ -65,8 +56,8 @@
     "partialize",
     "PKCE",
     "prefault",
-    "Regs",
-    "Sonner",
+    "regs",
+    "sonner",
     "typebox",
     "vite"
   ]
