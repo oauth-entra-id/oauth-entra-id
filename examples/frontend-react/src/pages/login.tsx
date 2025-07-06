@@ -1,7 +1,7 @@
 import { useForm } from '@tanstack/react-form';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { Navigate } from 'react-router';
 import { toast } from 'sonner';
 import { AppInfo } from '~/components/AppInfo';
 import { GitHubLink } from '~/components/GitHubLink';
@@ -18,12 +18,7 @@ import { zEmailForm } from '~/lib/zod';
 import { getAuthUrl } from '~/services/user';
 import { useUserStore } from '~/stores/user-store';
 
-export const Route = createFileRoute('/login')({
-  component: Login,
-});
-
-function Login() {
-  const navigate = useNavigate();
+export default function Login() {
   const queryClient = useQueryClient();
   const [ssoEnabled, setSsoEnabled] = useState(true);
   const user = useUserStore((state) => state.user);
@@ -43,9 +38,9 @@ function Login() {
     onSubmit: async ({ value }) => await loginUser.mutateAsync({ email: value.email }),
   });
 
-  useEffect(() => {
-    if (user) navigate({ to: '/' });
-  }, [user, navigate]);
+  if (user) {
+    return <Navigate to="/" replace />;
+  }
 
   return (
     <div className="flex flex-col items-center justify-center mt-2">

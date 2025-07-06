@@ -1,12 +1,10 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools as QueryDevTools } from '@tanstack/react-query-devtools';
-import { createRouter, RouterProvider } from '@tanstack/react-router';
-import { TanStackRouterDevtools as RouterDevTools } from '@tanstack/react-router-devtools';
 import { StrictMode } from 'react';
 import ReactDOM from 'react-dom/client';
+import { BrowserRouter } from 'react-router';
 import { scan } from 'react-scan';
-
-import { routeTree } from './routeTree.gen';
+import App from './App';
 
 import './styles.css';
 
@@ -14,22 +12,14 @@ scan({
   enabled: true,
 });
 
-export const queryClient = new QueryClient();
-
-const router = createRouter({
-  routeTree,
-  context: { queryClient },
-  defaultPreload: 'intent',
-  scrollRestoration: true,
-  defaultStructuralSharing: true,
-  defaultPreloadStaleTime: 0,
+export const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false, // This is not recommended just for demo purposes
+      retry: 1, // Also not recommended, just for demo purposes
+    },
+  },
 });
-
-declare module '@tanstack/react-router' {
-  interface Register {
-    router: typeof router;
-  }
-}
 
 const rootElement = document.getElementById('app');
 if (rootElement && !rootElement.innerHTML) {
@@ -37,8 +27,9 @@ if (rootElement && !rootElement.innerHTML) {
   root.render(
     <StrictMode>
       <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
-        <RouterDevTools router={router} initialIsOpen={false} />
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
         <QueryDevTools initialIsOpen={false} />
       </QueryClientProvider>
     </StrictMode>,

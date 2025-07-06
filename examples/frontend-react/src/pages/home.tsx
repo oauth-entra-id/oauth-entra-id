@@ -1,5 +1,4 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { createFileRoute } from '@tanstack/react-router';
 import { LogOut } from 'lucide-react';
 import { useState } from 'react';
 import Confetti from 'react-confetti';
@@ -18,11 +17,7 @@ import { getTokensOnBehalfOf, logoutAndGetLogoutUrl } from '~/services/user';
 import { type Color, type Server, serversMap, useServerStore } from '~/stores/server-store';
 import { useUserStore } from '~/stores/user-store';
 
-export const Route = createFileRoute('/')({
-  component: Home,
-});
-
-function Home() {
+export default function Home() {
   const queryClient = useQueryClient();
   const { width, height } = useWindowDimensions();
   const { user, setUser } = useUserStore();
