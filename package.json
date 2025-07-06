@@ -8,6 +8,7 @@
     "format": "pnpm biome format",
     "lint": "pnpm biome lint",
     "check": "pnpm biome check",
+    "check:fix": "pnpm biome check --fix",
     "typecheck": "turbo run typecheck",
     "prepare": "husky"
   },
