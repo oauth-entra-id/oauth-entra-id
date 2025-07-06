@@ -1,8 +1,9 @@
 import type { JwksClient } from 'jwks-rsa';
-import { OAuthError, type Result } from './error';
+import { $err, OAuthError, type Result } from './error';
 import type { B2BResult, JwtPayload, LiteConfig, Metadata, MinimalAzure } from './types';
 import { $verifyJwt } from './utils/crypto/jwt';
 import { $jwtClientHelper, $tryGetB2BToken } from './utils/helpers';
+import { zJwt } from './utils/zod';
 
 /**
  * Lightweight provider for verifying JWTs and obtaining B2B app tokens.
@@ -31,7 +32,11 @@ export class LiteProvider {
    * @returns A result containing the JWT payload and metadata.
    */
   async $verifyJwt(jwtToken: string | undefined): Promise<Result<{ payload: JwtPayload; meta: Metadata }>> {
-    return await $verifyJwt({ jwtToken: jwtToken, jwksClient: this.jwksClient, azure: this.azure });
+    const { data: token, error } = zJwt.safeParse(jwtToken);
+    if (error) {
+      return $err('jwt_error', { error: 'Unauthorized', description: 'Access token is required', status: 401 });
+    }
+    return await $verifyJwt({ jwtToken: token, jwksClient: this.jwksClient, azure: this.azure });
   }
 
   /**
