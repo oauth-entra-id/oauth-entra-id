@@ -10,8 +10,7 @@ export const NODE_ALGORITHM = 'aes-256-gcm';
 export const WEB_API_ALGORITHM = 'AES-GCM';
 
 export function $generateUuid(cryptoType: CryptoType): Result<{ uuid: string }> {
-  if (cryptoType === 'web-api') return $generateNodeUuid();
-  return $generateWebApiUuid();
+  return cryptoType === 'node' ? $generateNodeUuid() : $generateWebApiUuid();
 }
 
 export function $createSecretKey(
