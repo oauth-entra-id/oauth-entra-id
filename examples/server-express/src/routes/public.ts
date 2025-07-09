@@ -14,8 +14,8 @@ publicRouter.get('/health', (_req, res) => {
 publicRouter.get('/app-info', (_req, res) => {
   res.status(200).send({
     current: 'yellow',
-    blue: env.AZURE_BLUE_CLIENT_ID,
-    red: env.AZURE_RED_CLIENT_ID,
-    yellow: env.AZURE_YELLOW_CLIENT_ID,
+    blue: { '1': env.BLUE1_AZURE_CLIENT_ID, '2': env.BLUE2_AZURE_CLIENT_ID },
+    red: { '1': env.RED1_AZURE_CLIENT_ID, '2': env.RED2_AZURE_CLIENT_ID },
+    yellow: { '1': env.YELLOW1_AZURE_CLIENT_ID, '2': env.YELLOW2_AZURE_CLIENT_ID },
   });
 });

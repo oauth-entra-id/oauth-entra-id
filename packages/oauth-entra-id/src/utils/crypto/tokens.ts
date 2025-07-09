@@ -60,7 +60,6 @@ export async function $encryptAccessToken<T extends object = Record<string, any>
     exp: Date.now() + params.expiry * 1000,
     cid: params.clientId,
   } satisfies z.infer<typeof zAccessTokenStructure>;
-  console.log('Access token structure:', struct);
 
   const { encrypted, newSecretKey, error } = await $encryptObj(params.cryptoType, struct, params.key);
   if (error) {

@@ -13,6 +13,7 @@ import { Input } from '~/components/ui/Input';
 import { Label } from '~/components/ui/Label';
 import { Switch } from '~/components/ui/Switch';
 import { MutedText, Title } from '~/components/ui/Text';
+import { ToggleGroup, ToggleGroupItem } from '~/components/ui/ToggleGroup';
 import { cn } from '~/lib/utils';
 import { zEmailForm } from '~/lib/zod';
 import { getAuthUrl } from '~/services/user';
@@ -21,6 +22,7 @@ import { useUserStore } from '~/stores/user-store';
 export default function Login() {
   const queryClient = useQueryClient();
   const [ssoEnabled, setSsoEnabled] = useState(true);
+  const [currentNumber, setCurrentNumber] = useState<'1' | '2'>('1');
   const user = useUserStore((state) => state.user);
   const loginUser = useMutation({
     mutationFn: getAuthUrl,
@@ -101,7 +103,22 @@ export default function Login() {
             </div>
           </CardContent>
         </Card>
-        <ServersDropdown />
+        <div className="flex items-center gap-2">
+          <ServersDropdown />{' '}
+          <ToggleGroup
+            type="single"
+            size="sm"
+            className="gap-[-10px] border-[1.5px] rounded-lg bg-background"
+            value={currentNumber}
+            onValueChange={(value) => setCurrentNumber(value as '1' | '2')}>
+            <ToggleGroupItem value="1" size="sm">
+              1
+            </ToggleGroupItem>
+            <ToggleGroupItem value="2" size="sm">
+              2
+            </ToggleGroupItem>
+          </ToggleGroup>
+        </div>
         <MutedText>React demo that shows how to integrate OAuth2.0 Flow.</MutedText>
         <GitHubLink />
       </div>

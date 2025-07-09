@@ -2,11 +2,11 @@ import { z } from 'zod/v4';
 import { axiosFetch } from '~/lib/axios';
 import { type Server, useServerStore } from '~/stores/server-store';
 
-const zGetAppInfo = z.object({
+export const zGetAppInfo = z.object({
   current: z.enum(['blue', 'red', 'yellow']),
-  blue: z.uuid(),
-  red: z.uuid(),
-  yellow: z.uuid(),
+  blue: z.object({ '1': z.uuid(), '2': z.uuid() }),
+  red: z.object({ '1': z.uuid(), '2': z.uuid() }),
+  yellow: z.object({ '1': z.uuid(), '2': z.uuid() }),
 });
 
 export async function getAppInfo() {
