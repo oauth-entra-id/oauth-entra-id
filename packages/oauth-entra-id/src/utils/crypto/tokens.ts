@@ -8,11 +8,13 @@ import {
   zInjectedData,
   zJwt,
   zLooseBase64,
+  zRefreshTokenStructure,
   zState,
   zUuid,
 } from '../zod';
 import { $compressObj, $decompressObj } from './compress';
 import { $decrypt, $decryptObj, $encrypt, $encryptObj } from './encrypt';
+import { $getClientId } from './jwt';
 
 type BaseParams = {
   key: EncryptionKey;
@@ -27,7 +29,13 @@ type UpdateSecretKeyFunc = (
 
 export async function $encryptAccessToken<T extends object = Record<string, any>>(
   value: string | null,
-  params: BaseParams & { isOtherKey: boolean; disableCompression?: boolean; dataToInject?: T },
+  params: BaseParams & {
+    expiry: number;
+    clientId: string;
+    isOtherKey: boolean;
+    disableCompression?: boolean;
+    dataToInject?: T;
+  },
 ): Promise<Result<{ encrypted: string }>> {
   const { data: accessToken, error: jwtError } = zJwt.safeParse(value);
   if (jwtError) {
@@ -46,11 +54,15 @@ export async function $encryptAccessToken<T extends object = Record<string, any>
 
   if (injectedData?.error) return $err(injectedData.error);
 
-  const { encrypted, newSecretKey, error } = await $encryptObj(
-    params.cryptoType,
-    { at: accessToken, inj: injectedData?.result } satisfies z.infer<typeof zAccessTokenStructure>,
-    params.key,
-  );
+  const struct = {
+    at: accessToken,
+    inj: injectedData?.result,
+    exp: Date.now() + params.expiry * 1000,
+    cid: params.clientId,
+  } satisfies z.infer<typeof zAccessTokenStructure>;
+  console.log('Access token structure:', struct);
+
+  const { encrypted, newSecretKey, error } = await $encryptObj(params.cryptoType, struct, params.key);
   if (error) {
     return $err('crypto_error', { error: 'Failed to encrypt access token', description: error.description });
   }
@@ -70,9 +82,13 @@ export async function $encryptAccessToken<T extends object = Record<string, any>
 export async function $decryptAccessToken<T extends object = Record<string, any>>(
   value: string | undefined,
   params: BaseParams,
-): Promise<Result<{ decrypted: string; injectedData?: T; wasEncrypted: boolean }>> {
+): Promise<Result<{ decrypted: string; clientId: string; injectedData?: T; wasEncrypted: boolean }>> {
   const { data: jwtToken, success: jwtSuccess } = zJwt.safeParse(value);
-  if (jwtSuccess) return $ok({ decrypted: jwtToken, injectedData: undefined, wasEncrypted: false });
+  if (jwtSuccess) {
+    const { clientId, error: jwtError } = $getClientId(jwtToken);
+    if (jwtError) return $err(jwtError);
+    return $ok({ decrypted: jwtToken, clientId: clientId, injectedData: undefined, wasEncrypted: false });
+  }
 
   const { data: encryptedAccessToken, error: encryptedAccessTokenError } = zEncrypted.safeParse(value);
   if (encryptedAccessTokenError) {
@@ -94,11 +110,19 @@ export async function $decryptAccessToken<T extends object = Record<string, any>
     });
   }
 
+  if (accessTokenStruct.exp < Date.now()) {
+    return $err('bad_request', {
+      error: 'Access token expired',
+      description: `Access token expired at ${new Date(accessTokenStruct.exp).toISOString()}`,
+    });
+  }
+
   const decompressedInjectedData = accessTokenStruct.inj ? $decompressObj(accessTokenStruct.inj) : undefined;
   if (decompressedInjectedData?.error) return $err(decompressedInjectedData.error);
 
   return $ok({
     decrypted: accessTokenStruct.at,
+    clientId: accessTokenStruct.cid,
     injectedData: decompressedInjectedData ? (decompressedInjectedData.result as T) : undefined,
     wasEncrypted: true,
   });
@@ -106,14 +130,22 @@ export async function $decryptAccessToken<T extends object = Record<string, any>
 
 export async function $encryptRefreshToken(
   value: string | null,
-  params: BaseParams,
+  params: BaseParams & { expiry: number; clientId: string },
 ): Promise<Result<{ encrypted: string }>> {
   const { data, error: parseError } = zLooseBase64.safeParse(value);
   if (parseError) {
     return $err('invalid_format', { error: 'Invalid refresh token format', description: $prettyErr(parseError) });
   }
 
-  const { encrypted, newSecretKey, error } = await $encrypt(params.cryptoType, data, params.key);
+  const { encrypted, newSecretKey, error } = await $encryptObj(
+    params.cryptoType,
+    {
+      rt: data,
+      exp: Date.now() + params.expiry * 1000,
+      cid: params.clientId,
+    } satisfies z.infer<typeof zRefreshTokenStructure>,
+    params.key,
+  );
   if (error) {
     return $err('crypto_error', { error: 'Failed to encrypt refresh token', description: error.description });
   }
@@ -133,20 +165,35 @@ export async function $encryptRefreshToken(
 export async function $decryptRefreshToken(
   value: string | undefined,
   params: BaseParams,
-): Promise<Result<{ decrypted: string }>> {
+): Promise<Result<{ decrypted: string; clientId: string }>> {
   const { data: encryptedRefreshToken, error: encryptedRefreshTokenError } = zEncrypted.safeParse(value);
   if (encryptedRefreshTokenError) {
     return $err('invalid_format', { error: 'Unauthorized', description: 'Invalid refresh token format' });
   }
 
-  const { result, newSecretKey, error } = await $decrypt(params.cryptoType, encryptedRefreshToken, params.key);
+  const { result, newSecretKey, error } = await $decryptObj(params.cryptoType, encryptedRefreshToken, params.key);
   if (error) {
     return $err('crypto_error', { error: 'Failed to decrypt refresh token', description: error.description });
   }
 
+  const { data: refreshTokenStruct, error: refreshTokenStructError } = zRefreshTokenStructure.safeParse(result);
+  if (refreshTokenStructError) {
+    return $err('invalid_format', {
+      error: 'Invalid refresh token format',
+      description: $prettyErr(refreshTokenStructError),
+    });
+  }
+
+  if (refreshTokenStruct.exp < Date.now()) {
+    return $err('bad_request', {
+      error: 'Refresh token expired',
+      description: `Refresh token expired at ${new Date(refreshTokenStruct.exp).toISOString()}`,
+    });
+  }
+
   params.$updateSecretKey('refreshToken', newSecretKey);
 
-  return $ok({ decrypted: result });
+  return $ok({ decrypted: refreshTokenStruct.rt, clientId: refreshTokenStruct.cid });
 }
 
 export async function $encryptState(value: object | null, params: BaseParams): Promise<Result<{ encrypted: string }>> {

@@ -22,7 +22,7 @@ export type BaseWithExtended<TBase extends object, TExtended extends object> =
  * Configuration object for initializing the OAuthProvider.
  */
 export interface OAuthConfig {
-  azure: {
+  azure: OneOrMore<{
     clientId: string;
     tenantId: LooseString<'common'>;
     scopes: NonEmptyArray<string>;
@@ -33,10 +33,10 @@ export interface OAuthConfig {
       serviceUrl: OneOrMore<string>;
       encryptionKey: string;
       cryptoType?: CryptoType;
-      accessTokenMaxAge?: number;
+      accessTokenExpiry?: number;
     }>;
     b2bApps?: NonEmptyArray<{ appName: string; scope: string }>;
-  };
+  }>;
   frontendUrl: OneOrMore<string>;
   serverCallbackUrl: string;
   encryptionKey: string;
@@ -49,18 +49,21 @@ export interface OAuthConfig {
       timeUnit?: TimeUnit;
       disableSecure?: boolean;
       disableSameSite?: boolean;
-      accessTokenMaxAge?: number;
-      refreshTokenMaxAge?: number;
+      accessTokenExpiry?: number;
+      refreshTokenExpiry?: number;
     };
   };
 }
 export interface Azure {
   clientId: string;
-  tenantId: LooseString<'common'>;
+  tenantId: string;
   scopes: NonEmptyArray<string>;
   cca: ConfidentialClientApplication;
-  b2bApps: Map<string, B2BApp> | undefined;
-  oboApps: Map<string, OboService> | undefined;
+  cookiesNames: BaseCookieNames;
+  b2b: Map<string, B2BApp> | undefined;
+  b2bNames: NonEmptyArray<string> | undefined;
+  obo: Map<string, OboService> | undefined;
+  oboNames: NonEmptyArray<string> | undefined;
 }
 
 export type LiteConfig = BaseWithExtended<
@@ -82,23 +85,10 @@ export type EncryptionKeys = {
   ticket: EncryptionKey;
 };
 
-export type B2BApp =
-  | {
-      appName: string;
-      scope: string;
-      token: string;
-      exp: number;
-      aud: string;
-      msalResponse: MsalResponse;
-    }
-  | {
-      appName: string;
-      scope: string;
-      token: null;
-      exp: null;
-      aud: null;
-      msalResponse: null;
-    };
+export type B2BApp = { appName: string; scope: string } & (
+  | { token: string; exp: number; aud: string; msalResponse: MsalResponse }
+  | { token: null; exp: null; aud: null; msalResponse: null }
+);
 
 export interface OboService {
   serviceName: string;
@@ -107,34 +97,35 @@ export interface OboService {
   cryptoType: CryptoType;
   isSecure: boolean;
   isSamesite: boolean;
-  atMaxAge: number;
+  atExp: number;
 }
 
-/**
- * Parsed and resolved configuration used internally by the OAuthProvider.
- */
+/** Parsed and resolved configuration used internally by the OAuthProvider */
 export interface OAuthSettings {
   readonly loginPrompt: LoginPrompt;
   readonly acceptB2BRequests: boolean;
-  readonly b2bApps?: string[];
-  readonly downstreamServices?: string[];
+  readonly b2bApps: NonEmptyArray<{ clientId: string; names: NonEmptyArray<string> }> | undefined;
+  readonly downstreamServices: NonEmptyArray<{ clientId: string; names: NonEmptyArray<string> }> | undefined;
   readonly disableCompression: boolean;
   readonly cryptoType: CryptoType;
   readonly cookies: {
     readonly timeUnit: TimeUnit;
     readonly isSecure: boolean;
     readonly isSameSite: boolean;
-    readonly accessTokenMaxAge: number;
-    readonly refreshTokenMaxAge: number;
+    readonly accessTokenExpiry: number;
     readonly accessTokenName: AccessTokenName;
+    readonly refreshTokenExpiry: number;
     readonly refreshTokenName: RefreshTokenName;
+    readonly cookieNames: NonEmptyArray<{ accessToken: AccessTokenName; refreshToken: RefreshTokenName }>;
   };
 }
 
 export type MsalResponse = AuthenticationResult;
 
-type AccessTokenName = `${typeof ACCESS_TOKEN_NAME}-${string}` | `__Host-${typeof ACCESS_TOKEN_NAME}-${string}`;
-type RefreshTokenName = `${typeof REFRESH_TOKEN_NAME}-${string}` | `__Host-${typeof REFRESH_TOKEN_NAME}-${string}`;
+export type AccessTokenName = `${typeof ACCESS_TOKEN_NAME}-${string}` | `__Host-${typeof ACCESS_TOKEN_NAME}-${string}`;
+export type RefreshTokenName =
+  | `${typeof REFRESH_TOKEN_NAME}-${string}`
+  | `__Host-${typeof REFRESH_TOKEN_NAME}-${string}`;
 
 interface CookieOptions {
   readonly maxAge: number;
@@ -144,18 +135,18 @@ interface CookieOptions {
   readonly sameSite: 'strict' | 'none' | undefined;
 }
 
+export interface BaseCookieOptions {
+  readonly accessToken: CookieOptions;
+  readonly refreshToken: CookieOptions;
+  readonly deleteToken: CookieOptions;
+}
+
+export interface BaseCookieNames {
+  readonly accessToken: AccessTokenName;
+  readonly refreshToken: RefreshTokenName;
+}
+
 export interface Cookies {
-  DefaultCookieOptions: {
-    readonly accessToken: {
-      readonly name: AccessTokenName;
-      readonly options: CookieOptions;
-    };
-    readonly refreshToken: {
-      readonly name: RefreshTokenName;
-      readonly options: CookieOptions;
-    };
-    readonly deleteOptions: CookieOptions;
-  };
   AccessToken: {
     readonly name: AccessTokenName;
     readonly value: string;
@@ -180,6 +171,7 @@ export interface Cookies {
 
 export interface B2BResult {
   appName: string;
+  appId: string;
   clientId: string;
   token: string;
   isCached: boolean;
@@ -189,6 +181,7 @@ export interface B2BResult {
 
 export interface OboResult {
   serviceName: string;
+  serviceId: string;
   clientId: string;
   accessToken: Cookies['AccessToken'];
   msalResponse: MsalResponse;

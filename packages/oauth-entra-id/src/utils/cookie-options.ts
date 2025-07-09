@@ -1,16 +1,15 @@
-import type { Cookies } from '~/types';
+import type { BaseCookieNames, BaseCookieOptions } from '~/types';
 
 export const ACCESS_TOKEN_NAME = 'at' as const;
 export const REFRESH_TOKEN_NAME = 'rt' as const;
 
-export function $cookieOptions(params: {
-  clientId: string;
+export function $getCookieOptions(params: {
   secure: boolean;
   sameSite: boolean;
   timeUnit: 'sec' | 'ms';
-  atMaxAge: number;
-  rtMaxAge?: number;
-}): Cookies['DefaultCookieOptions'] {
+  atExp: number;
+  rtExp?: number;
+}): BaseCookieOptions {
   const timeFrame = params.timeUnit === 'sec' ? 1 : 1000;
   const baseOptions = {
     httpOnly: true,
@@ -21,13 +20,24 @@ export function $cookieOptions(params: {
 
   return {
     accessToken: {
-      name: `${`${params.secure ? '__Host-' : ''}${ACCESS_TOKEN_NAME}-${params.clientId}`}`,
-      options: { ...baseOptions, maxAge: params.atMaxAge * timeFrame },
+      ...baseOptions,
+      maxAge: params.atExp * timeFrame,
     },
     refreshToken: {
-      name: `${`${params.secure ? '__Host-' : ''}${REFRESH_TOKEN_NAME}-${params.clientId}`}`,
-      options: { ...baseOptions, maxAge: params.rtMaxAge ?? 0 * timeFrame },
+      ...baseOptions,
+      maxAge: params.rtExp ?? 0 * timeFrame,
     },
-    deleteOptions: { ...baseOptions, sameSite: params.secure ? 'none' : undefined, maxAge: 0 },
+    deleteToken: {
+      ...baseOptions,
+      sameSite: params.secure ? 'none' : undefined,
+      maxAge: 0,
+    },
+  } as const;
+}
+
+export function $getCookieNames(clientId: string, secure: boolean): BaseCookieNames {
+  return {
+    accessToken: `${`${secure ? '__Host-' : ''}${ACCESS_TOKEN_NAME}-${clientId}`}`,
+    refreshToken: `${`${secure ? '__Host-' : ''}${REFRESH_TOKEN_NAME}-${clientId}`}`,
   } as const;
 }

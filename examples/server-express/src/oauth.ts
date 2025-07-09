@@ -34,5 +34,8 @@ export const oauthConfig = {
   advanced: {
     acceptB2BRequests: true,
     cryptoType: 'web-api',
+    cookies: {
+      accessTokenExpiry: 60,
+    },
   },
 } satisfies OAuthConfig;

@@ -38,8 +38,8 @@ export const zCompressed = zStr.regex(compressedRegex);
 export const zLoginPrompt = z.enum(['email', 'select-account', 'sso']);
 export const zTimeUnit = z.enum(['ms', 'sec']);
 export const zCryptoType = z.enum(['web-api', 'node']);
-export const zAccessTokenMaxAge = z.number().positive();
-export const zRefreshTokenMaxAge = z.number().min(3600);
+export const zAccessTokenExpiry = z.number().positive();
+export const zRefreshTokenExpiry = z.number().min(3600);
 const zOneOrMoreUrls = z.union([zUrl.max(2048).transform((url) => [url]), z.array(zUrl.max(2048)).min(1)]);
 
 export const zEncrypted = zStr.max(4096).regex(encryptedRegex);
@@ -51,30 +51,32 @@ export const zEncryptionKey = zStr.min(32).max(64);
 export const zServiceName = zStr.min(1).max(64);
 const zJwtClientConfigBase = z.object({ clientId: zUuid, tenantId: zTenantId });
 
+export const zAzure = z.object({
+  clientId: zUuid,
+  tenantId: zTenantId,
+  scopes: z.array(zScope).min(1),
+  clientSecret: zStr.min(32).max(128),
+  downstreamServices: z
+    .array(
+      z.object({
+        serviceName: zServiceName,
+        scope: zScope,
+        serviceUrl: zOneOrMoreUrls,
+        encryptionKey: zEncryptionKey,
+        cryptoType: zCryptoType.default('node'),
+        accessTokenExpiry: zAccessTokenExpiry.default(3600),
+      }),
+    )
+    .min(1)
+    .optional(),
+  b2bApps: z
+    .array(z.object({ appName: zServiceName, scope: zScope }))
+    .min(1)
+    .optional(),
+});
+
 export const zConfig = z.object({
-  azure: z.object({
-    clientId: zUuid,
-    tenantId: zTenantId,
-    scopes: z.array(zScope).min(1),
-    clientSecret: zStr.min(32).max(128),
-    downstreamServices: z
-      .array(
-        z.object({
-          serviceName: zServiceName,
-          scope: zScope,
-          serviceUrl: zOneOrMoreUrls,
-          encryptionKey: zEncryptionKey,
-          cryptoType: zCryptoType.default('node'),
-          accessTokenMaxAge: zAccessTokenMaxAge.default(3600),
-        }),
-      )
-      .min(1)
-      .optional(),
-    b2bApps: z
-      .array(z.object({ appName: zServiceName, scope: zScope }))
-      .min(1)
-      .optional(),
-  }),
+  azure: z.union([zAzure.transform((azure) => [azure]), z.array(zAzure).min(1)]),
   frontendUrl: zOneOrMoreUrls,
   serverCallbackUrl: zUrl.max(2048),
   encryptionKey: zEncryptionKey,
@@ -89,8 +91,8 @@ export const zConfig = z.object({
           timeUnit: zTimeUnit.default('sec'),
           disableSecure: z.boolean().default(false),
           disableSameSite: z.boolean().default(false),
-          accessTokenMaxAge: zAccessTokenMaxAge.default(3600),
-          refreshTokenMaxAge: zRefreshTokenMaxAge.default(2592000),
+          accessTokenExpiry: zAccessTokenExpiry.default(3600),
+          refreshTokenExpiry: zRefreshTokenExpiry.default(2592000),
         })
         .prefault({}),
     })
@@ -111,6 +113,7 @@ export const zJwtClientConfig = z.object({
 });
 
 export const zState = z.object({
+  clientId: zUuid,
   frontendUrl: zUrl.max(2048),
   codeVerifier: zStr.max(256),
   nonce: zUuid,
@@ -132,6 +135,14 @@ export const zInjectedData = z.record(zStr, z.any()).optional();
 export const zAccessTokenStructure = z.object({
   at: zJwt,
   inj: zStr.max(4096).optional(),
+  exp: z.number().int().positive(),
+  cid: zUuid,
+});
+
+export const zRefreshTokenStructure = z.object({
+  rt: zLooseBase64,
+  exp: z.number().int().positive(),
+  cid: zUuid,
 });
 
 export const zMethods = {
@@ -140,18 +151,37 @@ export const zMethods = {
       loginPrompt: zLoginPrompt.optional(),
       email: zEmail.max(320).optional(),
       frontendUrl: zUrl.max(4096).optional(),
+      clientId: zUuid.optional(),
     })
     .default({}),
-  getTokenByCode: z.object({ code: zStr.max(2048).regex(base64urlWithDotRegex), state: zEncrypted }),
-  getLogoutUrl: z.object({ frontendUrl: zUrl.max(4096).optional() }).default({}),
+  getTokenByCode: z.object({
+    code: zStr.max(2048).regex(base64urlWithDotRegex),
+    state: zEncrypted,
+  }),
+  getLogoutUrl: z
+    .object({
+      frontendUrl: zUrl.max(4096).optional(),
+      clientId: zUuid.optional(),
+    })
+    .default({}),
   tryGetB2BToken: z.union([
-    z.object({ app: zServiceName }).transform((data) => ({ apps: [data.app] })),
-    z.object({ apps: z.array(zServiceName).min(1) }),
+    z
+      .object({ clientId: zUuid.optional(), app: zServiceName })
+      .transform((data) => ({ clientId: data.clientId, apps: [data.app] })),
+    z.object({ clientId: zUuid.optional(), apps: z.array(zServiceName).min(1) }),
   ]),
   getTokenOnBehalfOf: z.union([
     z
-      .object({ accessToken: z.union([zJwt, zEncrypted]), service: zServiceName })
-      .transform((data) => ({ accessToken: data.accessToken, services: [data.service] })),
-    z.object({ accessToken: z.union([zJwt, zEncrypted]), services: z.array(zServiceName).min(1) }),
+      .object({
+        accessToken: z.union([zJwt, zEncrypted]),
+        service: zServiceName,
+        clientId: zUuid.optional(),
+      })
+      .transform((data) => ({ accessToken: data.accessToken, services: [data.service], clientId: data.clientId })),
+    z.object({
+      accessToken: z.union([zJwt, zEncrypted]),
+      services: z.array(zServiceName).min(1),
+      clientId: zUuid.optional(),
+    }),
   ]),
 };

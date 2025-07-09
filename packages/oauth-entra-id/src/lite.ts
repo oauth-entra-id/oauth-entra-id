@@ -1,9 +1,10 @@
 import type { JwksClient } from 'jwks-rsa';
-import { $err, OAuthError, type Result } from './error';
-import type { B2BResult, JwtPayload, LiteConfig, Metadata, MinimalAzure } from './types';
-import { $verifyJwt } from './utils/crypto/jwt';
-import { $jwtClientHelper, $tryGetB2BToken } from './utils/helpers';
-import { zJwt } from './utils/zod';
+import { $err, $ok, OAuthError, type Result } from './error';
+import type { B2BApp, B2BResult, JwtPayload, LiteConfig, Metadata, MinimalAzure } from './types';
+import { $jwtClientConfig } from './utils/config';
+import { $getExpiry, $verifyJwt } from './utils/crypto/jwt';
+import { $coreErrors, $mapAndFilter, TIME_SKEW } from './utils/helpers';
+import { $prettyErr, zJwt, zMethods } from './utils/zod';
 
 /**
  * Lightweight provider for verifying JWTs and obtaining B2B app tokens.
@@ -19,7 +20,7 @@ export class LiteProvider {
    * @throws {OAuthError} if the config fails validation or has duplicate service names
    */
   constructor(configuration: LiteConfig) {
-    const result = $jwtClientHelper(configuration);
+    const result = $jwtClientConfig(configuration);
     if (result.error) throw new OAuthError(result.error);
 
     this.azure = result.azure;
@@ -36,7 +37,7 @@ export class LiteProvider {
     if (error) {
       return $err('jwt_error', { error: 'Unauthorized', description: 'Access token is required', status: 401 });
     }
-    return await $verifyJwt({ jwtToken: token, jwksClient: this.jwksClient, azure: this.azure });
+    return await $verifyJwt({ jwtToken: token, azure: this.azure, jwksClient: this.jwksClient });
   }
 
   /**
@@ -56,6 +57,68 @@ export class LiteProvider {
   async tryGetB2BToken(
     params: { app: string } | { apps: string[] },
   ): Promise<Result<{ result: B2BResult } | { results: B2BResult[] }>> {
-    return await $tryGetB2BToken(params, this.azure.b2bApps, this.azure.cca);
+    if (!this.azure.b2bApps || !this.azure.cca) {
+      return $err('misconfiguration', { error: 'B2B apps not configured', status: 500 });
+    }
+
+    const { data: parsedParams, error: paramsError } = zMethods.tryGetB2BToken.safeParse(params);
+    if (paramsError) return $err('bad_request', { error: 'Invalid params', description: $prettyErr(paramsError) });
+
+    const apps = parsedParams.apps.map((app) => this.azure.b2bApps?.get(app)).filter((app) => !!app);
+    if (!apps || apps.length === 0) {
+      return $err('bad_request', { error: 'Invalid params', description: 'B2B app not found' });
+    }
+
+    try {
+      const results = await $mapAndFilter(apps, async (app) => {
+        if (app.token && app.exp > Date.now() / 1000) {
+          return {
+            clientId: this.azure.clientId,
+            appName: app.appName,
+            appId: app.aud,
+            token: app.token,
+            msalResponse: app.msalResponse,
+            isCached: true,
+            expiresAt: app.exp,
+          } satisfies B2BResult;
+        }
+
+        const msalResponse = await this.azure.cca?.acquireTokenByClientCredential({
+          scopes: [app.scope],
+          skipCache: true,
+        });
+        if (!msalResponse) return null;
+
+        const { clientId, exp, error: audError } = $getExpiry(msalResponse.accessToken);
+        if (audError) return null;
+
+        this.azure.b2bApps?.set(app.appName, {
+          appName: app.appName,
+          scope: app.scope,
+          token: msalResponse.accessToken,
+          exp: exp - TIME_SKEW,
+          aud: clientId,
+          msalResponse: msalResponse,
+        } satisfies B2BApp);
+
+        return {
+          clientId: this.azure.clientId,
+          appName: app.appName,
+          appId: clientId,
+          token: msalResponse.accessToken,
+          msalResponse: msalResponse,
+          isCached: false,
+          expiresAt: 0,
+        } satisfies B2BResult;
+      });
+
+      if (!results || results.length === 0) {
+        return $err('internal', { error: 'Failed to get B2B token', status: 500 });
+      }
+
+      return $ok('app' in params ? { result: results[0] as B2BResult } : { results });
+    } catch (err) {
+      return $coreErrors(err, 'tryGetB2BToken');
+    }
   }
 }
