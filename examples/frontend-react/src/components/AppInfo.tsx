@@ -17,7 +17,7 @@ export function AppInfo() {
             'text-red-700 dark:text-red-400': appInfo.currentServiceName === 'red',
             'text-yellow-700 dark:text-yellow-400': appInfo.currentServiceName === 'yellow',
           })}>
-          {appInfo.currentServiceIds['1'].substring(0, 13)}...
+          {appInfo.currentServiceIds['1'].slice(0, 8)}...{appInfo.currentServiceIds['1'].slice(-8)}
         </span>
         {' , '}
         <span
@@ -26,7 +26,7 @@ export function AppInfo() {
             'text-red-800 dark:text-red-200': appInfo.currentServiceName === 'red',
             'text-yellow-800 dark:text-yellow-200': appInfo.currentServiceName === 'yellow',
           })}>
-          {appInfo.currentServiceIds['2'].substring(0, 13)}...
+          {appInfo.currentServiceIds['2'].slice(0, 8)}...{appInfo.currentServiceIds['2'].slice(-8)}
         </span>
       </div>
     </SmallMutedText>

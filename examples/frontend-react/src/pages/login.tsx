@@ -17,6 +17,7 @@ import { ToggleGroup, ToggleGroupItem } from '~/components/ui/ToggleGroup';
 import { cn } from '~/lib/utils';
 import { zEmailForm } from '~/lib/zod';
 import { getAuthUrl } from '~/services/user';
+import { useServerStore } from '~/stores/server-store';
 import { useUserStore } from '~/stores/user-store';
 
 export default function Login() {
@@ -24,6 +25,7 @@ export default function Login() {
   const [ssoEnabled, setSsoEnabled] = useState(true);
   const [currentNumber, setCurrentNumber] = useState<'1' | '2'>('1');
   const user = useUserStore((state) => state.user);
+  const appInfo = useServerStore((state) => state.appInfo);
   const loginUser = useMutation({
     mutationFn: getAuthUrl,
     onSuccess: async (url) => {
@@ -37,7 +39,8 @@ export default function Login() {
   const form = useForm({
     defaultValues: { email: '' },
     validators: { onChange: zEmailForm },
-    onSubmit: async ({ value }) => await loginUser.mutateAsync({ email: value.email }),
+    onSubmit: async ({ value }) =>
+      await loginUser.mutateAsync({ email: value.email, azureId: appInfo?.currentServiceIds[currentNumber] }),
   });
 
   if (user) {
@@ -90,7 +93,12 @@ export default function Login() {
             <Button
               variant="outline"
               className="w-full"
-              onClick={() => loginUser.mutate({ loginPrompt: ssoEnabled ? undefined : 'select-account' })}>
+              onClick={() =>
+                loginUser.mutate({
+                  loginPrompt: ssoEnabled ? undefined : 'select-account',
+                  azureId: appInfo?.currentServiceIds[currentNumber],
+                })
+              }>
               <Microsoft /> Microsoft
             </Button>
             <div className="flex items-center justify-center mt-2">

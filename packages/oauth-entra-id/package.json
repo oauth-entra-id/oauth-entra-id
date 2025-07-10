@@ -1,6 +1,6 @@
 {
   "name": "oauth-entra-id",
-  "version": "3.2.2",
+  "version": "4.0.0-beta.0",
   "description": "🛡️ A secure, performant, and feature-rich OAuth 2.0 integration for Microsoft Entra ID — fully abstracted and production-ready.",
   "homepage": "https://github.com/oauth-entra-id/oauth-entra-id",
   "repository": {
