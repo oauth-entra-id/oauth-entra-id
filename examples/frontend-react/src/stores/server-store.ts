@@ -27,7 +27,6 @@ interface ServerStore {
   serverLabel: string;
   serverUrl: string;
   appInfo: {
-    currentNumber: '1' | '2';
     currentServiceIds: TwoStrings;
     currentServiceName: Color;
     other: { blue: TwoStrings; red: TwoStrings; yellow: TwoStrings };
@@ -54,7 +53,6 @@ export const useServerStore = create<ServerStore>()(
         const { current, blue, red, yellow } = appInfo;
         return set({
           appInfo: {
-            currentNumber: '1',
             currentServiceIds: appInfo[current],
             currentServiceName: current,
             other: { blue, red, yellow },

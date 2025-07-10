@@ -11,6 +11,8 @@ export type ServerType = 'express' | 'nestjs';
  * @template T  Type of any injected metadata for a user.
  */
 export type UserInfo<T extends object = Record<string, any>> = {
+  readonly azureId: string;
+  readonly tenantId: string;
   readonly uniqueId: string;
   readonly roles: string[];
 } & (
@@ -55,7 +57,8 @@ export interface Endpoints {
   Authenticate: {
     loginPrompt?: 'email' | 'select-account' | 'sso';
     email?: string;
-    frontendUrl: string;
+    frontendUrl?: string;
+    azureId?: string;
   };
   Callback: {
     code: string;
@@ -63,9 +66,11 @@ export interface Endpoints {
   };
   Logout: {
     frontendUrl?: string;
+    azureId?: string;
   };
   OnBehalfOf: {
     services: string[];
+    azureId?: string;
   };
 }
 

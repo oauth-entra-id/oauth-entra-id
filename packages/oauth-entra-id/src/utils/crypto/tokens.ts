@@ -31,7 +31,7 @@ export async function $encryptAccessToken<T extends object = Record<string, any>
   value: string | null,
   params: BaseParams & {
     expiry: number;
-    clientId: string;
+    azureId: string;
     isOtherKey: boolean;
     disableCompression?: boolean;
     dataToInject?: T;
@@ -58,7 +58,7 @@ export async function $encryptAccessToken<T extends object = Record<string, any>
     at: accessToken,
     inj: injectedData?.result,
     exp: Date.now() + params.expiry * 1000,
-    cid: params.clientId,
+    aid: params.azureId,
   } satisfies z.infer<typeof zAccessTokenStructure>;
 
   const { encrypted, newSecretKey, error } = await $encryptObj(params.cryptoType, struct, params.key);
@@ -81,12 +81,12 @@ export async function $encryptAccessToken<T extends object = Record<string, any>
 export async function $decryptAccessToken<T extends object = Record<string, any>>(
   value: string | undefined,
   params: BaseParams,
-): Promise<Result<{ decrypted: string; clientId: string; injectedData?: T; wasEncrypted: boolean }>> {
+): Promise<Result<{ decrypted: string; azureId: string; injectedData?: T; wasEncrypted: boolean }>> {
   const { data: jwtToken, success: jwtSuccess } = zJwt.safeParse(value);
   if (jwtSuccess) {
     const { clientId, error: jwtError } = $getClientId(jwtToken);
     if (jwtError) return $err(jwtError);
-    return $ok({ decrypted: jwtToken, clientId: clientId, injectedData: undefined, wasEncrypted: false });
+    return $ok({ decrypted: jwtToken, azureId: clientId, injectedData: undefined, wasEncrypted: false });
   }
 
   const { data: encryptedAccessToken, error: encryptedAccessTokenError } = zEncrypted.safeParse(value);
@@ -121,7 +121,7 @@ export async function $decryptAccessToken<T extends object = Record<string, any>
 
   return $ok({
     decrypted: accessTokenStruct.at,
-    clientId: accessTokenStruct.cid,
+    azureId: accessTokenStruct.aid,
     injectedData: decompressedInjectedData ? (decompressedInjectedData.result as T) : undefined,
     wasEncrypted: true,
   });
@@ -129,7 +129,7 @@ export async function $decryptAccessToken<T extends object = Record<string, any>
 
 export async function $encryptRefreshToken(
   value: string | null,
-  params: BaseParams & { expiry: number; clientId: string },
+  params: BaseParams & { expiry: number; azureId: string },
 ): Promise<Result<{ encrypted: string }>> {
   const { data, error: parseError } = zLooseBase64.safeParse(value);
   if (parseError) {
@@ -141,7 +141,7 @@ export async function $encryptRefreshToken(
     {
       rt: data,
       exp: Date.now() + params.expiry * 1000,
-      cid: params.clientId,
+      aid: params.azureId,
     } satisfies z.infer<typeof zRefreshTokenStructure>,
     params.key,
   );
@@ -164,7 +164,7 @@ export async function $encryptRefreshToken(
 export async function $decryptRefreshToken(
   value: string | undefined,
   params: BaseParams,
-): Promise<Result<{ decrypted: string; clientId: string }>> {
+): Promise<Result<{ decrypted: string; azureId: string }>> {
   const { data: encryptedRefreshToken, error: encryptedRefreshTokenError } = zEncrypted.safeParse(value);
   if (encryptedRefreshTokenError) {
     return $err('invalid_format', { error: 'Unauthorized', description: 'Invalid refresh token format' });
@@ -192,7 +192,7 @@ export async function $decryptRefreshToken(
 
   params.$updateSecretKey('refreshToken', newSecretKey);
 
-  return $ok({ decrypted: refreshTokenStruct.rt, clientId: refreshTokenStruct.cid });
+  return $ok({ decrypted: refreshTokenStruct.rt, azureId: refreshTokenStruct.aid });
 }
 
 export async function $encryptState(value: object | null, params: BaseParams): Promise<Result<{ encrypted: string }>> {

@@ -108,6 +108,7 @@ export interface OAuthSettings {
   readonly downstreamServices: NonEmptyArray<{ clientId: string; names: NonEmptyArray<string> }> | undefined;
   readonly disableCompression: boolean;
   readonly cryptoType: CryptoType;
+  readonly azures: NonEmptyArray<{ azureId: string; tenantId: string }>;
   readonly cookies: {
     readonly timeUnit: TimeUnit;
     readonly isSecure: boolean;
@@ -194,8 +195,8 @@ export type Metadata = {
   issuedAt: number | undefined;
   expiration: number | undefined;
   uniqueId: string | undefined;
-  appClientId: string | undefined;
-  appTenantId: string | undefined;
+  azureId: string | undefined;
+  tenantId: string | undefined;
   roles: string[] | undefined;
   uniqueTokenId: string | undefined;
 } & (

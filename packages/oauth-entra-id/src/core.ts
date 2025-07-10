@@ -99,7 +99,7 @@ export class OAuthProvider {
     loginPrompt?: LoginPrompt;
     email?: string;
     frontendUrl?: string;
-    clientId?: string;
+    azureId?: string;
   }): Promise<{
     authUrl: string;
     ticket: string;
@@ -110,7 +110,7 @@ export class OAuthProvider {
     }
 
     const { azure, error: azureError } = this.$getAzure({
-      clientId: parsedParams.clientId,
+      azureId: parsedParams.azureId,
       fallbackToDefault: true,
       status: 400,
     });
@@ -138,7 +138,7 @@ export class OAuthProvider {
       const params = { nonce: this.msalCryptoProvider.createNewGuid(), loginHint: parsedParams.email, prompt };
 
       const { encrypted: encryptedState, error: encryptError } = await this.$encryptToken('state', {
-        clientId: azure.clientId,
+        azureId: azure.clientId,
         frontendUrl: parsedParams.frontendUrl ?? this.frontendUrls[0],
         codeVerifier: pkce.verifier,
         ticketId: ticketId,
@@ -192,7 +192,7 @@ export class OAuthProvider {
     const { decrypted: state, error: decryptError } = await this.$decryptToken('state', parsedParams.state);
     if (decryptError) throw new OAuthError(decryptError);
 
-    const { azure, error: azureError } = this.$getAzure({ clientId: state.clientId, status: 400 });
+    const { azure, error: azureError } = this.$getAzure({ azureId: state.azureId, status: 400 });
     if (azureError) throw new OAuthError(azureError);
 
     if (!this.frontendWhitelist.has(new URL(state.frontendUrl).host)) {
@@ -251,7 +251,7 @@ export class OAuthProvider {
     }
 
     const { azure, error: azureError } = this.$getAzure({
-      clientId: parsedParams.clientId,
+      azureId: parsedParams.azureId,
       fallbackToDefault: true,
       status: 400,
     });
@@ -298,7 +298,7 @@ export class OAuthProvider {
       hasInjectedData: boolean;
     }>
   > {
-    const { decrypted, clientId, injectedData, wasEncrypted, error } = await this.$decryptToken<T>(
+    const { decrypted, azureId, injectedData, wasEncrypted, error } = await this.$decryptToken<T>(
       'accessToken',
       accessToken,
     );
@@ -306,7 +306,7 @@ export class OAuthProvider {
       return $err(error.type, { error: 'Unauthorized', description: error.description, status: 401 });
     }
 
-    const { azure, error: azureError } = this.$getAzure({ clientId });
+    const { azure, error: azureError } = this.$getAzure({ azureId });
     if (azureError) return $err(azureError);
 
     const at = await $verifyJwt({ jwtToken: decrypted, azure: azure, jwksClient: this.jwksClient });
@@ -359,14 +359,14 @@ export class OAuthProvider {
 
     const {
       decrypted: rawRefreshToken,
-      clientId,
+      azureId,
       error: decryptError,
     } = await this.$decryptToken('refreshToken', refreshToken);
     if (decryptError) {
       return $err(decryptError.type, { error: 'Unauthorized', description: decryptError.description, status: 401 });
     }
 
-    const { azure, error: azureError } = this.$getAzure({ clientId });
+    const { azure, error: azureError } = this.$getAzure({ azureId });
     if (azureError) return $err(azureError);
 
     try {
@@ -431,10 +431,10 @@ export class OAuthProvider {
     accessToken: string;
     data: T;
   }): Promise<Result<{ newAccessToken: Cookies['AccessToken']; injectedData: T }>> {
-    const { decrypted: rawAccessToken, clientId, error } = await this.$decryptToken('accessToken', params.accessToken);
+    const { decrypted: rawAccessToken, azureId, error } = await this.$decryptToken('accessToken', params.accessToken);
     if (error) return $err(error);
 
-    const { azure, error: azureError } = this.$getAzure({ clientId });
+    const { azure, error: azureError } = this.$getAzure({ azureId });
     if (azureError) return $err(azureError);
 
     const { data: dataToInject, error: dataToInjectError } = zInjectedData.safeParse(params.data);
@@ -443,7 +443,7 @@ export class OAuthProvider {
     }
 
     const { encrypted, error: encryptError } = await this.$encryptToken('accessToken', rawAccessToken, {
-      clientId: azure.clientId,
+      azureId,
       expiry: this.settings.cookies.accessTokenExpiry,
       dataToInject: dataToInject,
     });
@@ -484,16 +484,16 @@ export class OAuthProvider {
    * @param params.appsNames - An array of B2B app names to get tokens for.
    * @returns Results containing an array of B2B app tokens and metadata.
    */
-  async tryGetB2BToken(params: { app: string; clientId?: string }): Promise<Result<{ result: B2BResult }>>;
-  async tryGetB2BToken(params: { apps: string[]; clientId?: string }): Promise<Result<{ results: B2BResult[] }>>;
+  async tryGetB2BToken(params: { app: string; azureId?: string }): Promise<Result<{ result: B2BResult }>>;
+  async tryGetB2BToken(params: { apps: string[]; azureId?: string }): Promise<Result<{ results: B2BResult[] }>>;
   async tryGetB2BToken(
-    params: { clientId?: string } & ({ app: string } | { apps: string[] }),
+    params: { azureId?: string } & ({ app: string } | { apps: string[] }),
   ): Promise<Result<{ result: B2BResult } | { results: B2BResult[] }>> {
     const { data: parsedParams, error: paramsError } = zMethods.tryGetB2BToken.safeParse(params);
     if (paramsError) return $err('bad_request', { error: 'Invalid params', description: $prettyErr(paramsError) });
 
     const { azure, error: azureError } = this.$getAzure({
-      clientId: parsedParams.clientId,
+      azureId: parsedParams.azureId,
       fallbackToDefault: true,
       status: 400,
     });
@@ -570,16 +570,16 @@ export class OAuthProvider {
    * @returns Results containing an array of OBO tokens and metadata for the specified services.
    * @throws {OAuthError} if something goes wrong.
    */
-  async getTokenOnBehalfOf(params: { accessToken: string; service: string; clientId?: string }): Promise<{
+  async getTokenOnBehalfOf(params: { accessToken: string; service: string; azureId?: string }): Promise<{
     result: OboResult;
   }>;
-  async getTokenOnBehalfOf(params: { accessToken: string; services: string[]; clientId?: string }): Promise<{
+  async getTokenOnBehalfOf(params: { accessToken: string; services: string[]; azureId?: string }): Promise<{
     results: OboResult[];
   }>;
   async getTokenOnBehalfOf(
     params: ({ service: string } | { services: string[] }) & {
       accessToken: string;
-      clientId?: string;
+      azureId?: string;
     },
   ): Promise<{ result: OboResult } | { results: OboResult[] }> {
     const { data: parsedParams, error: paramsError } = zMethods.getTokenOnBehalfOf.safeParse(params);
@@ -588,7 +588,7 @@ export class OAuthProvider {
     }
 
     const { azure, error: azureError } = this.$getAzure({
-      clientId: parsedParams.clientId,
+      azureId: parsedParams.azureId,
       fallbackToDefault: true,
       status: 400,
     });
@@ -617,7 +617,7 @@ export class OAuthProvider {
         if (audError) return null;
 
         const { encrypted, error } = await this.$encryptToken('accessToken', msalResponse.accessToken, {
-          clientId: clientId,
+          azureId: clientId,
           expiry: service.atExp,
           cryptoType: service.cryptoType,
           otherSecretKey: `access-token-${service.encryptionKey}`,
@@ -653,15 +653,15 @@ export class OAuthProvider {
   }
 
   private $getAzure({
-    clientId,
+    azureId,
     fallbackToDefault = false,
     status = 401,
   }: {
-    clientId?: string;
+    azureId?: string;
     fallbackToDefault?: boolean;
     status?: 401 | 400;
   }): Result<{ azure: Azure }> {
-    const azure = clientId ? this.azures.find((azure) => azure.clientId === clientId) : undefined;
+    const azure = azureId ? this.azures.find((azure) => azure.clientId === azureId) : undefined;
     if (azure) return $ok({ azure });
 
     if (fallbackToDefault) return $ok({ azure: this.azures[0] });
@@ -680,7 +680,7 @@ export class OAuthProvider {
   ): Promise<Result<{ encryptedAccessToken: string; encryptedRefreshToken: string | null }>> {
     const [accessTokenRes, refreshTokenRes] = await Promise.all([
       this.$encryptToken('accessToken', msalResponse.accessToken, {
-        clientId: azure.clientId,
+        azureId: azure.clientId,
         expiry: this.settings.cookies.accessTokenExpiry,
       }),
       this.$obtainRefreshToken(azure, msalResponse),
@@ -705,7 +705,7 @@ export class OAuthProvider {
       if (msalResponse.account) await cache.removeAccount(msalResponse.account);
       const refreshToken = refreshTokenKey ? (refreshTokens[refreshTokenKey].secret as string) : undefined;
       return await this.$encryptToken('refreshToken', refreshToken, {
-        clientId: azure.clientId,
+        azureId: azure.clientId,
         expiry: this.settings.cookies.refreshTokenExpiry,
       });
     } catch {
@@ -729,19 +729,19 @@ export class OAuthProvider {
   private async $encryptToken<T extends object = Record<string, any>>(
     keyType: 'accessToken',
     value: string | undefined,
-    params?: { expiry: number; clientId: string; dataToInject?: T; otherSecretKey?: string; cryptoType?: CryptoType },
+    params?: { expiry: number; azureId: string; dataToInject?: T; otherSecretKey?: string; cryptoType?: CryptoType },
   ): Promise<Result<{ encrypted: string }>>;
   private async $encryptToken(
     keyType: 'refreshToken',
     value: string | undefined,
-    params?: { expiry: number; clientId: string },
+    params?: { expiry: number; azureId: string },
   ): Promise<Result<{ encrypted: string }>>;
   private async $encryptToken(keyType: 'ticket', value: string | undefined): Promise<Result<{ encrypted: string }>>;
   private async $encryptToken(keyType: 'state', value: object | undefined): Promise<Result<{ encrypted: string }>>;
   private async $encryptToken<T extends object = Record<string, any>>(
     keyType: keyof typeof this.encryptionKeys,
     value: string | object | undefined,
-    params?: { expiry?: number; clientId?: string; dataToInject?: T; otherSecretKey?: string; cryptoType?: CryptoType },
+    params?: { expiry?: number; azureId?: string; dataToInject?: T; otherSecretKey?: string; cryptoType?: CryptoType },
   ): Promise<Result<{ encrypted: string }>> {
     const baseParams = {
       key: params?.otherSecretKey ?? this.encryptionKeys[keyType],
@@ -753,7 +753,7 @@ export class OAuthProvider {
         return $encryptAccessToken<T>(value as string | null, {
           ...baseParams,
           expiry: params?.expiry as number,
-          clientId: params?.clientId as string,
+          azureId: params?.azureId as string,
           isOtherKey: !!params?.otherSecretKey,
           dataToInject: params?.dataToInject,
           disableCompression: this.settings.disableCompression,
@@ -762,7 +762,7 @@ export class OAuthProvider {
         return $encryptRefreshToken(value as string | null, {
           ...baseParams,
           expiry: params?.expiry as number,
-          clientId: params?.clientId as string,
+          azureId: params?.azureId as string,
         });
       case 'state':
         return $encryptState(value as object | null, baseParams);
@@ -779,11 +779,11 @@ export class OAuthProvider {
   private async $decryptToken<T extends object = Record<string, any>>(
     keyType: 'accessToken',
     value: string | undefined,
-  ): Promise<Result<{ decrypted: string; clientId: string; injectedData?: T; wasEncrypted: boolean }>>;
+  ): Promise<Result<{ decrypted: string; azureId: string; injectedData?: T; wasEncrypted: boolean }>>;
   private async $decryptToken(
     keyType: 'refreshToken',
     value: string | undefined,
-  ): Promise<Result<{ decrypted: string; clientId: string }>>;
+  ): Promise<Result<{ decrypted: string; azureId: string }>>;
   private async $decryptToken(
     keyType: 'state',
     value: string | undefined,
@@ -793,7 +793,7 @@ export class OAuthProvider {
     keyType: keyof typeof this.encryptionKeys,
     value: string | undefined,
   ): Promise<
-    Result<{ decrypted: string | z.infer<typeof zState>; injectedData?: T; wasEncrypted?: boolean; clientId?: string }>
+    Result<{ decrypted: string | z.infer<typeof zState>; injectedData?: T; wasEncrypted?: boolean; azureId?: string }>
   > {
     const baseParams = {
       key: this.encryptionKeys[keyType],

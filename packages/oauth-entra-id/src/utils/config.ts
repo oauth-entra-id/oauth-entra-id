@@ -120,6 +120,10 @@ export function $oauthConfig(configuration: OAuthConfig): Result<{
             .map((azure) => ({ clientId: azure.clientId, names: azure.oboNames }))
             .filter((azure) => !!azure) as NonEmptyArray<{ clientId: string; names: NonEmptyArray<string> }>)
         : undefined,
+      azures: azures.map((azure) => ({ azureId: azure.clientId, tenantId: azure.tenantId })) as NonEmptyArray<{
+        azureId: string;
+        tenantId: string;
+      }>,
       cookies: {
         timeUnit: config.advanced.cookies.timeUnit,
         isSecure: baseCookieOptions.accessToken.secure,

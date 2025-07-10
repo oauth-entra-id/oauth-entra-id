@@ -19,8 +19,8 @@ export function $extractDataFromPayload(payload: JwtPayload | string): Result<{ 
       issuedAt: payload.iat,
       expiration: payload.exp,
       uniqueId: payload.oid as string | undefined,
-      appClientId: payload.aud as string | undefined,
-      appTenantId: payload.tid as string | undefined,
+      azureId: payload.aud as string | undefined,
+      tenantId: payload.tid as string | undefined,
       roles: payload.roles as string[] | undefined,
       uniqueTokenId: payload.uti as string | undefined,
       ...(isApp

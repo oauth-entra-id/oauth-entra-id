@@ -82,3 +82,7 @@ export function $setCookie(res: Response, name: string, value: string, options: 
 
   res.cookie(name, value, cookieOptions);
 }
+
+export function $deleteCookie(res: Response, name: string, options: CookieParserOptions) {
+  $setCookie(res, name, '', { ...options, maxAge: 0 });
+}

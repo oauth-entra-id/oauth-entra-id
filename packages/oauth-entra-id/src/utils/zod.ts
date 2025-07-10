@@ -113,7 +113,7 @@ export const zJwtClientConfig = z.object({
 });
 
 export const zState = z.object({
-  clientId: zUuid,
+  azureId: zUuid,
   frontendUrl: zUrl.max(2048),
   codeVerifier: zStr.max(256),
   nonce: zUuid,
@@ -136,13 +136,13 @@ export const zAccessTokenStructure = z.object({
   at: zJwt,
   inj: zStr.max(4096).optional(),
   exp: z.number().int().positive(),
-  cid: zUuid,
+  aid: zUuid,
 });
 
 export const zRefreshTokenStructure = z.object({
   rt: zLooseBase64,
   exp: z.number().int().positive(),
-  cid: zUuid,
+  aid: zUuid,
 });
 
 export const zMethods = {
@@ -151,7 +151,7 @@ export const zMethods = {
       loginPrompt: zLoginPrompt.optional(),
       email: zEmail.max(320).optional(),
       frontendUrl: zUrl.max(4096).optional(),
-      clientId: zUuid.optional(),
+      azureId: zUuid.optional(),
     })
     .default({}),
   getTokenByCode: z.object({
@@ -161,27 +161,40 @@ export const zMethods = {
   getLogoutUrl: z
     .object({
       frontendUrl: zUrl.max(4096).optional(),
-      clientId: zUuid.optional(),
+      azureId: zUuid.optional(),
     })
     .default({}),
   tryGetB2BToken: z.union([
     z
-      .object({ clientId: zUuid.optional(), app: zServiceName })
-      .transform((data) => ({ clientId: data.clientId, apps: [data.app] })),
-    z.object({ clientId: zUuid.optional(), apps: z.array(zServiceName).min(1) }),
+      .object({
+        azureId: zUuid.optional(),
+        app: zServiceName,
+      })
+      .transform((data) => ({
+        azureId: data.azureId,
+        apps: [data.app],
+      })),
+    z.object({
+      azureId: zUuid.optional(),
+      apps: z.array(zServiceName).min(1),
+    }),
   ]),
   getTokenOnBehalfOf: z.union([
     z
       .object({
         accessToken: z.union([zJwt, zEncrypted]),
         service: zServiceName,
-        clientId: zUuid.optional(),
+        azureId: zUuid.optional(),
       })
-      .transform((data) => ({ accessToken: data.accessToken, services: [data.service], clientId: data.clientId })),
+      .transform((data) => ({
+        accessToken: data.accessToken,
+        services: [data.service],
+        azureId: data.azureId,
+      })),
     z.object({
       accessToken: z.union([zJwt, zEncrypted]),
       services: z.array(zServiceName).min(1),
-      clientId: zUuid.optional(),
+      azureId: zUuid.optional(),
     }),
   ]),
 };
