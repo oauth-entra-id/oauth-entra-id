@@ -212,15 +212,15 @@ export class OAuthProvider {
 
       return {
         accessToken: {
-          name: azure.cookiesNames.accessToken,
+          name: azure.cookiesNames.accessTokenName,
           value: encryptedAccessToken,
-          options: this.baseCookieOptions.accessToken,
+          options: this.baseCookieOptions.accessTokenOptions,
         },
         refreshToken: encryptedRefreshToken
           ? {
-              name: azure.cookiesNames.refreshToken,
+              name: azure.cookiesNames.refreshTokenName,
               value: encryptedRefreshToken,
-              options: this.baseCookieOptions.refreshToken,
+              options: this.baseCookieOptions.refreshTokenOptions,
             }
           : null,
         frontendUrl: state.frontendUrl,
@@ -267,14 +267,14 @@ export class OAuthProvider {
     return {
       logoutUrl: logoutUrl.toString(),
       deleteAccessToken: {
-        name: azure.cookiesNames.accessToken,
+        name: azure.cookiesNames.accessTokenName,
         value: '',
-        options: this.baseCookieOptions.deleteToken,
+        options: this.baseCookieOptions.deleteTokenOptions,
       },
       deleteRefreshToken: {
-        name: azure.cookiesNames.refreshToken,
+        name: azure.cookiesNames.refreshTokenName,
         value: '',
-        options: this.baseCookieOptions.deleteToken,
+        options: this.baseCookieOptions.deleteTokenOptions,
       },
     };
   }
@@ -400,15 +400,15 @@ export class OAuthProvider {
         payload: at.payload,
         meta: at.meta,
         newAccessToken: {
-          name: azure.cookiesNames.accessToken,
+          name: azure.cookiesNames.accessTokenName,
           value: encryptedAccessToken,
-          options: this.baseCookieOptions.accessToken,
+          options: this.baseCookieOptions.accessTokenOptions,
         },
         newRefreshToken: encryptedRefreshToken
           ? {
-              name: azure.cookiesNames.refreshToken,
+              name: azure.cookiesNames.refreshTokenName,
               value: encryptedRefreshToken,
-              options: this.baseCookieOptions.refreshToken,
+              options: this.baseCookieOptions.refreshTokenOptions,
             }
           : null,
         msalResponse: msalResponse,
@@ -451,9 +451,9 @@ export class OAuthProvider {
 
     return $ok({
       newAccessToken: {
-        name: azure.cookiesNames.accessToken,
+        name: azure.cookiesNames.accessTokenName,
         value: encrypted,
-        options: this.baseCookieOptions.accessToken,
+        options: this.baseCookieOptions.accessTokenOptions,
       },
       injectedData: dataToInject as T,
     });
@@ -485,10 +485,13 @@ export class OAuthProvider {
    * @returns Results containing an array of B2B app tokens and metadata.
    */
   async tryGetB2BToken(params: { app: string; azureId?: string }): Promise<Result<{ result: B2BResult }>>;
-  async tryGetB2BToken(params: { apps: string[]; azureId?: string }): Promise<Result<{ results: B2BResult[] }>>;
+  async tryGetB2BToken(params: {
+    apps: string[];
+    azureId?: string;
+  }): Promise<Result<{ results: NonEmptyArray<B2BResult> }>>;
   async tryGetB2BToken(
     params: { azureId?: string } & ({ app: string } | { apps: string[] }),
-  ): Promise<Result<{ result: B2BResult } | { results: B2BResult[] }>> {
+  ): Promise<Result<{ result: B2BResult } | { results: NonEmptyArray<B2BResult> }>> {
     const { data: parsedParams, error: paramsError } = zMethods.tryGetB2BToken.safeParse(params);
     if (paramsError) return $err('bad_request', { error: 'Invalid params', description: $prettyErr(paramsError) });
 
@@ -506,7 +509,7 @@ export class OAuthProvider {
     }
 
     try {
-      const results = await $mapAndFilter(apps, async (app) => {
+      const results = (await $mapAndFilter(apps, async (app) => {
         if (app.token && app.exp > Date.now() / 1000) {
           return {
             clientId: azure.clientId,
@@ -543,13 +546,13 @@ export class OAuthProvider {
           isCached: false,
           expiresAt: 0,
         } satisfies B2BResult;
-      });
+      })) as NonEmptyArray<B2BResult>;
 
       if (!results || results.length === 0) {
         return $err('internal', { error: 'Failed to get B2B token', status: 500 });
       }
 
-      return $ok('app' in params ? { result: results[0] as B2BResult } : { results });
+      return $ok('app' in params ? { result: results[0] } : { results });
     } catch (err) {
       return $coreErrors(err, 'tryGetB2BToken');
     }
@@ -574,14 +577,14 @@ export class OAuthProvider {
     result: OboResult;
   }>;
   async getTokenOnBehalfOf(params: { accessToken: string; services: string[]; azureId?: string }): Promise<{
-    results: OboResult[];
+    results: NonEmptyArray<OboResult>;
   }>;
   async getTokenOnBehalfOf(
     params: ({ service: string } | { services: string[] }) & {
       accessToken: string;
       azureId?: string;
     },
-  ): Promise<{ result: OboResult } | { results: OboResult[] }> {
+  ): Promise<{ result: OboResult } | { results: NonEmptyArray<OboResult> }> {
     const { data: parsedParams, error: paramsError } = zMethods.getTokenOnBehalfOf.safeParse(params);
     if (paramsError) {
       throw new OAuthError('bad_request', { error: 'Invalid params', description: $prettyErr(paramsError) });
@@ -605,7 +608,7 @@ export class OAuthProvider {
     if (error) throw new OAuthError(error);
 
     try {
-      const results = await $mapAndFilter(services, async (service) => {
+      const results = (await $mapAndFilter(services, async (service) => {
         const msalResponse = await azure.cca.acquireTokenOnBehalfOf({
           oboAssertion: rawAccessToken,
           scopes: [service.scope],
@@ -631,22 +634,22 @@ export class OAuthProvider {
           atExp: service.atExp,
         });
 
-        const { accessToken: accessTokenName } = $getCookieNames(clientId, service.isSecure);
+        const { accessTokenName } = $getCookieNames(clientId, service.isSecure);
 
         return {
           clientId: azure.clientId,
           serviceName: service.serviceName,
           serviceId: clientId,
-          accessToken: { name: accessTokenName, value: encrypted, options: cookieOptions.accessToken },
+          accessToken: { name: accessTokenName, value: encrypted, options: cookieOptions.accessTokenOptions },
           msalResponse: msalResponse,
         } satisfies OboResult;
-      });
+      })) as NonEmptyArray<OboResult>;
 
       if (!results || results.length === 0) {
         throw new OAuthError('internal', { error: 'Failed to get OBO token', status: 500 });
       }
 
-      return 'service' in params ? { result: results[0] as OboResult } : { results };
+      return 'service' in params ? { result: results[0] } : { results };
     } catch (err) {
       throw new OAuthError($coreErrors(err, 'getTokenOnBehalfOf'));
     }

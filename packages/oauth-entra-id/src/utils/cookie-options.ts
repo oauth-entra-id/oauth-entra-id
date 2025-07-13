@@ -19,15 +19,15 @@ export function $getCookieOptions(params: {
   } as const;
 
   return {
-    accessToken: {
+    accessTokenOptions: {
       ...baseOptions,
       maxAge: params.atExp * timeFrame,
     },
-    refreshToken: {
+    refreshTokenOptions: {
       ...baseOptions,
       maxAge: params.rtExp ?? 0 * timeFrame,
     },
-    deleteToken: {
+    deleteTokenOptions: {
       ...baseOptions,
       sameSite: params.secure ? 'none' : undefined,
       maxAge: 0,
@@ -37,7 +37,7 @@ export function $getCookieOptions(params: {
 
 export function $getCookieNames(clientId: string, secure: boolean): BaseCookieNames {
   return {
-    accessToken: `${`${secure ? '__Host-' : ''}${ACCESS_TOKEN_NAME}-${clientId}`}`,
-    refreshToken: `${`${secure ? '__Host-' : ''}${REFRESH_TOKEN_NAME}-${clientId}`}`,
+    accessTokenName: `${`${secure ? '__Host-' : ''}${ACCESS_TOKEN_NAME}-${clientId}`}`,
+    refreshTokenName: `${`${secure ? '__Host-' : ''}${REFRESH_TOKEN_NAME}-${clientId}`}`,
   } as const;
 }

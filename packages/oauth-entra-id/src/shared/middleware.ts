@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import { $err, $ok, OAuthError, type Result, type ResultErr } from '~/error';
 import type { JwtPayload, Metadata } from '~/types';
-import { $getCookie, $setCookie } from './cookie-parser';
+import { $deleteCookie, $getCookie, $setCookie } from './cookie-parser';
 import type { InjectDataFunction, UserInfo } from './types';
 
 /**
@@ -29,14 +29,22 @@ export async function $sharedMiddleware(
   }
 
   const injectFunc = $createInjectFunc(req, res);
+  const { cookies } = req.oauthProvider.settings;
 
   let firstError: ResultErr | null = null;
-  for (const { accessToken, refreshToken } of req.oauthProvider.settings.cookies.cookieNames) {
-    const cookie = await $checkCookieTokens(req, res, injectFunc, accessToken, refreshToken);
+  for (const { accessTokenName, refreshTokenName } of cookies.cookieNames) {
+    const cookie = await $checkCookieTokens(req, res, injectFunc, accessTokenName, refreshTokenName);
     if (cookie.error) {
       if (!firstError) firstError = cookie.error;
       continue;
     }
+
+    for (const { azureId, accessTokenName, refreshTokenName } of cookies.cookieNames) {
+      if (azureId === cookie.userInfo.azureId) continue;
+      $deleteCookie(res, accessTokenName, cookies.deleteOptions);
+      $deleteCookie(res, refreshTokenName, cookies.deleteOptions);
+    }
+
     return { userInfo: cookie.userInfo, tryInjectData: cookie.tryInjectData };
   }
 
@@ -86,7 +94,7 @@ async function $checkCookieTokens(
   injectFunc: ReturnType<typeof $createInjectFunc>,
   accessTokenName: string,
   refreshTokenName: string,
-): Promise<Result<{ userInfo: UserInfo; tryInjectData: InjectDataFunction }>> {
+): Promise<Result<{ azureId: string; userInfo: UserInfo; tryInjectData: InjectDataFunction }>> {
   const accessToken = $getCookie(req, accessTokenName);
   const refreshToken = $getCookie(req, refreshTokenName);
   if (!accessToken && !refreshToken) {
@@ -101,6 +109,7 @@ async function $checkCookieTokens(
   if (at.error && !refreshToken) return $err(at.error);
   if (at.success) {
     return $ok({
+      azureId: at.meta.azureId as string,
       userInfo: $userInfo(req, at.meta, at.rawJwt, at.payload, at.injectedData),
       tryInjectData: (data: Record<string, any>) => injectFunc(at.rawJwt, data),
     });
@@ -115,6 +124,7 @@ async function $checkCookieTokens(
   }
 
   return $ok({
+    azureId: rt.meta.azureId as string,
     userInfo: $userInfo(req, rt.meta, rt.rawJwt, rt.payload),
     tryInjectData: (data: Record<string, any>) => injectFunc(rt.rawJwt, data),
   });

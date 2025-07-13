@@ -61,13 +61,13 @@ export function $oauthConfig(configuration: OAuthConfig): Result<{
         const b2b = $getB2B(azure.b2bApps);
         const obo = $getObo({
           oboServices: azure.downstreamServices,
-          secure: baseCookieOptions.accessToken.secure,
-          sameSite: baseCookieOptions.accessToken.sameSite,
+          secure: baseCookieOptions.accessTokenOptions.secure,
+          sameSite: baseCookieOptions.accessTokenOptions.sameSite,
           atExp: config.advanced.cookies.accessTokenExpiry,
           serverHost: serverHost,
         });
 
-        const cookieNames = $getCookieNames(azure.clientId, baseCookieOptions.accessToken.secure);
+        const cookieNames = $getCookieNames(azure.clientId, baseCookieOptions.accessTokenOptions.secure);
 
         return {
           clientId: azure.clientId,
@@ -112,13 +112,13 @@ export function $oauthConfig(configuration: OAuthConfig): Result<{
       disableCompression: config.advanced.disableCompression,
       b2bApps: azures.some((azure) => azure.b2bNames)
         ? (azures
-            .map((azure) => ({ clientId: azure.clientId, names: azure.b2bNames }))
-            .filter((azure) => !!azure) as NonEmptyArray<{ clientId: string; names: NonEmptyArray<string> }>)
+            .map((azure) => ({ azureId: azure.clientId, names: azure.b2bNames }))
+            .filter((azure) => !!azure) as NonEmptyArray<{ azureId: string; names: NonEmptyArray<string> }>)
         : undefined,
       downstreamServices: azures.some((azure) => azure.oboNames)
         ? (azures
-            .map((azure) => ({ clientId: azure.clientId, names: azure.oboNames }))
-            .filter((azure) => !!azure) as NonEmptyArray<{ clientId: string; names: NonEmptyArray<string> }>)
+            .map((azure) => ({ azureId: azure.clientId, names: azure.oboNames }))
+            .filter((azure) => !!azure) as NonEmptyArray<{ azureId: string; names: NonEmptyArray<string> }>)
         : undefined,
       azures: azures.map((azure) => ({ azureId: azure.clientId, tenantId: azure.tenantId })) as NonEmptyArray<{
         azureId: string;
@@ -126,16 +126,18 @@ export function $oauthConfig(configuration: OAuthConfig): Result<{
       }>,
       cookies: {
         timeUnit: config.advanced.cookies.timeUnit,
-        isSecure: baseCookieOptions.accessToken.secure,
-        isSameSite: baseCookieOptions.accessToken.sameSite === 'strict',
-        accessTokenName: azures[0].cookiesNames.accessToken,
+        isSecure: baseCookieOptions.accessTokenOptions.secure,
+        isSameSite: baseCookieOptions.accessTokenOptions.sameSite === 'strict',
+        accessTokenName: azures[0].cookiesNames.accessTokenName,
         accessTokenExpiry: config.advanced.cookies.accessTokenExpiry,
-        refreshTokenName: azures[0].cookiesNames.refreshToken,
+        refreshTokenName: azures[0].cookiesNames.refreshTokenName,
         refreshTokenExpiry: config.advanced.cookies.refreshTokenExpiry,
         cookieNames: azures.map((azure) => ({
-          accessToken: azure.cookiesNames.accessToken,
-          refreshToken: azure.cookiesNames.refreshToken,
-        })) as NonEmptyArray<{ accessToken: AccessTokenName; refreshToken: RefreshTokenName }>,
+          azureId: azure.clientId,
+          accessTokenName: azure.cookiesNames.accessTokenName,
+          refreshTokenName: azure.cookiesNames.refreshTokenName,
+        })) as NonEmptyArray<{ azureId: string; accessTokenName: AccessTokenName; refreshTokenName: RefreshTokenName }>,
+        deleteOptions: baseCookieOptions.deleteTokenOptions,
       },
     };
 

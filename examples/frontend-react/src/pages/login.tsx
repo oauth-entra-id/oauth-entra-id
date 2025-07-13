@@ -119,10 +119,20 @@ export default function Login() {
             className="gap-[-10px] border-[1.5px] rounded-lg bg-background"
             value={currentNumber}
             onValueChange={(value) => setCurrentNumber(value as '1' | '2')}>
-            <ToggleGroupItem value="1" size="sm">
+            <ToggleGroupItem
+              value="1"
+              size="sm"
+              className={cn(
+                currentNumber === '1' && 'data-[state=on]:bg-primary data-[state=on]:text-primary-foreground',
+              )}>
               1
             </ToggleGroupItem>
-            <ToggleGroupItem value="2" size="sm">
+            <ToggleGroupItem
+              value="2"
+              size="sm"
+              className={cn(
+                currentNumber === '2' && 'data-[state=on]:bg-primary data-[state=on]:text-primary-foreground',
+              )}>
               2
             </ToggleGroupItem>
           </ToggleGroup>

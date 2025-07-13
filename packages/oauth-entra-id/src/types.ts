@@ -104,8 +104,8 @@ export interface OboService {
 export interface OAuthSettings {
   readonly loginPrompt: LoginPrompt;
   readonly acceptB2BRequests: boolean;
-  readonly b2bApps: NonEmptyArray<{ clientId: string; names: NonEmptyArray<string> }> | undefined;
-  readonly downstreamServices: NonEmptyArray<{ clientId: string; names: NonEmptyArray<string> }> | undefined;
+  readonly b2bApps: NonEmptyArray<{ azureId: string; names: NonEmptyArray<string> }> | undefined;
+  readonly downstreamServices: NonEmptyArray<{ azureId: string; names: NonEmptyArray<string> }> | undefined;
   readonly disableCompression: boolean;
   readonly cryptoType: CryptoType;
   readonly azures: NonEmptyArray<{ azureId: string; tenantId: string }>;
@@ -117,7 +117,12 @@ export interface OAuthSettings {
     readonly accessTokenName: AccessTokenName;
     readonly refreshTokenExpiry: number;
     readonly refreshTokenName: RefreshTokenName;
-    readonly cookieNames: NonEmptyArray<{ accessToken: AccessTokenName; refreshToken: RefreshTokenName }>;
+    readonly cookieNames: NonEmptyArray<{
+      azureId: string;
+      accessTokenName: AccessTokenName;
+      refreshTokenName: RefreshTokenName;
+    }>;
+    readonly deleteOptions: CookieOptions;
   };
 }
 
@@ -137,14 +142,14 @@ interface CookieOptions {
 }
 
 export interface BaseCookieOptions {
-  readonly accessToken: CookieOptions;
-  readonly refreshToken: CookieOptions;
-  readonly deleteToken: CookieOptions;
+  readonly accessTokenOptions: CookieOptions;
+  readonly refreshTokenOptions: CookieOptions;
+  readonly deleteTokenOptions: CookieOptions;
 }
 
 export interface BaseCookieNames {
-  readonly accessToken: AccessTokenName;
-  readonly refreshToken: RefreshTokenName;
+  readonly accessTokenName: AccessTokenName;
+  readonly refreshTokenName: RefreshTokenName;
 }
 
 export interface Cookies {
