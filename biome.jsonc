@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.0.6/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.1.1/schema.json",
   "vcs": {
     "enabled": false,
     "clientKind": "git",
@@ -17,7 +17,6 @@
     "lineEnding": "crlf",
     "includes": ["**", "!**/node_modules/**", "!**/dist/**", "!**/build/**", "!**/coverage/**", "!**/.turbo/**"]
   },
-  "assist": { "actions": { "source": { "organizeImports": "on" } } },
   "linter": {
     "enabled": true,
     "rules": {
@@ -62,6 +61,14 @@
     },
     "parser": {
       "unsafeParameterDecoratorsEnabled": true
+    }
+  },
+  "assist": {
+    "enabled": true,
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
     }
   }
 }
