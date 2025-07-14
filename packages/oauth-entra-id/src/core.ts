@@ -63,7 +63,7 @@ export class OAuthProvider {
 
   /**
    * @param configuration The OAuth configuration object:
-   * - `azure`: clientId, tenantId, scopes, clientSecret, B2B apps, and downstream services
+   * - `azure`: clientId, tenantId, scopes, clientSecret, B2B apps, and downstream services. Can be an array of Azure configurations.
    * - `frontendUrl`: allowed redirect URIs
    * - `serverCallbackUrl`: your server’s Azure callback endpoint
    * - `encryptionKey`: 32 characters base encryption secret
@@ -92,6 +92,7 @@ export class OAuthProvider {
    * - `loginPrompt` (optional) - Override the default prompt (`sso`|`email`|`select-account`)
    * - `email` (optional) - Email address to pre-fill the login form
    * - `frontendUrl` (optional) - Frontend URL override to redirect the user after authentication
+   * - `azureId` (optional) - Azure configuration ID to use, relevant if multiple Azure configurations (Defaults to the first one)
    * @returns A result containing the authorization URL and a ticket (which is used for bearer flow only)
    * @throws {OAuthError} if something goes wrong.
    */
@@ -237,6 +238,7 @@ export class OAuthProvider {
    *
    * @param params (optional) - Parameters to customize the logout URL:
    * - `frontendUrl` (optional) - Frontend URL override to redirect the user after log out
+   * - `azureId` (optional) - Azure configuration ID to use, relevant if multiple Azure configurations (Defaults to the first one)
    * @returns A result containing the logout URL and cookie deletion instructions.
    * @throws {OAuthError} if something goes wrong.
    */
@@ -478,10 +480,12 @@ export class OAuthProvider {
    *
    * @overload
    * @param params.appName - The name of the B2B app to get the token for.
+   * @param params.azureId (optional) - Azure configuration ID to use, relevant if multiple Azure configurations (Defaults to the first one)
    * @returns A result containing the B2B app token and metadata.
    *
    * @overload
    * @param params.appsNames - An array of B2B app names to get tokens for.
+   * @param params.azureId (optional) - Azure configuration ID to use, relevant if multiple Azure configurations (Defaults to the first one)
    * @returns Results containing an array of B2B app tokens and metadata.
    */
   async tryGetB2BToken(params: { app: string; azureId?: string }): Promise<Result<{ result: B2BResult }>>;
@@ -564,12 +568,14 @@ export class OAuthProvider {
    * @overload
    * @param params.accessToken - The encrypted access token to use for OBO.
    * @param params.serviceName - The name of the service to get the token for.
+   * @param params.azureId (optional) - Azure configuration ID to use, relevant if multiple Azure configurations (Defaults to the first one)
    * @returns A result containing the OBO token and metadata for the specified service.
    * @throws {OAuthError} if something goes wrong.
    *
    * @overload
    * @param params.accessToken - The encrypted access token to use for OBO.
    * @param params.serviceNames - An array of service names to get tokens for.
+   * @param params.azureId (optional) - Azure configuration ID to use, relevant if multiple Azure configurations (Defaults to the first one)
    * @returns Results containing an array of OBO tokens and metadata for the specified services.
    * @throws {OAuthError} if something goes wrong.
    */
@@ -660,7 +666,7 @@ export class OAuthProvider {
     fallbackToDefault = false,
     status = 401,
   }: {
-    azureId?: string;
+    azureId: string | undefined;
     fallbackToDefault?: boolean;
     status?: 401 | 400;
   }): Result<{ azure: Azure }> {
