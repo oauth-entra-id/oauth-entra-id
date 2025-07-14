@@ -240,7 +240,7 @@ export class OAuthProvider {
    * @returns A result containing the logout URL and cookie deletion instructions.
    * @throws {OAuthError} if something goes wrong.
    */
-  async getLogoutUrl(params?: { frontendUrl?: string; clientId?: string }): Promise<{
+  async getLogoutUrl(params?: { frontendUrl?: string; azureId?: string }): Promise<{
     logoutUrl: string;
     deleteAccessToken: Cookies['DeleteAccessToken'];
     deleteRefreshToken: Cookies['DeleteRefreshToken'];

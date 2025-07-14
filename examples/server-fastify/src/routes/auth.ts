@@ -7,6 +7,7 @@ const tSchemas = {
     loginPrompt: t.Optional(t.Union([t.Literal('email'), t.Literal('select-account'), t.Literal('sso')])),
     email: t.Optional(t.String({ format: 'email' })),
     frontendUrl: t.Optional(t.String({ format: 'uri' })),
+    azureId: t.Optional(t.String({ format: 'uuid' })),
   }),
   callback: t.Object({
     code: t.String(),
@@ -14,6 +15,7 @@ const tSchemas = {
   }),
   logout: t.Object({
     frontendUrl: t.Optional(t.String({ format: 'uri' })),
+    azureId: t.Optional(t.String({ format: 'uuid' })),
   }),
 };
 
@@ -25,6 +27,7 @@ export const authRouter: FastifyPluginAsyncTypebox = async (app) => {
       loginPrompt: body?.loginPrompt,
       email: body?.email,
       frontendUrl: body?.frontendUrl,
+      azureId: body?.azureId,
     });
 
     return { url: authUrl };
@@ -45,6 +48,7 @@ export const authRouter: FastifyPluginAsyncTypebox = async (app) => {
 
     const { logoutUrl, deleteAccessToken, deleteRefreshToken } = await oauthProvider.getLogoutUrl({
       frontendUrl: body?.frontendUrl,
+      azureId: body?.azureId,
     });
 
     reply.setCookie(deleteAccessToken.name, deleteAccessToken.value, deleteAccessToken.options);

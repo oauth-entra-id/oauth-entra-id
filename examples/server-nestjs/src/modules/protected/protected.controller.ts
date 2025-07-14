@@ -32,6 +32,6 @@ export class ProtectedController {
 
   @Post('get-b2b-info')
   async getB2BInfo(@Body() body: GetB2BInfoDto) {
-    return await this.protectedService.fetchB2BInfo(body.app);
+    return await this.protectedService.fetchB2BInfo(body.app, body.azureId);
   }
 }

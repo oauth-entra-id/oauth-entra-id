@@ -49,13 +49,12 @@ export async function $sharedMiddleware(
   }
 
   throw new OAuthError(
-    firstError
-      ? firstError
-      : $err('jwt_error', {
-          error: 'Unauthorized',
-          description: 'Tokens are invalid or missing',
-          status: 401,
-        }),
+    firstError ??
+      $err('jwt_error', {
+        error: 'Unauthorized',
+        description: 'Tokens are invalid or missing',
+        status: 401,
+      }),
   );
 }
 
@@ -144,12 +143,7 @@ function $userInfo<T extends object = Record<string, any>>(
     roles: meta.roles as string[],
     ...(meta.isApp
       ? { isApp: true as const, appId: meta.appId as string }
-      : {
-          isApp: false as const,
-          name: meta.name as string,
-          email: meta.email as string,
-          injectedData,
-        }),
+      : { isApp: false as const, name: meta.name as string, email: meta.email as string, injectedData }),
   } as const;
 
   req.userInfo = userInfo;

@@ -1,5 +1,5 @@
 import { useForm } from '@tanstack/react-form';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Navigate } from 'react-router';
 import { toast } from 'sonner';
@@ -21,7 +21,6 @@ import { useServerStore } from '~/stores/server-store';
 import { useUserStore } from '~/stores/user-store';
 
 export default function Login() {
-  const queryClient = useQueryClient();
   const [ssoEnabled, setSsoEnabled] = useState(true);
   const [currentNumber, setCurrentNumber] = useState<'1' | '2'>('1');
   const user = useUserStore((state) => state.user);
@@ -30,7 +29,6 @@ export default function Login() {
     mutationFn: getAuthUrl,
     onSuccess: async (url) => {
       window.location.href = url;
-      await queryClient.invalidateQueries({ queryKey: ['user'] });
     },
     onError: () => {
       toast.error('Could not login', { duration: 1000 });

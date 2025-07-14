@@ -7,7 +7,11 @@ import { HttpException } from '~/error/HttpException';
 import { generateRandomPokemon } from '~/utils/generate';
 
 const zAvailableServers = z.enum(['nestjs', 'fastify', 'honojs']);
-const zGetB2BInfoBody = z.object({ app: zAvailableServers });
+
+const zGetB2BInfoBody = z.object({
+  app: zAvailableServers,
+  azureId: z.uuid().optional(),
+});
 
 export const protectedRouter: Router = express.Router();
 
@@ -31,7 +35,7 @@ protectedRouter.post('/get-b2b-info', async (req, res) => {
   const { data: body, error: bodyError } = zGetB2BInfoBody.safeParse(req.body);
   if (bodyError) throw new HttpException('Invalid params', 400);
 
-  const { result, error } = await expressOAuthProvider.tryGetB2BToken({ app: body.app });
+  const { result, error } = await expressOAuthProvider.tryGetB2BToken({ app: body.app, azureId: body.azureId });
   if (error) throw new HttpException('Failed to get B2B token', 500);
 
   const serverUrl = serversMap[body.app];

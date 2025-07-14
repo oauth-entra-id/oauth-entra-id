@@ -10,16 +10,16 @@ export function Title({ children, className, ...props }: React.ComponentProps<'h
 
 export function MutedText({ children, className, ...props }: React.ComponentProps<'p'>) {
   return (
-    <p className={cn('text-sm text-muted-foreground', className)} {...props}>
+    <div className={cn('text-sm text-muted-foreground', className)} {...props}>
       {children}
-    </p>
+    </div>
   );
 }
 
 export function SmallMutedText({ children, className, ...props }: React.ComponentProps<'p'>) {
   return (
-    <p className={cn('text-xs text-foreground opacity-65', className)} {...props}>
+    <div className={cn('text-xs text-foreground opacity-65', className)} {...props}>
       {children}
-    </p>
+    </div>
   );
 }
