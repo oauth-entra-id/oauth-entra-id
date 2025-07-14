@@ -4,7 +4,9 @@ import type { z } from 'zod/v4';
 import { $err, $ok, OAuthError, type Result } from './error';
 import type {
   Azure,
+  B2BApp,
   B2BResult,
+  BaseCookieOptions,
   Cookies,
   CryptoType,
   EncryptionKeys,
@@ -18,9 +20,10 @@ import type {
   OboResult,
   WebApiCryptoKey,
 } from './types';
-import { $cookieOptions } from './utils/cookie-options';
+import { $oauthConfig } from './utils/config';
+import { $getCookieNames, $getCookieOptions } from './utils/cookie-options';
 import { $generateUuid } from './utils/crypto/encrypt';
-import { $getAudienceAndExpiry, $verifyJwt } from './utils/crypto/jwt';
+import { $getExpiry, $verifyJwt } from './utils/crypto/jwt';
 import {
   $decryptAccessToken,
   $decryptRefreshToken,
@@ -31,13 +34,7 @@ import {
   $encryptState,
   $encryptTicket,
 } from './utils/crypto/tokens';
-import {
-  $coreErrors,
-  $mapAndFilter,
-  $transformToMsalPrompt,
-  $tryGetB2BToken,
-  oauthProviderHelper,
-} from './utils/helpers';
+import { $coreErrors, $mapAndFilter, $transformToMsalPrompt, TIME_SKEW } from './utils/helpers';
 import { $prettyErr, zInjectedData, zMethods, type zState } from './utils/zod';
 
 /**
@@ -54,11 +51,11 @@ import { $prettyErr, zInjectedData, zMethods, type zState } from './utils/zod';
  * Designed to be framework-agnostic (Express, NestJS, etc.)
  */
 export class OAuthProvider {
-  private readonly azure: Azure;
+  private readonly azures: NonEmptyArray<Azure>;
   private readonly frontendUrls: NonEmptyArray<string>;
   private readonly frontendWhitelist: Set<string>;
   private readonly serverCallbackUrl: string;
-  private readonly defaultCookieOptions: Cookies['DefaultCookieOptions'];
+  private readonly baseCookieOptions: BaseCookieOptions;
   private readonly encryptionKeys: EncryptionKeys;
   private readonly msalCryptoProvider: CryptoProvider;
   private readonly jwksClient: JwksClient;
@@ -66,7 +63,7 @@ export class OAuthProvider {
 
   /**
    * @param configuration The OAuth configuration object:
-   * - `azure`: clientId, tenantId, scopes, clientSecret, B2B apps, and downstream services
+   * - `azure`: clientId, tenantId, scopes, clientSecret, B2B apps, and downstream services. Can be an array of Azure configurations.
    * - `frontendUrl`: allowed redirect URIs
    * - `serverCallbackUrl`: your server’s Azure callback endpoint
    * - `encryptionKey`: 32 characters base encryption secret
@@ -74,14 +71,14 @@ export class OAuthProvider {
    * @throws {OAuthError} if the config fails validation or has duplicate service names
    */
   constructor(configuration: OAuthConfig) {
-    const result = oauthProviderHelper(configuration);
+    const result = $oauthConfig(configuration);
     if (result.error) throw new OAuthError(result.error);
 
-    this.azure = result.azure;
+    this.azures = result.azures;
     this.frontendUrls = result.frontendUrls;
     this.frontendWhitelist = result.frontendWhitelist;
     this.serverCallbackUrl = result.serverCallbackUrl;
-    this.defaultCookieOptions = result.defaultCookieOptions;
+    this.baseCookieOptions = result.baseCookieOptions;
     this.encryptionKeys = result.encryptionKeys;
     this.msalCryptoProvider = result.msalCryptoProvider;
     this.jwksClient = result.jwksClient;
@@ -95,10 +92,16 @@ export class OAuthProvider {
    * - `loginPrompt` (optional) - Override the default prompt (`sso`|`email`|`select-account`)
    * - `email` (optional) - Email address to pre-fill the login form
    * - `frontendUrl` (optional) - Frontend URL override to redirect the user after authentication
+   * - `azureId` (optional) - Azure configuration ID to use, relevant if multiple Azure configurations (Defaults to the first one)
    * @returns A result containing the authorization URL and a ticket (which is used for bearer flow only)
    * @throws {OAuthError} if something goes wrong.
    */
-  async getAuthUrl(params?: { loginPrompt?: LoginPrompt; email?: string; frontendUrl?: string }): Promise<{
+  async getAuthUrl(params?: {
+    loginPrompt?: LoginPrompt;
+    email?: string;
+    frontendUrl?: string;
+    azureId?: string;
+  }): Promise<{
     authUrl: string;
     ticket: string;
   }> {
@@ -106,6 +109,13 @@ export class OAuthProvider {
     if (paramsError) {
       throw new OAuthError('bad_request', { error: 'Invalid params', description: $prettyErr(paramsError) });
     }
+
+    const { azure, error: azureError } = this.$getAzure({
+      azureId: parsedParams.azureId,
+      fallbackToDefault: true,
+      status: 400,
+    });
+    if (azureError) throw new OAuthError(azureError);
 
     if (parsedParams.loginPrompt === 'email' && !parsedParams.email) {
       throw new OAuthError('bad_request', { error: 'Invalid params: Email required' });
@@ -129,6 +139,7 @@ export class OAuthProvider {
       const params = { nonce: this.msalCryptoProvider.createNewGuid(), loginHint: parsedParams.email, prompt };
 
       const { encrypted: encryptedState, error: encryptError } = await this.$encryptToken('state', {
+        azureId: azure.clientId,
         frontendUrl: parsedParams.frontendUrl ?? this.frontendUrls[0],
         codeVerifier: pkce.verifier,
         ticketId: ticketId,
@@ -136,10 +147,10 @@ export class OAuthProvider {
       } satisfies z.infer<typeof zState>);
       if (encryptError) throw new OAuthError(encryptError);
 
-      const authUrl = await this.azure.cca.getAuthCodeUrl({
+      const authUrl = await azure.cca.getAuthCodeUrl({
         ...params,
         state: encryptedState,
-        scopes: this.azure.scopes,
+        scopes: azure.scopes,
         redirectUri: this.serverCallbackUrl,
         responseMode: 'form_post',
         codeChallengeMethod: 'S256',
@@ -182,25 +193,36 @@ export class OAuthProvider {
     const { decrypted: state, error: decryptError } = await this.$decryptToken('state', parsedParams.state);
     if (decryptError) throw new OAuthError(decryptError);
 
+    const { azure, error: azureError } = this.$getAzure({ azureId: state.azureId, status: 400 });
+    if (azureError) throw new OAuthError(azureError);
+
     if (!this.frontendWhitelist.has(new URL(state.frontendUrl).host)) {
       throw new OAuthError('bad_request', { error: 'Invalid params: Unlisted host frontend URL', status: 403 });
     }
 
     try {
-      const msalResponse = await this.azure.cca.acquireTokenByCode({
+      const msalResponse = await azure.cca.acquireTokenByCode({
         code: parsedParams.code,
-        scopes: this.azure.scopes,
+        scopes: azure.scopes,
         redirectUri: this.serverCallbackUrl,
         ...state,
       });
 
-      const { encryptedAccessToken, encryptedRefreshToken, error } = await this.$extractTokens(msalResponse);
+      const { encryptedAccessToken, encryptedRefreshToken, error } = await this.$extractTokens(azure, msalResponse);
       if (error) throw new OAuthError(error);
 
       return {
-        accessToken: { value: encryptedAccessToken, ...this.defaultCookieOptions.accessToken },
+        accessToken: {
+          name: azure.cookiesNames.accessTokenName,
+          value: encryptedAccessToken,
+          options: this.baseCookieOptions.accessTokenOptions,
+        },
         refreshToken: encryptedRefreshToken
-          ? { value: encryptedRefreshToken, ...this.defaultCookieOptions.refreshToken }
+          ? {
+              name: azure.cookiesNames.refreshTokenName,
+              value: encryptedRefreshToken,
+              options: this.baseCookieOptions.refreshTokenOptions,
+            }
           : null,
         frontendUrl: state.frontendUrl,
         ticketId: state.ticketId,
@@ -216,10 +238,11 @@ export class OAuthProvider {
    *
    * @param params (optional) - Parameters to customize the logout URL:
    * - `frontendUrl` (optional) - Frontend URL override to redirect the user after log out
+   * - `azureId` (optional) - Azure configuration ID to use, relevant if multiple Azure configurations (Defaults to the first one)
    * @returns A result containing the logout URL and cookie deletion instructions.
    * @throws {OAuthError} if something goes wrong.
    */
-  async getLogoutUrl(params?: { frontendUrl?: string }): Promise<{
+  async getLogoutUrl(params?: { frontendUrl?: string; azureId?: string }): Promise<{
     logoutUrl: string;
     deleteAccessToken: Cookies['DeleteAccessToken'];
     deleteRefreshToken: Cookies['DeleteRefreshToken'];
@@ -229,24 +252,31 @@ export class OAuthProvider {
       throw new OAuthError('bad_request', { error: 'Invalid params', description: $prettyErr(paramsError) });
     }
 
+    const { azure, error: azureError } = this.$getAzure({
+      azureId: parsedParams.azureId,
+      fallbackToDefault: true,
+      status: 400,
+    });
+    if (azureError) throw new OAuthError(azureError);
+
     if (parsedParams.frontendUrl && !this.frontendWhitelist.has(new URL(parsedParams.frontendUrl).host)) {
       throw new OAuthError('bad_request', { error: 'Invalid params: Unlisted host frontend URL', status: 403 });
     }
 
-    const logoutUrl = new URL(`https://login.microsoftonline.com/${this.azure.tenantId}/oauth2/v2.0/logout`);
+    const logoutUrl = new URL(`https://login.microsoftonline.com/${azure.tenantId}/oauth2/v2.0/logout`);
     logoutUrl.searchParams.set('post_logout_redirect_uri', parsedParams.frontendUrl ?? this.frontendUrls[0]);
 
     return {
       logoutUrl: logoutUrl.toString(),
       deleteAccessToken: {
-        name: this.defaultCookieOptions.accessToken.name,
+        name: azure.cookiesNames.accessTokenName,
         value: '',
-        options: this.defaultCookieOptions.deleteOptions,
+        options: this.baseCookieOptions.deleteTokenOptions,
       },
       deleteRefreshToken: {
-        name: this.defaultCookieOptions.refreshToken.name,
+        name: azure.cookiesNames.refreshTokenName,
         value: '',
-        options: this.defaultCookieOptions.deleteOptions,
+        options: this.baseCookieOptions.deleteTokenOptions,
       },
     };
   }
@@ -270,16 +300,18 @@ export class OAuthProvider {
       hasInjectedData: boolean;
     }>
   > {
-    const { decrypted, injectedData, wasEncrypted, error } = await this.$decryptToken<T>('accessToken', accessToken);
+    const { decrypted, azureId, injectedData, wasEncrypted, error } = await this.$decryptToken<T>(
+      'accessToken',
+      accessToken,
+    );
     if (error) {
       return $err(error.type, { error: 'Unauthorized', description: error.description, status: 401 });
     }
 
-    const at = await $verifyJwt({
-      jwtToken: decrypted,
-      jwksClient: this.jwksClient,
-      azure: this.azure,
-    });
+    const { azure, error: azureError } = this.$getAzure({ azureId });
+    if (azureError) return $err(azureError);
+
+    const at = await $verifyJwt({ jwtToken: decrypted, azure: azure, jwksClient: this.jwksClient });
     if (at.error) return $err(at.error);
 
     if (this.settings.acceptB2BRequests === false && at.meta.isApp === true) {
@@ -327,15 +359,22 @@ export class OAuthProvider {
       return $err('nullish_value', { error: 'Unauthorized', description: 'Refresh token is required', status: 401 });
     }
 
-    const { decrypted: rawRefreshToken, error: decryptError } = await this.$decryptToken('refreshToken', refreshToken);
+    const {
+      decrypted: rawRefreshToken,
+      azureId,
+      error: decryptError,
+    } = await this.$decryptToken('refreshToken', refreshToken);
     if (decryptError) {
       return $err(decryptError.type, { error: 'Unauthorized', description: decryptError.description, status: 401 });
     }
 
+    const { azure, error: azureError } = this.$getAzure({ azureId });
+    if (azureError) return $err(azureError);
+
     try {
-      const msalResponse = await this.azure.cca.acquireTokenByRefreshToken({
+      const msalResponse = await azure.cca.acquireTokenByRefreshToken({
         refreshToken: rawRefreshToken,
-        scopes: this.azure.scopes,
+        scopes: azure.scopes,
         forceCache: true,
       });
       if (!msalResponse) {
@@ -349,22 +388,30 @@ export class OAuthProvider {
       const at = await $verifyJwt({
         jwtToken: msalResponse.accessToken,
         jwksClient: this.jwksClient,
-        azure: this.azure,
+        azure: azure,
       });
       if (at.error) {
         return $err(at.error.type, { error: 'Unauthorized', description: at.error.description, status: 401 });
       }
 
-      const { encryptedAccessToken, encryptedRefreshToken, error } = await this.$extractTokens(msalResponse);
+      const { encryptedAccessToken, encryptedRefreshToken, error } = await this.$extractTokens(azure, msalResponse);
       if (error) return $err(error.type, { error: 'Unauthorized', description: error.description, status: 401 });
 
       return $ok({
         rawJwt: msalResponse.accessToken,
         payload: at.payload,
         meta: at.meta,
-        newAccessToken: { value: encryptedAccessToken, ...this.defaultCookieOptions.accessToken },
+        newAccessToken: {
+          name: azure.cookiesNames.accessTokenName,
+          value: encryptedAccessToken,
+          options: this.baseCookieOptions.accessTokenOptions,
+        },
         newRefreshToken: encryptedRefreshToken
-          ? { value: encryptedRefreshToken, ...this.defaultCookieOptions.refreshToken }
+          ? {
+              name: azure.cookiesNames.refreshTokenName,
+              value: encryptedRefreshToken,
+              options: this.baseCookieOptions.refreshTokenOptions,
+            }
           : null,
         msalResponse: msalResponse,
       });
@@ -386,8 +433,11 @@ export class OAuthProvider {
     accessToken: string;
     data: T;
   }): Promise<Result<{ newAccessToken: Cookies['AccessToken']; injectedData: T }>> {
-    const { decrypted: rawAccessToken, error } = await this.$decryptToken('accessToken', params.accessToken);
+    const { decrypted: rawAccessToken, azureId, error } = await this.$decryptToken('accessToken', params.accessToken);
     if (error) return $err(error);
+
+    const { azure, error: azureError } = this.$getAzure({ azureId });
+    if (azureError) return $err(azureError);
 
     const { data: dataToInject, error: dataToInjectError } = zInjectedData.safeParse(params.data);
     if (dataToInjectError) {
@@ -395,12 +445,18 @@ export class OAuthProvider {
     }
 
     const { encrypted, error: encryptError } = await this.$encryptToken('accessToken', rawAccessToken, {
-      dataToInject,
+      azureId,
+      expiry: this.settings.cookies.accessTokenExpiry,
+      dataToInject: dataToInject,
     });
     if (encryptError) return $err(encryptError);
 
     return $ok({
-      newAccessToken: { value: encrypted, ...this.defaultCookieOptions.accessToken },
+      newAccessToken: {
+        name: azure.cookiesNames.accessTokenName,
+        value: encrypted,
+        options: this.baseCookieOptions.accessTokenOptions,
+      },
       injectedData: dataToInject as T,
     });
   }
@@ -424,18 +480,86 @@ export class OAuthProvider {
    *
    * @overload
    * @param params.appName - The name of the B2B app to get the token for.
+   * @param params.azureId (optional) - Azure configuration ID to use, relevant if multiple Azure configurations (Defaults to the first one)
    * @returns A result containing the B2B app token and metadata.
    *
    * @overload
    * @param params.appsNames - An array of B2B app names to get tokens for.
+   * @param params.azureId (optional) - Azure configuration ID to use, relevant if multiple Azure configurations (Defaults to the first one)
    * @returns Results containing an array of B2B app tokens and metadata.
    */
-  async tryGetB2BToken(params: { app: string }): Promise<Result<{ result: B2BResult }>>;
-  async tryGetB2BToken(params: { apps: string[] }): Promise<Result<{ results: B2BResult[] }>>;
+  async tryGetB2BToken(params: { app: string; azureId?: string }): Promise<Result<{ result: B2BResult }>>;
+  async tryGetB2BToken(params: {
+    apps: string[];
+    azureId?: string;
+  }): Promise<Result<{ results: NonEmptyArray<B2BResult> }>>;
   async tryGetB2BToken(
-    params: { app: string } | { apps: string[] },
-  ): Promise<Result<{ result: B2BResult } | { results: B2BResult[] }>> {
-    return await $tryGetB2BToken(params, this.azure.b2bApps, this.azure.cca);
+    params: { azureId?: string } & ({ app: string } | { apps: string[] }),
+  ): Promise<Result<{ result: B2BResult } | { results: NonEmptyArray<B2BResult> }>> {
+    const { data: parsedParams, error: paramsError } = zMethods.tryGetB2BToken.safeParse(params);
+    if (paramsError) return $err('bad_request', { error: 'Invalid params', description: $prettyErr(paramsError) });
+
+    const { azure, error: azureError } = this.$getAzure({
+      azureId: parsedParams.azureId,
+      fallbackToDefault: true,
+      status: 400,
+    });
+    if (azureError) throw new OAuthError(azureError);
+    if (!azure.b2b) return $err('misconfiguration', { error: 'B2B apps not configured', status: 500 });
+
+    const apps = parsedParams.apps.map((app) => azure.b2b?.get(app)).filter((app) => !!app);
+    if (!apps || apps.length === 0) {
+      return $err('bad_request', { error: 'Invalid params', description: 'B2B app not found' });
+    }
+
+    try {
+      const results = (await $mapAndFilter(apps, async (app) => {
+        if (app.token && app.exp > Date.now() / 1000) {
+          return {
+            clientId: azure.clientId,
+            appName: app.appName,
+            appId: app.aud,
+            token: app.token,
+            msalResponse: app.msalResponse,
+            isCached: true,
+            expiresAt: app.exp,
+          } satisfies B2BResult;
+        }
+
+        const msalResponse = await azure.cca.acquireTokenByClientCredential({ scopes: [app.scope], skipCache: true });
+        if (!msalResponse) return null;
+
+        const { clientId, exp, error: audError } = $getExpiry(msalResponse.accessToken);
+        if (audError) return null;
+
+        azure.b2b?.set(app.appName, {
+          appName: app.appName,
+          scope: app.scope,
+          token: msalResponse.accessToken,
+          exp: exp - TIME_SKEW,
+          aud: clientId,
+          msalResponse: msalResponse,
+        } satisfies B2BApp);
+
+        return {
+          clientId: azure.clientId,
+          appName: app.appName,
+          appId: clientId,
+          token: msalResponse.accessToken,
+          msalResponse: msalResponse,
+          isCached: false,
+          expiresAt: 0,
+        } satisfies B2BResult;
+      })) as NonEmptyArray<B2BResult>;
+
+      if (!results || results.length === 0) {
+        return $err('internal', { error: 'Failed to get B2B token', status: 500 });
+      }
+
+      return $ok('app' in params ? { result: results[0] } : { results });
+    } catch (err) {
+      return $coreErrors(err, 'tryGetB2BToken');
+    }
   }
 
   /**
@@ -444,36 +568,43 @@ export class OAuthProvider {
    * @overload
    * @param params.accessToken - The encrypted access token to use for OBO.
    * @param params.serviceName - The name of the service to get the token for.
+   * @param params.azureId (optional) - Azure configuration ID to use, relevant if multiple Azure configurations (Defaults to the first one)
    * @returns A result containing the OBO token and metadata for the specified service.
    * @throws {OAuthError} if something goes wrong.
    *
    * @overload
    * @param params.accessToken - The encrypted access token to use for OBO.
    * @param params.serviceNames - An array of service names to get tokens for.
+   * @param params.azureId (optional) - Azure configuration ID to use, relevant if multiple Azure configurations (Defaults to the first one)
    * @returns Results containing an array of OBO tokens and metadata for the specified services.
    * @throws {OAuthError} if something goes wrong.
    */
-  async getTokenOnBehalfOf(params: { accessToken: string; service: string }): Promise<{
+  async getTokenOnBehalfOf(params: { accessToken: string; service: string; azureId?: string }): Promise<{
     result: OboResult;
   }>;
-  async getTokenOnBehalfOf(params: { accessToken: string; services: string[] }): Promise<{
-    results: OboResult[];
+  async getTokenOnBehalfOf(params: { accessToken: string; services: string[]; azureId?: string }): Promise<{
+    results: NonEmptyArray<OboResult>;
   }>;
   async getTokenOnBehalfOf(
-    params: { accessToken: string; service: string } | { accessToken: string; services: string[] },
-  ): Promise<{ result: OboResult } | { results: OboResult[] }> {
-    if (!this.azure.oboApps) {
-      throw new OAuthError('misconfiguration', { error: 'OBO services not configured', status: 500 });
-    }
-
+    params: ({ service: string } | { services: string[] }) & {
+      accessToken: string;
+      azureId?: string;
+    },
+  ): Promise<{ result: OboResult } | { results: NonEmptyArray<OboResult> }> {
     const { data: parsedParams, error: paramsError } = zMethods.getTokenOnBehalfOf.safeParse(params);
     if (paramsError) {
       throw new OAuthError('bad_request', { error: 'Invalid params', description: $prettyErr(paramsError) });
     }
 
-    const services = parsedParams.services
-      .map((service) => this.azure.oboApps?.get(service))
-      .filter((service) => !!service);
+    const { azure, error: azureError } = this.$getAzure({
+      azureId: parsedParams.azureId,
+      fallbackToDefault: true,
+      status: 400,
+    });
+    if (azureError) throw new OAuthError(azureError);
+    if (!azure.obo) throw new OAuthError('misconfiguration', { error: 'OBO services not configured', status: 500 });
+
+    const services = parsedParams.services.map((service) => azure.obo?.get(service)).filter((service) => !!service);
 
     if (!services || services.length === 0) {
       throw new OAuthError('bad_request', { error: 'Invalid params', description: 'OBO service not found' });
@@ -483,56 +614,85 @@ export class OAuthProvider {
     if (error) throw new OAuthError(error);
 
     try {
-      const results = await $mapAndFilter(services, async (service) => {
-        const msalResponse = await this.azure.cca.acquireTokenOnBehalfOf({
+      const results = (await $mapAndFilter(services, async (service) => {
+        const msalResponse = await azure.cca.acquireTokenOnBehalfOf({
           oboAssertion: rawAccessToken,
           scopes: [service.scope],
           skipCache: true,
         });
         if (!msalResponse) return null;
 
-        const { aud, error: audError } = $getAudienceAndExpiry(msalResponse.accessToken);
+        const { clientId, error: audError } = $getExpiry(msalResponse.accessToken);
         if (audError) return null;
 
         const { encrypted, error } = await this.$encryptToken('accessToken', msalResponse.accessToken, {
+          azureId: clientId,
+          expiry: service.atExp,
           cryptoType: service.cryptoType,
           otherSecretKey: `access-token-${service.encryptionKey}`,
         });
         if (error) return null;
 
-        const cookieOptions = $cookieOptions({
-          clientId: aud,
+        const cookieOptions = $getCookieOptions({
           secure: service.isSecure,
           sameSite: service.isSamesite,
           timeUnit: this.settings.cookies.timeUnit,
-          atMaxAge: service.atMaxAge ?? this.settings.cookies.accessTokenMaxAge,
+          atExp: service.atExp,
         });
 
+        const { accessTokenName } = $getCookieNames(clientId, service.isSecure);
+
         return {
+          clientId: azure.clientId,
           serviceName: service.serviceName,
-          clientId: aud,
-          accessToken: { value: encrypted, ...cookieOptions.accessToken },
+          serviceId: clientId,
+          accessToken: { name: accessTokenName, value: encrypted, options: cookieOptions.accessTokenOptions },
           msalResponse: msalResponse,
         } satisfies OboResult;
-      });
+      })) as NonEmptyArray<OboResult>;
 
       if (!results || results.length === 0) {
         throw new OAuthError('internal', { error: 'Failed to get OBO token', status: 500 });
       }
 
-      return 'service' in params ? { result: results[0] as OboResult } : { results };
+      return 'service' in params ? { result: results[0] } : { results };
     } catch (err) {
       throw new OAuthError($coreErrors(err, 'getTokenOnBehalfOf'));
     }
   }
 
+  private $getAzure({
+    azureId,
+    fallbackToDefault = false,
+    status = 401,
+  }: {
+    azureId: string | undefined;
+    fallbackToDefault?: boolean;
+    status?: 401 | 400;
+  }): Result<{ azure: Azure }> {
+    const azure = azureId ? this.azures.find((azure) => azure.clientId === azureId) : undefined;
+    if (azure) return $ok({ azure });
+
+    if (fallbackToDefault) return $ok({ azure: this.azures[0] });
+
+    return $err('bad_request', {
+      error: status === 401 ? 'Unauthorized' : 'Bad Request',
+      description: 'Azure configuration not found for the given client ID',
+      status,
+    });
+  }
+
   /** Extracts and encrypts both tokens */
   private async $extractTokens(
+    azure: Azure,
     msalResponse: MsalResponse,
   ): Promise<Result<{ encryptedAccessToken: string; encryptedRefreshToken: string | null }>> {
     const [accessTokenRes, refreshTokenRes] = await Promise.all([
-      this.$encryptToken('accessToken', msalResponse.accessToken),
-      this.$obtainRefreshToken(msalResponse),
+      this.$encryptToken('accessToken', msalResponse.accessToken, {
+        azureId: azure.clientId,
+        expiry: this.settings.cookies.accessTokenExpiry,
+      }),
+      this.$obtainRefreshToken(azure, msalResponse),
     ]);
 
     if (accessTokenRes.error) return $err(accessTokenRes.error);
@@ -545,15 +705,18 @@ export class OAuthProvider {
   }
 
   /** Extracts the refresh token from the cache that msal created, and removes the account from the cache. */
-  private async $obtainRefreshToken(msalResponse: MsalResponse): Promise<Result<{ encrypted: string }>> {
+  private async $obtainRefreshToken(azure: Azure, msalResponse: MsalResponse): Promise<Result<{ encrypted: string }>> {
     try {
-      const cache = this.azure.cca.getTokenCache();
+      const cache = azure.cca.getTokenCache();
       const serializedCache = JSON.parse(cache.serialize());
       const refreshTokens = serializedCache.RefreshToken;
       const refreshTokenKey = Object.keys(refreshTokens).find((key) => key.startsWith(msalResponse.uniqueId));
       if (msalResponse.account) await cache.removeAccount(msalResponse.account);
       const refreshToken = refreshTokenKey ? (refreshTokens[refreshTokenKey].secret as string) : undefined;
-      return await this.$encryptToken('refreshToken', refreshToken);
+      return await this.$encryptToken('refreshToken', refreshToken, {
+        azureId: azure.clientId,
+        expiry: this.settings.cookies.refreshTokenExpiry,
+      });
     } catch {
       return $err('internal', {
         error: 'Failed to obtain refresh token',
@@ -575,17 +738,19 @@ export class OAuthProvider {
   private async $encryptToken<T extends object = Record<string, any>>(
     keyType: 'accessToken',
     value: string | undefined,
-    params?: { dataToInject?: T; otherSecretKey?: string; cryptoType?: CryptoType },
+    params?: { expiry: number; azureId: string; dataToInject?: T; otherSecretKey?: string; cryptoType?: CryptoType },
   ): Promise<Result<{ encrypted: string }>>;
   private async $encryptToken(
-    keyType: 'refreshToken' | 'ticket',
+    keyType: 'refreshToken',
     value: string | undefined,
+    params?: { expiry: number; azureId: string },
   ): Promise<Result<{ encrypted: string }>>;
+  private async $encryptToken(keyType: 'ticket', value: string | undefined): Promise<Result<{ encrypted: string }>>;
   private async $encryptToken(keyType: 'state', value: object | undefined): Promise<Result<{ encrypted: string }>>;
   private async $encryptToken<T extends object = Record<string, any>>(
     keyType: keyof typeof this.encryptionKeys,
     value: string | object | undefined,
-    params?: { dataToInject?: T; otherSecretKey?: string; cryptoType?: CryptoType },
+    params?: { expiry?: number; azureId?: string; dataToInject?: T; otherSecretKey?: string; cryptoType?: CryptoType },
   ): Promise<Result<{ encrypted: string }>> {
     const baseParams = {
       key: params?.otherSecretKey ?? this.encryptionKeys[keyType],
@@ -596,12 +761,18 @@ export class OAuthProvider {
       case 'accessToken':
         return $encryptAccessToken<T>(value as string | null, {
           ...baseParams,
+          expiry: params?.expiry as number,
+          azureId: params?.azureId as string,
           isOtherKey: !!params?.otherSecretKey,
           dataToInject: params?.dataToInject,
           disableCompression: this.settings.disableCompression,
         });
       case 'refreshToken':
-        return $encryptRefreshToken(value as string | null, baseParams);
+        return $encryptRefreshToken(value as string | null, {
+          ...baseParams,
+          expiry: params?.expiry as number,
+          azureId: params?.azureId as string,
+        });
       case 'state':
         return $encryptState(value as object | null, baseParams);
       case 'ticket':
@@ -617,19 +788,22 @@ export class OAuthProvider {
   private async $decryptToken<T extends object = Record<string, any>>(
     keyType: 'accessToken',
     value: string | undefined,
-  ): Promise<Result<{ decrypted: string; injectedData?: T; wasEncrypted: boolean }>>;
+  ): Promise<Result<{ decrypted: string; azureId: string; injectedData?: T; wasEncrypted: boolean }>>;
   private async $decryptToken(
-    keyType: 'refreshToken' | 'ticket',
+    keyType: 'refreshToken',
     value: string | undefined,
-  ): Promise<Result<{ decrypted: string }>>;
+  ): Promise<Result<{ decrypted: string; azureId: string }>>;
   private async $decryptToken(
     keyType: 'state',
     value: string | undefined,
   ): Promise<Result<{ decrypted: z.infer<typeof zState> }>>;
+  private async $decryptToken(keyType: 'ticket', value: string | undefined): Promise<Result<{ decrypted: string }>>;
   private async $decryptToken<T extends object = Record<string, any>>(
     keyType: keyof typeof this.encryptionKeys,
     value: string | undefined,
-  ): Promise<Result<{ decrypted: string | z.infer<typeof zState>; injectedData?: T; wasEncrypted?: boolean }>> {
+  ): Promise<
+    Result<{ decrypted: string | z.infer<typeof zState>; injectedData?: T; wasEncrypted?: boolean; azureId?: string }>
+  > {
     const baseParams = {
       key: this.encryptionKeys[keyType],
       cryptoType: this.settings.cryptoType,

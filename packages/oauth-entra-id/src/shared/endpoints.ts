@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import { OAuthError } from '~/error';
-import { $setCookie } from './cookie-parser';
+import { $deleteCookie, $setCookie } from './cookie-parser';
 import type { Endpoints } from './types';
 
 /**
@@ -10,7 +10,9 @@ import type { Endpoints } from './types';
  */
 export async function $sharedHandleAuthentication(req: Request, res: Response) {
   const body = req.body as Endpoints['Authenticate'] | undefined;
-  const params = body ? { loginPrompt: body.loginPrompt, email: body.email, frontendUrl: body.frontendUrl } : {};
+  const params = body
+    ? { loginPrompt: body.loginPrompt, email: body.email, frontendUrl: body.frontendUrl, azureId: body.azureId }
+    : {};
 
   const { authUrl } = await req.oauthProvider.getAuthUrl(params);
 
@@ -45,12 +47,12 @@ export async function $sharedHandleCallback(req: Request, res: Response) {
  */
 export async function $sharedHandleLogout(req: Request, res: Response) {
   const body = req.body as Endpoints['Logout'] | undefined;
-  const params = body ? { frontendUrl: body.frontendUrl } : {};
+  const params = body ? { frontendUrl: body.frontendUrl, azureId: body.azureId } : {};
 
   const { logoutUrl, deleteAccessToken, deleteRefreshToken } = await req.oauthProvider.getLogoutUrl(params);
 
-  $setCookie(res, deleteAccessToken.name, deleteAccessToken.value, deleteAccessToken.options);
-  $setCookie(res, deleteRefreshToken.name, deleteRefreshToken.value, deleteRefreshToken.options);
+  $deleteCookie(res, deleteRefreshToken.name, deleteRefreshToken.options);
+  $deleteCookie(res, deleteAccessToken.name, deleteAccessToken.options);
   res.status(200).json({ url: logoutUrl });
 }
 
@@ -85,6 +87,7 @@ export async function $sharedHandleOnBehalfOf(req: Request, res: Response) {
   const { results } = await req.oauthProvider.getTokenOnBehalfOf({
     services: body.services,
     accessToken: req.accessTokenInfo.jwt,
+    azureId: body.azureId,
   });
 
   for (const { accessToken } of results) {

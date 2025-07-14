@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 
 interface User {
+  azureId: string;
+  tenantId: string;
   uniqueId: string;
   name: string;
   email: string;

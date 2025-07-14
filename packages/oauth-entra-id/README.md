@@ -28,13 +28,16 @@ Designed to be framework-agnostic and developer-friendly, it eliminates the comp
 
 ## Features 🌟
 
-- 🔐 Secure backend-driven OAuth 2.0 Authorization Code Grant flow with PKCE
-- ⚡ High performance optimized for production environments
-- 🍪 Built-in cookie-based authentication with token management and rotation
-- 📢 On-Behalf-Of (OBO) flow for downstream services access
-- 🤝 B2B app support (client credentials)
-- 🧩 Fully typed results and errors via `Result<T>` and `OAuthError`
+- 🔐 Secure OAuth 2.0 Authorization Code Grant with PKCE (backend-driven)
+- ⚡ Optimized for high-performance, production-ready environments
+- 🍪 Cookie-based authentication with automatic token rotation
+- 📢 On-Behalf-Of (OBO) flow for accessing downstream services
+- 🤝 B2B support via client credentials flow
 - 🦾 Framework-agnostic core with Express and NestJS bindings
+- 👥 Support for multiple Azure App Registrations—even across tenants (the only package with this capability)
+- 💉 Inject non-sensitive metadata directly into the access token
+- ⏰ Configure custom token expiration per app.
+- 🪶 Lite mode for minimal or B2B-only use cases
 
 ## Getting Started 🚀
 
@@ -44,7 +47,11 @@ Designed to be framework-agnostic and developer-friendly, it eliminates the comp
 npm install oauth-entra-id
 ```
 
-Requires Node.js 16 or higher.
+Requires:
+
+- Node.js v16 or higher (We recommend using the latest LTS version)
+- Deno v2 or higher
+- Bun v1.0 or higher
 
 ## Azure Portal Setup 🛠️
 
@@ -58,7 +65,7 @@ Basic setup for Microsoft Entra ID (Azure AD):
 5. Under "Certificates & secrets", create a new client secret and copy it. This will be your `clientSecret`.
 6. To add scopes for your app you can either use one of the following methods:
    - Choose "API permissions" and add the required Microsoft Graph permissions (e.g., `openid`, `profile`, `email`).
-   - Or, if you want you can create a custom scope for your app by going to "Expose an API" and defining a new scope (e.g., `api://<your-client-id>/access`).
+   - Or, if you want you can create a custom scope for your app by going to "Expose an API" and defining a new scope (e.g., `api://<your-client-id>/access`) (recommended).
 7. Important step: go to "Manifest and edit the manifest file to set the `requestedAccessTokenVersion` to `2`. This is required for the package to work correctly with OAuth 2.0.
 8. If you want to add roles you can do so by going to "App roles" and defining the roles you need. Make sure to assign these roles to users or groups in your Azure AD.
 
@@ -81,7 +88,7 @@ Setting up On-Behalf-Of (OBO) flow for downstream services (works only if applic
 
 ```typescript
 export interface OAuthConfig {
-  azure: {
+  azure: OneOrMore<{
     clientId: string; // Client ID from Azure App registration
     tenantId: string; // 'common' for multi-tenant apps or your specific tenant ID
     scopes: string[]; // e.g., ['openid', 'profile', 'email']
@@ -94,7 +101,7 @@ export interface OAuthConfig {
       serviceUrl: string | string[]; // URL(s) of the downstream service
       encryptionKey: string; // 32 character encryption key for the service
       cryptoType?: 'node' | 'web-api'; // Defaults to 'node'
-      accessTokenMaxAge?: number; // Defaults to 1 hour
+      accessTokenExpiry?: number; // Defaults to 1 hour
     }>;
 
     // Optional for B2B apps
@@ -102,7 +109,7 @@ export interface OAuthConfig {
       appName: string; // Unique identifier of the B2B app
       scope: string; // Usually ends with `/.default`
     }>;
-  };
+  }>;
   frontendUrl: string | string[]; // Allowed frontend redirect URL(s)
   serverCallbackUrl: string; // Server callback URL (must match the one registered in Azure)
   encryptionKey: string; // 32 character encryption key for the access and refresh tokens
@@ -117,8 +124,8 @@ export interface OAuthConfig {
       timeUnit?: 'ms' | 'sec'; // Defaults to 'sec'
       disableSecure?: boolean;
       disableSameSite?: boolean;
-      accessTokenMaxAge?: number; // Defaults to 1 hour
-      refreshTokenMaxAge?: number; // Defaults to 30 days
+      accessTokenExpiry?: number; // Defaults to 1 hour
+      refreshTokenExpiry?: number; // Defaults to 30 days
     };
   };
 }
@@ -210,6 +217,7 @@ Parameters:
   - `loginPrompt` (optional) - Override the default prompt (`sso`|`email`|`select-account`).
   - `email` (optional) - Email address to pre-fill the login form.
   - `frontendUrl` (optional) - Frontend URL override to redirect the user after authentication.
+  - `azureId` (optional) - Azure configuration ID to use, relevant if multiple Azure configurations (Defaults to the first one).
 
 Returns:
 
@@ -261,9 +269,10 @@ Build a logout URL and cookie-deletion instructions.
 Parameters:
 
 - `params` (optional):
-  - `frontendUrl` (optional) - Frontend URL override to redirect the user after log out.
 
-Returns:
+  - `frontendUrl` (optional) - Frontend URL override to redirect the user after log out.
+  - `azureId` (optional) - Azure configuration ID to use, relevant if multiple Azure configurations (Defaults to the first one).
+    Returns:
 
 - Promise of an object:
   - `logoutUrl` - The URL to redirect the user for logout.
@@ -422,6 +431,7 @@ Parameters:
 
 - `params`:
   - `app` or `apps` - The name of the B2B app or an array of app names to generate tokens for.
+  - `azureId` (optional) - Azure configuration ID to use, relevant if multiple Azure configurations (Defaults to the first one).
 
 Returns:
 
@@ -460,6 +470,7 @@ Parameters:
 - `params`:
   - `accessToken` - The access token string either encrypted or in JWT format.
   - `service` or `services` - The name of the downstream service or an array of service names to acquire tokens for.
+  - `azureId` (optional) - Azure configuration ID to use, relevant if multiple Azure configurations (Defaults to the first one).
 
 Returns:
 
@@ -562,26 +573,19 @@ authRouter.post('/callback', handleCallback()); // Set tokens in cookies and red
 authRouter.post('/logout', handleLogout()); // Delete cookies and returns {url: logoutUrl}
 ```
 
-To secure your routes, you can use the `protectRoute()` middleware and access the user information from the request object.
+To secure your routes, you can use the `protectRoute()` middleware.
+
+`protectRoute()` attaches `userInfo` to the request object, which contains the user information extracted from the access token.
 
 `protectRoute()` can receive an optional callback function that will be called with the user information after the authentication is verified. This is useful if you want to perform additional actions or validations based on the user information.
 
 ```typescript
 import express, { type Router } from 'express';
-import { type CallbackFunction, OAuthError } from 'oauth-entra-id';
 import { protectRoute } from 'oauth-entra-id/express';
 
 const protectedRouter: Router = express.Router();
 
-// Optional
-const callbackFunction: CallbackFunction = async ({ userInfo, injectData }) => {
-  if (userInfo.isApp === false && !userInfo.injectedData) {
-    const { error } = await injectData({ randomNumber: getRandomNumber() });
-    if (error) throw new OAuthError(error);
-  }
-};
-
-protectedRouter.use(protectRoute(callbackFunction));
+protectedRouter.use(protectRoute());
 
 protectedRouter.get('/user-info', (req: Request, res: Response) => {
   res.status(200).json({ message: 'Protected route :)', user: req.userInfo });
@@ -667,28 +671,21 @@ export class AuthController {
 
 Let's create the guard that will protect your routes while getting the user information.
 
+`isAuthenticated()` attaches `userInfo` to the request object, which contains the user information extracted from the access token.
+
 `isAuthenticated()` can receive an optional callback function that will be called with the user information after the authentication is verified. This is useful if you want to perform additional actions or validations based on the user information.
 
 ```typescript
 import type { Request, Response } from 'express';
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
-import { type CallbackFunction, OAuthError } from 'oauth-entra-id';
 import { isAuthenticated } from 'oauth-entra-id/nestjs';
-
-// Optional
-const callbackFunction: CallbackFunction = async ({ userInfo, injectData }) => {
-  if (userInfo.isApp === false && !userInfo.injectedData) {
-    const { error } = await injectData({ randomNumber: getRandomNumber() });
-    if (error) throw new OAuthError(error);
-  }
-};
 
 @Injectable()
 export class ProtectRoute implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest<Request>();
     const res = context.switchToHttp().getResponse<Response>();
-    return await isAuthenticated(req, res, callbackFunction);
+    return await isAuthenticated(req, res);
   }
 }
 ```

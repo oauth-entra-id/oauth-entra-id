@@ -11,9 +11,11 @@ import { generateRandomPokemon } from '~/utils/generate';
 const tSchemas = {
   onBehalfOf: t.Object({
     services: t.Array(t.String(), { minItems: 1 }),
+    azureId: t.Optional(t.String({ format: 'uuid' })),
   }),
   getB2BInfo: t.Object({
     app: t.Union([t.Literal('express'), t.Literal('nestjs'), t.Literal('honojs')]),
+    azureId: t.Optional(t.String({ format: 'uuid' })),
   }),
 };
 
@@ -32,11 +34,12 @@ export const protectedRouter: FastifyPluginAsyncTypebox = async (app) => {
   app.post('/on-behalf-of', { schema: { body: tSchemas.onBehalfOf } }, async (req, reply) => {
     if (req.userInfo?.isApp === true) throw new HttpException('B2B users cannot use OBO', 401);
 
-    const { services } = req.body;
+    const body = req.body;
 
     const { results } = await oauthProvider.getTokenOnBehalfOf({
       accessToken: req.accessTokenInfo.jwt,
-      services,
+      services: body.services,
+      azureId: body.azureId,
     });
 
     for (const { accessToken } of results) {
@@ -52,11 +55,11 @@ export const protectedRouter: FastifyPluginAsyncTypebox = async (app) => {
   });
 
   app.post('/get-b2b-info', { schema: { body: tSchemas.getB2BInfo } }, async (req, _reply) => {
-    const { app } = req.body;
-    const { result, error } = await oauthProvider.tryGetB2BToken({ app });
+    const body = req.body;
+    const { result, error } = await oauthProvider.tryGetB2BToken({ app: body.app, azureId: body.azureId });
     if (error) throw new HttpException('Failed to get B2B token', 500);
 
-    const serverUrl = serversMap[app];
+    const serverUrl = serversMap[body.app];
     const axiosResponse = await axios.get(`${serverUrl}/protected/b2b-info`, {
       headers: { Authorization: `Bearer ${result.token}` },
     });

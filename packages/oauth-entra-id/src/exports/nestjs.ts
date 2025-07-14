@@ -41,6 +41,7 @@ export function authConfig(config: OAuthConfig) {
  * - `loginPrompt` (optional) - Overrides the default login prompt behavior, can be `email`, `select_account`, or `sso`.
  * - `email` (optional) - Pre-fills the email field in the login form.
  * - `frontendUrl` (optional) - Redirects to this URL after successful login.
+ * - `azureId` (optional) - Azure configuration ID to use, relevant if multiple Azure configurations (Defaults to the first one).
  *
  * @throws {OAuthError} if there is any issue.
  */
@@ -84,6 +85,7 @@ export async function handleCallback(req: Request, res: Response) {
  *
  * ### Body:
  * - `frontendUrl` (optional) - Overrides the default redirect URL after logout.
+ * - `azureId` (optional) - Azure configuration ID to use, relevant if multiple Azure configurations (Defaults to the first one).
  */
 export async function handleLogout(req: Request, res: Response) {
   try {
@@ -103,6 +105,7 @@ export async function handleLogout(req: Request, res: Response) {
  *
  * ### Body:
  * - `serviceNames` - An array of service names for which the access token is requested.
+ * - `azureId` (optional) - Azure configuration ID to use, relevant if multiple Azure configurations (Defaults to the first one).
  *
  * @throws {OAuthError} if there is any issue.
  */

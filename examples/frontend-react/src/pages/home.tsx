@@ -9,7 +9,7 @@ import { ServersDropdown } from '~/components/ServersDropdown';
 import { Button } from '~/components/ui/Button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '~/components/ui/Card';
 import { Separator } from '~/components/ui/Separator';
-import { Title } from '~/components/ui/Text';
+import { SmallMutedText, Title } from '~/components/ui/Text';
 import { ToggleGroup, ToggleGroupItem } from '~/components/ui/ToggleGroup';
 import { useWindowDimensions } from '~/hooks/useWindowDimensions';
 import { getB2BInfo } from '~/services/app-info';
@@ -48,6 +48,16 @@ export default function Home() {
             <CardHeader>
               <CardTitle>You are Connected! 🎉</CardTitle>
               <CardDescription>Account details using Microsoft Entra ID</CardDescription>
+              <div className="flex flex-row items-center justify-around space-x-2">
+                <SmallMutedText>
+                  <span className="font-bold text-foreground">Azure:</span> {user.azureId.slice(0, 8)}...
+                  {user.azureId.slice(-8)}
+                </SmallMutedText>
+                <SmallMutedText>
+                  <span className="font-bold text-foreground">Tenant:</span> {user.tenantId.slice(0, 8)}...
+                  {user.tenantId.slice(-8)}
+                </SmallMutedText>
+              </div>
               <Separator />
             </CardHeader>
             <CardContent>
@@ -65,12 +75,15 @@ export default function Home() {
                 {user.injectedData ? `${user.injectedData.randomNumber} (Random Number)` : 'None'}
               </div>
               <Separator />
-              <DownstreamServices />
+              <DownstreamServices azureId={user.azureId} />
               <Separator />
-              <GetB2BData />
+              <GetB2BData azureId={user.azureId} />
             </CardContent>
             <CardFooter className="flex flex-col items-center justify-center space-y-2">
-              <Button variant="destructive" className="w-full" onClick={() => handleLogout.mutate()}>
+              <Button
+                variant="destructive"
+                className="w-full"
+                onClick={() => handleLogout.mutate({ azureId: user.azureId })}>
                 Logout <LogOut />
               </Button>
             </CardFooter>
@@ -87,17 +100,17 @@ export default function Home() {
   );
 }
 
-function DownstreamServices() {
-  const [selectedServices, setSelectedServices] = useState<Color[]>([]);
+function DownstreamServices({ azureId }: { azureId: string }) {
+  const [serviceNames, setServiceNames] = useState<Color[]>([]);
   const appInfo = useServerStore((state) => state.appInfo);
   const handleOnBehalfOf = useMutation({
-    mutationFn: () => getTokensOnBehalfOf(selectedServices),
+    mutationFn: () => getTokensOnBehalfOf({ serviceNames, azureId }),
     onSuccess: (tokensSet) => {
-      setSelectedServices([]);
+      setServiceNames([]);
       toast.success(tokensSet === 1 ? 'New token created!' : `${tokensSet} new tokens created!`, { duration: 1000 });
     },
     onError: () => {
-      setSelectedServices([]);
+      setServiceNames([]);
       toast.error('Could not create new tokens', { duration: 1000 });
     },
   });
@@ -109,8 +122,8 @@ function DownstreamServices() {
         <ToggleGroup
           type="multiple"
           className="space-x-1.5"
-          value={selectedServices}
-          onValueChange={(value: Color[]) => setSelectedServices(value)}>
+          value={serviceNames}
+          onValueChange={(value: Color[]) => setServiceNames(value)}>
           <ToggleGroupItem
             disabled={appInfo?.currentServiceName === 'blue'}
             value="blue"
@@ -141,7 +154,7 @@ function DownstreamServices() {
             size="sm"
             variant="outline"
             className="text-sm font-semibold w-full"
-            disabled={selectedServices.length === 0}
+            disabled={serviceNames.length === 0}
             onClick={() => handleOnBehalfOf.mutate()}>
             Get Tokens
           </Button>
@@ -151,19 +164,19 @@ function DownstreamServices() {
   );
 }
 
-function GetB2BData() {
+function GetB2BData({ azureId }: { azureId: string }) {
   const [pokemon, setPokemon] = useState<string | undefined>();
-  const [selectedApp, setSelectedApp] = useState<Server | undefined>();
+  const [appName, setAppName] = useState<Server | undefined>();
   const server = useServerStore((state) => state.server);
   const handleGetB2BInfo = useMutation({
-    mutationFn: () => getB2BInfo(selectedApp),
+    mutationFn: () => getB2BInfo({ appName, azureId }),
     onSuccess: (data) => {
-      setSelectedApp(undefined);
+      setAppName(undefined);
       setPokemon(data.pokemon);
       toast.success(`${data.pokemon} from ${data.server} app!`, { duration: 1000 });
     },
     onError: () => {
-      setSelectedApp(undefined);
+      setAppName(undefined);
       setPokemon(undefined);
       toast.error('Could not get B2B data', { duration: 1000 });
     },
@@ -183,8 +196,8 @@ function GetB2BData() {
         <ToggleGroup
           type="single"
           className="space-x-1.5"
-          value={selectedApp}
-          onValueChange={(value: Server) => setSelectedApp(value)}>
+          value={appName}
+          onValueChange={(value: Server) => setAppName(value)}>
           {Object.entries(serversMap).map(
             ([key, { Icon, label, value }]) =>
               server !== value && (
@@ -201,7 +214,7 @@ function GetB2BData() {
             size="sm"
             className="text-sm font-semibold w-full"
             onClick={() => handleGetB2BInfo.mutate()}
-            disabled={!selectedApp}>
+            disabled={!appName}>
             Get Data
           </Button>
         </div>

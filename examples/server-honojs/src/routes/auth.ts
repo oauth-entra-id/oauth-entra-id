@@ -10,10 +10,19 @@ const zSchemas = {
       loginPrompt: z.enum(['email', 'select-account', 'sso']).optional(),
       email: z.email().optional(),
       frontendUrl: z.url().optional(),
+      azureId: z.uuid().optional(),
     })
     .optional(),
-  callback: z.object({ code: z.string(), state: z.string() }),
-  logout: z.object({ frontendUrl: z.url().optional() }).optional(),
+  callback: z.object({
+    code: z.string(),
+    state: z.string(),
+  }),
+  logout: z
+    .object({
+      frontendUrl: z.url().optional(),
+      azureId: z.uuid().optional(),
+    })
+    .optional(),
 };
 
 export const authRouter = new Hono();
@@ -25,6 +34,7 @@ authRouter.post('/authenticate', zValidator('json', zSchemas.authenticate), asyn
     loginPrompt: body?.loginPrompt,
     email: body?.email,
     frontendUrl: body?.frontendUrl,
+    azureId: body?.azureId,
   });
 
   return c.json({ url: authUrl });
@@ -43,6 +53,7 @@ authRouter.post('/logout', zValidator('json', zSchemas.logout), async (c) => {
   const body = c.req.valid('json');
   const { logoutUrl, deleteAccessToken, deleteRefreshToken } = await oauthProvider.getLogoutUrl({
     frontendUrl: body?.frontendUrl,
+    azureId: body?.azureId,
   });
 
   deleteCookie(c, deleteAccessToken.name, deleteAccessToken.options);

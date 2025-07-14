@@ -36,8 +36,9 @@ export function $err(
   details: { error: string; description?: string; status?: HttpErrorCodes },
 ): Result<never, ResultErr>;
 export function $err(err: ResultErr): Result<never, ResultErr>;
+export function $err(err: OAuthError): Result<never, ResultErr>;
 export function $err(
-  typeOrErr: ErrorTypes | ResultErr,
+  typeOrErr: ErrorTypes | ResultErr | OAuthError,
   details?: { error: string; description?: string; status?: HttpErrorCodes },
 ): Result<never, ResultErr> {
   if (typeof typeOrErr === 'string') {
@@ -48,6 +49,18 @@ export function $err(
         message: details?.error ?? 'An error occurred',
         description: details?.description,
         statusCode: details?.status ?? 400,
+      },
+    } as Result<never, ResultErr>;
+  }
+
+  if (typeOrErr instanceof OAuthError) {
+    return {
+      success: false,
+      error: {
+        type: typeOrErr.type,
+        message: typeOrErr.message,
+        description: typeOrErr.description,
+        statusCode: typeOrErr.statusCode,
       },
     } as Result<never, ResultErr>;
   }

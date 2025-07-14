@@ -6,6 +6,7 @@ import { Fastify } from '~/components/icons/Fastify';
 import { HonoJS } from '~/components/icons/HonoJS';
 import { NestJS } from '~/components/icons/NestJS';
 import { env } from '~/env';
+import type { zGetAppInfo } from '~/services/app-info';
 
 const zServer = z.enum(['express', 'nestjs', 'fastify', 'honojs']);
 
@@ -19,18 +20,19 @@ export const serversMap = {
 } as Record<Server, { value: Server; label: string; url: string; Icon: React.FC<React.SVGProps<SVGSVGElement>> }>;
 
 export type Color = 'blue' | 'red' | 'yellow';
+export type TwoStrings = { '1': string; '2': string };
 
 interface ServerStore {
   server: Server;
   serverLabel: string;
   serverUrl: string;
   appInfo: {
-    currentServiceId: string;
+    currentServiceIds: TwoStrings;
     currentServiceName: Color;
-    other: { blue: string; red: string; yellow: string };
+    other: { blue: TwoStrings; red: TwoStrings; yellow: TwoStrings };
   } | null;
   setServer: (server: Server) => void;
-  setAppInfo: (appId: { current: Color; blue: string; red: string; yellow: string } | null) => void;
+  setAppInfo: (appInfo: z.infer<typeof zGetAppInfo> | null) => void;
 }
 
 export const useServerStore = create<ServerStore>()(
@@ -51,7 +53,7 @@ export const useServerStore = create<ServerStore>()(
         const { current, blue, red, yellow } = appInfo;
         return set({
           appInfo: {
-            currentServiceId: appInfo[current],
+            currentServiceIds: appInfo[current],
             currentServiceName: current,
             other: { blue, red, yellow },
           },
