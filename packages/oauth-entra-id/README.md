@@ -124,8 +124,8 @@ export interface OAuthConfig {
       timeUnit?: 'ms' | 'sec'; // Defaults to 'sec'
       disableSecure?: boolean;
       disableSameSite?: boolean;
-      accessTokenExpiry?: number; // Defaults to 1 hour
-      refreshTokenExpiry?: number; // Defaults to 30 days
+      accessTokenExpiry?: number; // Expiry time in seconds for access tokens. Defaults to 1 hour
+      refreshTokenExpiry?: number; // Expiry time in seconds for refresh tokens. Defaults to 30 days
     };
   };
 }
@@ -192,17 +192,27 @@ You can access the settings of the `OAuthProvider` instance using the `settings`
 interface OAuthSettings {
   readonly loginPrompt: 'email' | 'select-account' | 'sso';
   readonly acceptB2BRequests: boolean;
-  readonly b2bApps?: string[];
-  readonly downstreamServices?: string[];
+  readonly b2bApps: string[] | undefined;
+  readonly downstreamServices: string[] | undefined;
   readonly disableCompression: boolean;
+  readonly cryptoType: 'node' | 'web-api';
+  readonly azures: Array<{ azureId: string; tenantId: string }>;
   readonly cookies: {
     readonly timeUnit: 'sec' | 'ms';
     readonly isSecure: boolean;
     readonly isSameSite: boolean;
     readonly accessTokenExpiry: number;
-    readonly refreshTokenExpiry: number;
     readonly accessTokenName: string;
+    readonly refreshTokenExpiry: number;
     readonly refreshTokenName: string;
+    readonly cookieNames: Array<{ azureId: string; accessTokenName: string; refreshTokenName: string }>;
+    readonly deleteOptions: {
+      readonly maxAge: 0;
+      readonly httpOnly: true;
+      readonly secure: boolean;
+      readonly path: '/';
+      readonly sameSite: 'strict' | 'none' | undefined;
+    };
   };
 }
 ```

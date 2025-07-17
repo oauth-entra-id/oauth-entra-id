@@ -82,21 +82,27 @@ export class OAuthError extends Error {
   readonly description: string | undefined;
 
   constructor(err: ResultErr);
+  constructor(err: Result<never, ResultErr>);
   constructor(type: ErrorTypes, details: { error: string; description?: string; status?: HttpErrorCodes });
   constructor(
-    typeOrErr: ErrorTypes | ResultErr,
+    errOrType: ErrorTypes | ResultErr | Result<never, ResultErr>,
     details?: { error: string; description?: string; status?: HttpErrorCodes },
   ) {
-    if (typeof typeOrErr === 'string') {
+    if (typeof errOrType === 'string') {
       super(details?.error ?? 'An error occurred');
-      this.type = typeOrErr;
+      this.type = errOrType;
       this.statusCode = details?.status ?? 400;
       this.description = details?.description;
+    } else if ('error' in errOrType && 'success' in errOrType && !errOrType.success) {
+      super((errOrType.error as ResultErr).message);
+      this.type = (errOrType.error as ResultErr).type;
+      this.statusCode = (errOrType.error as ResultErr).statusCode;
+      this.description = (errOrType.error as ResultErr).description;
     } else {
-      super(typeOrErr.message);
-      this.type = typeOrErr.type;
-      this.statusCode = typeOrErr.statusCode;
-      this.description = typeOrErr.description;
+      super(errOrType.message);
+      this.type = errOrType.type;
+      this.statusCode = errOrType.statusCode;
+      this.description = errOrType.description;
     }
     this.name = 'OAuthError';
 

@@ -3,7 +3,7 @@ import { $err, $ok, OAuthError, type Result } from './error';
 import type { B2BApp, B2BResult, JwtPayload, LiteConfig, Metadata, MinimalAzure } from './types';
 import { $jwtClientConfig } from './utils/config';
 import { $getExpiry, $verifyJwt } from './utils/crypto/jwt';
-import { $coreErrors, $mapAndFilter, TIME_SKEW } from './utils/helpers';
+import { $mapAndFilter, TIME_SKEW } from './utils/helpers';
 import { $prettyErr, zJwt, zMethods } from './utils/zod';
 
 /**
@@ -118,7 +118,15 @@ export class LiteProvider {
 
       return $ok('app' in params ? { result: results[0] as B2BResult } : { results });
     } catch (err) {
-      return $coreErrors(err, 'tryGetB2BToken');
+      return $err(
+        err instanceof OAuthError
+          ? err
+          : $err('bad_request', {
+              error: 'Failed to get B2B token',
+              description: err instanceof Error ? err.message : String(err),
+              status: 500,
+            }),
+      );
     }
   }
 }
