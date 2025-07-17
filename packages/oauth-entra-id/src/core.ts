@@ -34,7 +34,7 @@ import {
   $encryptState,
   $encryptTicket,
 } from './utils/crypto/tokens';
-import { $coreErrors, $mapAndFilter, $transformToMsalPrompt, TIME_SKEW } from './utils/helpers';
+import { $mapAndFilter, $transformToMsalPrompt, TIME_SKEW } from './utils/helpers';
 import { $prettyErr, zInjectedData, zMethods, type zState } from './utils/zod';
 
 /**
@@ -165,7 +165,15 @@ export class OAuthProvider {
       }
       return { authUrl, ticket: encrypted };
     } catch (err) {
-      throw new OAuthError($coreErrors(err, 'getAuthUrl'));
+      throw new OAuthError(
+        err instanceof OAuthError
+          ? err
+          : $err('bad_request', {
+              error: 'Failed to generate auth URL',
+              description: err instanceof Error ? err.message : String(err),
+              status: 400,
+            }),
+      );
     }
   }
 
@@ -229,7 +237,15 @@ export class OAuthProvider {
         msalResponse,
       };
     } catch (err) {
-      throw new OAuthError($coreErrors(err, 'getTokenByCode'));
+      throw new OAuthError(
+        err instanceof OAuthError
+          ? err
+          : $err('bad_request', {
+              error: 'Failed to get token by code',
+              description: err instanceof Error ? err.message : String(err),
+              status: 400,
+            }),
+      );
     }
   }
 
@@ -416,7 +432,15 @@ export class OAuthProvider {
         msalResponse: msalResponse,
       });
     } catch (err) {
-      return $coreErrors(err, 'tryRefreshTokens', 401);
+      return $err(
+        err instanceof OAuthError
+          ? err
+          : $err('bad_request', {
+              error: 'Unauthorized',
+              description: err instanceof Error ? err.message : String(err),
+              status: 401,
+            }),
+      );
     }
   }
 
@@ -558,7 +582,15 @@ export class OAuthProvider {
 
       return $ok('app' in params ? { result: results[0] } : { results });
     } catch (err) {
-      return $coreErrors(err, 'tryGetB2BToken');
+      return $err(
+        err instanceof OAuthError
+          ? err
+          : $err('bad_request', {
+              error: 'Failed to get B2B token',
+              description: err instanceof Error ? err.message : String(err),
+              status: 500,
+            }),
+      );
     }
   }
 
@@ -657,7 +689,15 @@ export class OAuthProvider {
 
       return 'service' in params ? { result: results[0] } : { results };
     } catch (err) {
-      throw new OAuthError($coreErrors(err, 'getTokenOnBehalfOf'));
+      throw new OAuthError(
+        err instanceof OAuthError
+          ? err
+          : $err('bad_request', {
+              error: 'Failed to get OBO token',
+              description: err instanceof Error ? err.message : String(err),
+              status: 500,
+            }),
+      );
     }
   }
 
