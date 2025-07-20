@@ -93,7 +93,7 @@ export class OAuthError extends Error {
       this.type = errOrType;
       this.statusCode = details?.status ?? 400;
       this.description = details?.description;
-    } else if ('error' in errOrType && 'success' in errOrType && !errOrType.success) {
+    } else if ('error' in errOrType && 'success' in errOrType && errOrType.success === false) {
       super((errOrType.error as ResultErr).message);
       this.type = (errOrType.error as ResultErr).type;
       this.statusCode = (errOrType.error as ResultErr).statusCode;

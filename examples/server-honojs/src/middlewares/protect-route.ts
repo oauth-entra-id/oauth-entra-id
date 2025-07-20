@@ -95,12 +95,12 @@ function setUserInfo(
       ? { isApp: true as const, appId: meta.appId as string }
       : { isApp: false as const, name: meta.name as string, email: meta.email as string, injectedData }),
   });
-  c.set('accessTokenInfo', { jwt: rawJwt, payload: payload });
+  c.set('accessTokenInfo', { jwt: rawJwt, payload: payload, meta: meta });
 }
 
 export type ProtectRoute = {
   Variables: {
-    accessTokenInfo: { jwt: string; payload: Record<string, unknown> };
+    accessTokenInfo: { jwt: string; payload: Record<string, unknown>; meta: Metadata };
     userInfo: { azureId: string; tenantId: string; uniqueId: string; roles: string[] } & (
       | { isApp: false; name: string; email: string; injectedData?: { randomNumber: number } }
       | { isApp: true; appId: string }
