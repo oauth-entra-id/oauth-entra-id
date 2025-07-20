@@ -1,6 +1,6 @@
 import type { OAuthProvider } from '~/core';
 import type { Result } from '~/error';
-import type { JwtPayload } from '~/types';
+import type { JwtPayload, Metadata } from '~/types';
 
 /** Supported server frameworks for binding the OAuthProvider */
 export type ServerType = 'express' | 'nestjs';
@@ -96,6 +96,7 @@ declare global {
       accessTokenInfo?: {
         readonly jwt: string;
         readonly payload: JwtPayload;
+        readonly meta: Metadata;
       };
 
       /** Information about the authenticated user or service principal. */

@@ -147,7 +147,7 @@ function $userInfo<T extends object = Record<string, any>>(
   } as const;
 
   req.userInfo = userInfo;
-  req.accessTokenInfo = { jwt: rawJwt, payload: payload };
+  req.accessTokenInfo = { jwt: rawJwt, payload: payload, meta: meta };
 
   return userInfo;
 }
