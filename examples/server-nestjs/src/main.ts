@@ -6,7 +6,7 @@ import { authConfig } from 'oauth-entra-id/nestjs';
 import { AppModule } from './app.module';
 import { env } from './env';
 import { ErrorCatcher } from './error/error-catcher.filter';
-import { ProtectRouteGuard } from './guards/protect-route.guard';
+import { ProtectRoute } from './guards/protect-route.guard';
 import { oauthConfig } from './oauth';
 
 async function bootstrap() {
@@ -22,6 +22,7 @@ async function bootstrap() {
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
   });
+
   app.use(
     helmet({
       contentSecurityPolicy: {
@@ -71,7 +72,7 @@ async function bootstrap() {
   );
 
   const reflector = app.get(Reflector);
-  app.useGlobalGuards(new ProtectRouteGuard(reflector));
+  app.useGlobalGuards(new ProtectRoute(reflector));
 
   const httpAdapter = app.get(HttpAdapterHost);
   app.useGlobalFilters(new ErrorCatcher(httpAdapter));

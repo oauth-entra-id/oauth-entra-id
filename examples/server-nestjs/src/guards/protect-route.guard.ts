@@ -15,7 +15,7 @@ const callbackFunc: CallbackFunction = async ({ userInfo, tryInjectData }) => {
 };
 
 @Injectable()
-export class ProtectRouteGuard implements CanActivate {
+export class ProtectRoute implements CanActivate {
   constructor(private reflector: Reflector) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
