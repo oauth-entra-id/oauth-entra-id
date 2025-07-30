@@ -28,16 +28,16 @@ Designed to be framework-agnostic and developer-friendly, it eliminates the comp
 
 ## Features 🌟
 
-- 🔐 Secure OAuth 2.0 Authorization Code Grant with PKCE (backend-driven)
-- ⚡ Optimized for high-performance, production-ready environments
-- 🍪 Cookie-based authentication with automatic token rotation
-- 📢 On-Behalf-Of (OBO) flow for accessing downstream services
-- 🤝 B2B support via client credentials flow
-- 🦾 Framework-agnostic core with Express and NestJS bindings
-- 👥 Support for multiple Azure App Registrations—even across tenants (the only package with this capability)
-- 💉 Inject non-sensitive metadata directly into the access token
-- ⏰ Configure custom token expiration per app.
-- 🪶 Lite mode for minimal or B2B-only use cases
+- 🔐 **Secure & Performant OAuth 2.0** – Backend-driven Authorization Code Flow with PKCE, built for production environments with a focus on security, speed, and reliability.
+- 🦾 **Cross-Runtime, Framework-Agnostic Core** – Framework-agnostic and supports different runtimes (Node.js, Deno, and Bun) with official bindings for Express and NestJS.
+- 🍪 **Cookie-Based Authentication** – Secure session management with HttpOnly cookies and automatic token rotation.
+- 📢 **On-Behalf-Of (OBO) Flow** – Access downstream services using delegated user credentials with the OBO flow.
+- 🤝 **B2B Application Support** – Authenticate service-to-service with the client credentials flow, including built-in caching for B2B tokens.
+- 👥 **Multi-Tenant & Multi-App Support** – Handle multiple Azure App Registrations across tenants (a uniquely supported feature).
+- 💉 **Inject & Compress Metadata** – Inject non-sensitive custom metadata directly into access tokens, with built-in compression to reduce payload size.
+- ⚙️ **Highly Configurable** – Fine-tune encryption, token expiration, login prompts, cookie behavior, frontend URLs, and more.
+- 🪶 **Lite Provider Mode** – Lightweight variant for services that only need JWT verification and B2B token generation.
+- 📱 **Mobile-Ready** – Native app support via secure `ticket` mechanism.
 
 ## Getting Started 🚀
 
@@ -74,14 +74,14 @@ Setting up B2B app authentication:
 1. Go to "App roles" and create a new app role for "Application" type.
 2. Then go to "API permissions" add new permission and select the application that is allowed to authenticate to your app.
 3. In the configuration of `OAuthConfig` of the first app, make sure to set the `acceptB2BRequests` property to `true`.
-4. Then in the configuration of `OAuthConfig` of the second app, make sure to set the `b2bTargetedApps` property with the app name and scope of the first app, the scope should usually end with `/.default`.
+4. Then in the configuration of `OAuthConfig` of the second app, make sure to set the `b2bApps` property with the app name and scope of the first app, the scope should usually end with `/.default`.
 5. That's it now the second app can authenticate to the first app using the client credentials flow.
 
 Setting up On-Behalf-Of (OBO) flow for downstream services (works only if applications share the same tenant):
 
 1. Go to "Expose an API" and create a new scope for your downstream service (e.g., `api://<your-client-id>/access`).
 2. Then scroll down to "Authorized client applications" and add the client ID of the application that will be using the OBO flow.
-3. In the configuration of `OAuthConfig` of the first app, make sure to set the `downstreamServices` property with the service name, scope, and `secretKey` of the downstream service, the scope should usually end with `/.default`.
+3. In the configuration of `OAuthConfig` of the first app, make sure to set the `downstreamServices` property with the service name, scope, and `encryptionKey` of the downstream service, the scope should usually end with `/.default`.
 4. That's it now the first app can acquire tokens for the downstream service using the OBO flow.
 
 ## Configuration ⚙️
@@ -344,7 +344,7 @@ An example will be shown below.
 
 #### `tryInjectData<T>()`
 
-Embed non-sensitive metadata into the access token.
+Inject non-sensitive metadata into the access token.
 
 Make sure not to inject sensitive data and also do not inject too much data, as it can lead to token size issues.
 
@@ -751,6 +751,8 @@ You can explore the demo apps to see how to integrate the package into your appl
 
 ![oauth-entra-id-flow](https://github.com/oauth-entra-id/oauth-entra-id/blob/main/assets/browser-middleware-flow.png)
 
+Note: You should create a protected endpoint as shown `/user-info` to verify that the user is authenticated and get his information. If not redirect the user to the login page or fetch the authentication URL from the server and redirect the user to it.
+
 ### Browser On-Behalf-Of Flow 🌊
 
 ![oauth-entra-id-flow](https://github.com/oauth-entra-id/oauth-entra-id/blob/main/assets/browser-on-behalf-of-flow.png)
@@ -766,10 +768,10 @@ You can explore the demo apps to see how to integrate the package into your appl
 ## Notes❗
 
 - **CORS**: Make sure to set the `credentials` option to `true` in your CORS configuration. This allows cookies to be sent with cross-origin requests.
-- **Express and NestJS Exports**: The package exports handleX functions for Express and NestJS. They work on a cookie-based session only. If you want to use bearer tokens, you need to implement your own logic using the core package.
-- **TSConfig**: Make sure you set the `module` is not `commonjs` in your `tsconfig.json`. Our recommendation is to set `module` to `node16` and `target` to `es6`.
-- **NestJS**: The package uses the `express` instance of NestJS, so make sure to use the `express` instance for the package to work, or use the core utilities.
-- **Frontend Cookies** - Make sure to include credentials with every request from the frontend to the backend.
+- **Bearer Authentication (not B2B)**: The package exports `handleX` functions for Express and NestJS. They work on a cookie-based session for users and bearer tokens for b2b requests. But if you want to use bearer tokens for user authentication, you need to implement your own logic using the core package.
+- **TSConfig**: Make sure that your `tsconfig.json` doesn't have `module: commonjs`. If so the following will work for you just fine: `module: node16` and `target: es6`.
+- **NestJS**: The NestJS export package uses the `express` instance of NestJS, so make sure to use the `express` instance for the package to work, or use the core utilities.
+- **Cookies** - Make sure you include with every request to the server the user's cookies. Another note is remember that the cookies are `HttpOnly` so you can't access them from the client-side JavaScript.
 
 ```typescript
 // Fetch API
