@@ -445,7 +445,7 @@ export class OAuthProvider {
   }
 
   /**
-   * Embed non-sensitive metadata into the access token.
+   * Inject non-sensitive metadata into the access token.
    *
    * @param params - The parameters containing the access token and data to inject.
    * - `accessToken` - The encrypted access token to inject data into.
