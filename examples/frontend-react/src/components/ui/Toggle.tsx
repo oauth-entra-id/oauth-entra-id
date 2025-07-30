@@ -25,12 +25,14 @@ const toggleVariants = cva(
   },
 );
 
+// biome-ignore-start lint/style/noParameterAssign: ForwardRef component
 const Toggle = React.forwardRef<
   React.ComponentRef<typeof TogglePrimitive.Root>,
   React.ComponentPropsWithoutRef<typeof TogglePrimitive.Root> & VariantProps<typeof toggleVariants>
 >(({ className, variant, size, ...props }, ref) => (
   <TogglePrimitive.Root ref={ref} className={cn(toggleVariants({ variant, size, className }))} {...props} />
 ));
+// biome-ignore-end lint/style/noParameterAssign: ForwardRef component
 
 Toggle.displayName = TogglePrimitive.Root.displayName;
 

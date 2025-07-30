@@ -10,6 +10,7 @@ const ToggleGroupContext = React.createContext<VariantProps<typeof toggleVariant
   variant: 'default',
 });
 
+// biome-ignore-start lint/style/noParameterAssign: ForwardRef component
 const ToggleGroup = React.forwardRef<
   React.ComponentRef<typeof ToggleGroupPrimitive.Root>,
   React.ComponentPropsWithoutRef<typeof ToggleGroupPrimitive.Root> & VariantProps<typeof toggleVariants>
@@ -42,6 +43,7 @@ const ToggleGroupItem = React.forwardRef<
     </ToggleGroupPrimitive.Item>
   );
 });
+// biome-ignore-end lint/style/noParameterAssign: ForwardRef component
 
 ToggleGroupItem.displayName = ToggleGroupPrimitive.Item.displayName;
 
