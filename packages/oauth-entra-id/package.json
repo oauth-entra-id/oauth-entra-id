@@ -70,12 +70,11 @@
   },
   "dependencies": {
     "@azure/msal-node": "^3.6.4",
-    "cipher-kit": "^0.0.2",
+    "cipher-kit": "^0.0.4",
     "compress-kit": "^0.0.2",
     "jsonwebtoken": "^9.0.2",
     "jwks-rsa": "^3.2.0",
     "modern-cookies": "^1.0.0",
-    "pako": "^2.1.0",
     "zod": "^4.0.14"
   },
   "peerDependencies": {
@@ -89,10 +88,9 @@
   "devDependencies": {
     "@types/express": "^5.0.3",
     "@types/jsonwebtoken": "^9.0.10",
-    "@types/node": "^24.1.0",
-    "@types/pako": "^2.0.3",
+    "@types/node": "^24.2.0",
     "tsup": "^8.5.0",
-    "typescript": "^5.8.3"
+    "typescript": "^5.9.2"
   },
   "license": "MIT",
   "keywords": [

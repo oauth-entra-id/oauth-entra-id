@@ -1,22 +1,21 @@
+import { ENCRYPTED_REGEX } from 'cipher-kit';
+import { COMPRESSED_REGEX } from 'compress-kit';
 import { type ZodError, z } from 'zod/v4';
 
-export function $isString(value: unknown): value is string {
+export function $isStr(value: unknown): value is string {
   return (value !== null || value !== undefined) && typeof value === 'string' && value.trim().length > 0;
 }
 
-export function $isPlainObject(value: unknown): value is Record<string, unknown> {
+export function $isObj(value: unknown): value is Record<string, unknown> {
   return (
     typeof value === 'object' &&
     value !== null &&
+    value !== undefined &&
     (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null)
   );
 }
 
 export const base64urlWithDotRegex = /^[A-Za-z0-9._-]+$/;
-export const encryptedWebApiRegex = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.$/;
-export const encryptedNodeRegex = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.$/;
-export const encryptedRegex = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)?\.$/;
-export const compressedRegex = /^[A-Za-z0-9_-]+\.\.$/;
 
 export const $prettyErr = (error: ZodError): string => {
   return error.issues
@@ -33,7 +32,7 @@ export const zUrl = z.url();
 export const zEmail = z.email({ pattern: z.regexes.html5Email });
 export const zBase64 = z.base64url();
 export const zLooseBase64 = zStr.regex(base64urlWithDotRegex);
-export const zCompressed = zStr.regex(compressedRegex);
+export const zCompressed = zStr.regex(COMPRESSED_REGEX);
 
 export const zLoginPrompt = z.enum(['email', 'select-account', 'sso']);
 export const zTimeUnit = z.enum(['ms', 'sec']);
@@ -42,7 +41,7 @@ export const zAccessTokenExpiry = z.number().positive();
 export const zRefreshTokenExpiry = z.number().min(3600);
 const zOneOrMoreUrls = z.union([zUrl.max(2048).transform((url) => [url]), z.array(zUrl.max(2048)).min(1)]);
 
-export const zEncrypted = zStr.max(4096).regex(encryptedRegex);
+export const zEncrypted = zStr.max(4096).regex(ENCRYPTED_REGEX);
 export const zJwt = z.jwt().max(4096);
 
 export const zTenantId = z.union([z.literal('common'), zUuid]);

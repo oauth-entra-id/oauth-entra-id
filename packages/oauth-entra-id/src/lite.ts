@@ -2,8 +2,8 @@ import type { JwksClient } from 'jwks-rsa';
 import { $err, $ok, OAuthError, type Result } from './error';
 import type { B2BApp, B2BResult, JwtPayload, LiteConfig, Metadata, MinimalAzure } from './types';
 import { $jwtClientConfig } from './utils/config';
-import { $getExpiry, $verifyJwt } from './utils/crypto/jwt';
 import { $mapAndFilter, TIME_SKEW } from './utils/helpers';
+import { $getExpiry, $verifyJwt } from './utils/jwt';
 import { $prettyErr, zJwt, zMethods } from './utils/zod';
 
 /**

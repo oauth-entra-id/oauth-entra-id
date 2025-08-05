@@ -1,6 +1,10 @@
+import type { WebApiKey } from 'cipher-kit';
+import { compressObj, decompressObj } from 'compress-kit';
 import type { z } from 'zod/v4';
 import { $err, $ok, type Result } from '~/error';
-import type { CryptoType, EncryptionKey, WebApiCryptoKey } from '~/types';
+import type { CryptoType, EncryptionKey } from '~/types';
+import { $decrypt, $decryptObj, $encrypt, $encryptObj } from './encrypt';
+import { $getClientId } from './jwt';
 import {
   $prettyErr,
   zAccessTokenStructure,
@@ -11,10 +15,7 @@ import {
   zRefreshTokenStructure,
   zState,
   zUuid,
-} from '../zod';
-import { $compressObj, $decompressObj } from './compress';
-import { $decrypt, $decryptObj, $encrypt, $encryptObj } from './encrypt';
-import { $getClientId } from './jwt';
+} from './zod';
 
 type BaseParams = {
   key: EncryptionKey;
@@ -24,7 +25,7 @@ type BaseParams = {
 
 type UpdateSecretKeyFunc = (
   key: 'accessToken' | 'refreshToken' | 'state' | 'ticket',
-  secretKey: WebApiCryptoKey | undefined,
+  secretKey: WebApiKey | undefined,
 ) => void;
 
 export async function $encryptAccessToken<T extends object = Record<string, any>>(
@@ -48,11 +49,16 @@ export async function $encryptAccessToken<T extends object = Record<string, any>
   }
 
   const injectedData =
-    dataToInject && Object.keys(dataToInject).length
-      ? $compressObj(dataToInject, params?.disableCompression)
+    dataToInject && Object.keys(dataToInject).length !== 0 && !params.disableCompression
+      ? compressObj(dataToInject)
       : undefined;
 
-  if (injectedData?.error) return $err(injectedData.error);
+  if (injectedData?.error) {
+    return $err('crypto_error', {
+      error: 'Failed to compress injected data',
+      description: injectedData.error.description,
+    });
+  }
 
   const struct = {
     at: accessToken,
@@ -116,8 +122,13 @@ export async function $decryptAccessToken<T extends object = Record<string, any>
     });
   }
 
-  const decompressedInjectedData = accessTokenStruct.inj ? $decompressObj(accessTokenStruct.inj) : undefined;
-  if (decompressedInjectedData?.error) return $err(decompressedInjectedData.error);
+  const decompressedInjectedData = accessTokenStruct.inj ? decompressObj(accessTokenStruct.inj) : undefined;
+  if (decompressedInjectedData?.error) {
+    return $err('crypto_error', {
+      error: 'Failed to decompress injected data',
+      description: decompressedInjectedData.error.description,
+    });
+  }
 
   return $ok({
     decrypted: accessTokenStruct.at,

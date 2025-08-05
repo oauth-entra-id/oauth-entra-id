@@ -17,7 +17,7 @@ import type {
   RefreshTokenName,
 } from '~/types';
 import { $getCookieNames, $getCookieOptions } from './cookie-options';
-import { $createSecretKeys } from './crypto/encrypt';
+import { $newSecretKeys } from './encrypt';
 import { $prettyErr, type zAzure, zConfig, zJwtClientConfig } from './zod';
 
 export function $oauthConfig(configuration: OAuthConfig): Result<{
@@ -92,7 +92,7 @@ export function $oauthConfig(configuration: OAuthConfig): Result<{
       });
     }
 
-    const { secretKeys: encryptionKeys, error: secretKeysError } = $createSecretKeys(config.advanced.cryptoType, {
+    const { secretKeys: encryptionKeys, error: secretKeysError } = $newSecretKeys(config.advanced.cryptoType, {
       accessToken: `access-token-${config.encryptionKey}`,
       refreshToken: `refresh-token-${config.encryptionKey}`,
       state: `state-${config.encryptionKey}`,

@@ -2,7 +2,7 @@ import jwt from 'jsonwebtoken';
 import type { JwksClient } from 'jwks-rsa';
 import { $err, $ok, type Result } from '~/error';
 import type { JwtPayload, Metadata } from '~/types';
-import { $isString } from '../zod';
+import { $isStr } from './zod';
 
 export function $extractDataFromPayload(payload: JwtPayload | string): Result<{ meta: Metadata }> {
   if (!payload || typeof payload === 'string') {
@@ -98,7 +98,7 @@ export function $getPublicKey(jwksClient: JwksClient, kid: string): Promise<stri
 }
 
 export function $decodeJwt(jwtToken: string): Result<{ decodedJwt: jwt.Jwt }> {
-  if (!$isString(jwtToken)) return $err('nullish_value', { error: 'Invalid JWT token', description: 'Empty JWT' });
+  if (!$isStr(jwtToken)) return $err('nullish_value', { error: 'Invalid JWT token', description: 'Empty JWT' });
 
   try {
     const decodedJwt = jwt.decode(jwtToken, { complete: true });

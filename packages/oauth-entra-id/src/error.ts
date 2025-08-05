@@ -1,4 +1,4 @@
-import { $isPlainObject } from './utils/zod';
+import { $isObj } from './utils/zod';
 
 export type HttpErrorCodes = 400 | 401 | 403 | 500;
 
@@ -27,7 +27,7 @@ export type Result<T, E = ResultErr> = T extends object
       | { readonly success: false; readonly error: E; readonly result?: undefined };
 
 export function $ok<T>(result?: T): Result<T> {
-  if ($isPlainObject(result)) return { success: true, ...(result as T & object) } as Result<T>;
+  if ($isObj(result)) return { success: true, ...(result as T & object) } as Result<T>;
   return { success: true, result } as Result<T>;
 }
 

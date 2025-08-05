@@ -1,4 +1,5 @@
 import type { CryptoProvider } from '@azure/msal-node';
+import type { WebApiKey } from 'cipher-kit/web-api';
 import type { JwksClient } from 'jwks-rsa';
 import type { z } from 'zod/v4';
 import { $err, $ok, OAuthError, type Result } from './error';
@@ -18,12 +19,10 @@ import type {
   OAuthConfig,
   OAuthSettings,
   OboResult,
-  WebApiCryptoKey,
 } from './types';
 import { $oauthConfig } from './utils/config';
 import { $getCookieNames, $getCookieOptions } from './utils/cookie-options';
-import { $generateUuid } from './utils/crypto/encrypt';
-import { $getExpiry, $verifyJwt } from './utils/crypto/jwt';
+import { $newUuid } from './utils/encrypt';
 import {
   $decryptAccessToken,
   $decryptRefreshToken,
@@ -33,8 +32,9 @@ import {
   $encryptRefreshToken,
   $encryptState,
   $encryptTicket,
-} from './utils/crypto/tokens';
+} from './utils/encrypt-tokens';
 import { $mapAndFilter, $transformToMsalPrompt, TIME_SKEW } from './utils/helpers';
+import { $getExpiry, $verifyJwt } from './utils/jwt';
 import { $prettyErr, zInjectedData, zMethods, type zState } from './utils/zod';
 
 /**
@@ -125,7 +125,7 @@ export class OAuthProvider {
       throw new OAuthError('bad_request', { error: 'Invalid params: Unlisted host frontend URL', status: 403 });
     }
 
-    const { uuid: ticketId, error: uuidError } = $generateUuid(this.settings.cryptoType);
+    const { uuid: ticketId, error: uuidError } = $newUuid(this.settings.cryptoType);
     if (uuidError) throw new OAuthError(uuidError);
 
     try {
@@ -652,9 +652,13 @@ export class OAuthProvider {
           scopes: [service.scope],
           skipCache: true,
         });
+
+        console.log(msalResponse ? 'MSAL response obtained' : 'No MSAL response');
         if (!msalResponse) return null;
 
         const { clientId, error: audError } = $getExpiry(msalResponse.accessToken);
+
+        console.log(audError);
         if (audError) return null;
 
         const { encrypted, error } = await this.$encryptToken('accessToken', msalResponse.accessToken, {
@@ -663,6 +667,7 @@ export class OAuthProvider {
           cryptoType: service.cryptoType,
           otherSecretKey: `access-token-${service.encryptionKey}`,
         });
+        console.log(error);
         if (error) return null;
 
         const cookieOptions = $getCookieOptions({
@@ -767,7 +772,7 @@ export class OAuthProvider {
   }
 
   /** Updates the secret key for a specific token type if it is a string. */
-  private $updateSecretKey(keyType: keyof typeof this.encryptionKeys, secretKey: WebApiCryptoKey | undefined) {
+  private $updateSecretKey(keyType: keyof typeof this.encryptionKeys, secretKey: WebApiKey | undefined) {
     if (this.settings.cryptoType !== 'web-api' || !secretKey) return;
     const currentKey = this.encryptionKeys[keyType];
     if (typeof currentKey === 'string') {
