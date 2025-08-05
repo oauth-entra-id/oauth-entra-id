@@ -1,4 +1,5 @@
 import {
+  isNodeKey,
   isWebApiKey,
   type NodeKey,
   newNodeSecretKey,
@@ -16,6 +17,7 @@ import {
 import { $err, $ok } from '~/error';
 import type { Result } from '~/exports';
 import type { CryptoType } from '~/types';
+import { $isStr } from './zod';
 
 export function $newUuid(cryptoType: CryptoType): Result<{ uuid: string }> {
   const uuid = cryptoType === 'node' ? newNodeUuid() : newWebUuid();
@@ -76,7 +78,7 @@ export async function $encrypt(
 ): Promise<Result<{ encrypted: string; newSecretKey: WebApiKey | undefined }>> {
   if (!data) return $err('nullish_value', { error: 'Invalid data', description: 'Empty string to encrypt' });
   if (cryptoType === 'node') {
-    if (isWebApiKey(key)) {
+    if (!$isStr(key) && !isNodeKey(key)) {
       return $err('invalid_format', { error: 'Invalid key type', description: 'Expected NodeKey or string' });
     }
     const { secretKey, error: secretKeyError } = newNodeSecretKey(key);
@@ -91,7 +93,7 @@ export async function $encrypt(
     return $ok({ encrypted: encrypted.result, newSecretKey: undefined });
   }
 
-  if (typeof key !== 'string' && !isWebApiKey(key)) {
+  if (!$isStr(key) && !isWebApiKey(key)) {
     return $err('invalid_format', { error: 'Invalid key type', description: 'Expected string or WebApiKey' });
   }
 
@@ -113,7 +115,7 @@ export async function $decrypt(
 ): Promise<Result<{ result: string; newSecretKey: WebApiKey | undefined }>> {
   if (!encrypted) return $err('nullish_value', { error: 'Invalid data', description: 'Empty string to decrypt' });
   if (cryptoType === 'node') {
-    if (isWebApiKey(key)) {
+    if (!$isStr(key) && !isNodeKey(key)) {
       return $err('invalid_format', { error: 'Invalid key type', description: 'Expected NodeKey or string' });
     }
 
@@ -128,7 +130,7 @@ export async function $decrypt(
     }
     return $ok({ result: decrypted.result, newSecretKey: undefined });
   }
-  if (typeof key !== 'string' && !isWebApiKey(key)) {
+  if (!$isStr(key) && !isWebApiKey(key)) {
     return $err('invalid_format', { error: 'Invalid key type', description: 'Expected string or WebApiKey' });
   }
 
