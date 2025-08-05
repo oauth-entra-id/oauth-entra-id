@@ -70,8 +70,11 @@
   },
   "dependencies": {
     "@azure/msal-node": "^3.6.4",
+    "cipher-kit": "^0.0.2",
+    "compress-kit": "^0.0.2",
     "jsonwebtoken": "^9.0.2",
     "jwks-rsa": "^3.2.0",
+    "modern-cookies": "^1.0.0",
     "pako": "^2.1.0",
     "zod": "^4.0.14"
   },
@@ -89,8 +92,7 @@
     "@types/node": "^24.1.0",
     "@types/pako": "^2.0.3",
     "tsup": "^8.5.0",
-    "typescript": "^5.8.3",
-    "vitest": "^3.2.4"
+    "typescript": "^5.8.3"
   },
   "license": "MIT",
   "keywords": [

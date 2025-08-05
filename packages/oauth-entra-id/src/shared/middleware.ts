@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
+import { deleteCookie, getCookie, setCookie } from 'modern-cookies';
 import { $err, $ok, OAuthError, type Result, type ResultErr } from '~/error';
 import type { JwtPayload, Metadata } from '~/types';
-import { $deleteCookie, $getCookie, $setCookie } from './cookie-parser';
 import type { InjectDataFunction, UserInfo } from './types';
 
 /**
@@ -41,8 +41,8 @@ export async function $sharedMiddleware(
 
     for (const { azureId, accessTokenName, refreshTokenName } of cookies.cookieNames) {
       if (azureId === cookie.userInfo.azureId) continue;
-      $deleteCookie(res, accessTokenName, cookies.deleteOptions);
-      $deleteCookie(res, refreshTokenName, cookies.deleteOptions);
+      deleteCookie(res, accessTokenName, cookies.deleteOptions);
+      deleteCookie(res, refreshTokenName, cookies.deleteOptions);
     }
 
     return { userInfo: cookie.userInfo, tryInjectData: cookie.tryInjectData };
@@ -71,7 +71,7 @@ function $createInjectFunc(req: Request, res: Response) {
         description: 'Injecting data is only supported for user-based sessions',
       });
     }
-    $setCookie(res, inj.newAccessToken.name, inj.newAccessToken.value, inj.newAccessToken.options);
+    setCookie(res, inj.newAccessToken.name, inj.newAccessToken.value, inj.newAccessToken.options);
     req.userInfo = { ...req.userInfo, injectedData: data };
     return $ok({ injectedData: data });
   };
@@ -94,8 +94,8 @@ async function $checkCookieTokens(
   accessTokenName: string,
   refreshTokenName: string,
 ): Promise<Result<{ azureId: string; userInfo: UserInfo; tryInjectData: InjectDataFunction }>> {
-  const accessToken = $getCookie(req, accessTokenName);
-  const refreshToken = $getCookie(req, refreshTokenName);
+  const accessToken = getCookie(req, accessTokenName);
+  const refreshToken = getCookie(req, refreshTokenName);
   if (!accessToken && !refreshToken) {
     return $err('nullish_value', {
       error: 'Unauthorized',
@@ -117,10 +117,8 @@ async function $checkCookieTokens(
   const rt = await req.oauthProvider.tryRefreshTokens(refreshToken);
   if (rt.error) return $err(rt.error);
 
-  $setCookie(res, rt.newAccessToken.name, rt.newAccessToken.value, rt.newAccessToken.options);
-  if (rt.newRefreshToken) {
-    $setCookie(res, rt.newRefreshToken.name, rt.newRefreshToken.value, rt.newRefreshToken.options);
-  }
+  setCookie(res, rt.newAccessToken.name, rt.newAccessToken.value, rt.newAccessToken.options);
+  if (rt.newRefreshToken) setCookie(res, rt.newRefreshToken.name, rt.newRefreshToken.value, rt.newRefreshToken.options);
 
   return $ok({
     azureId: rt.meta.azureId as string,

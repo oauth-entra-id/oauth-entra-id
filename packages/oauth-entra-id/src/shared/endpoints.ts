@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
+import { deleteCookie, setCookie } from 'modern-cookies';
 import { OAuthError } from '~/error';
-import { $deleteCookie, $setCookie } from './cookie-parser';
 import type { Endpoints } from './types';
 
 /**
@@ -35,8 +35,8 @@ export async function $sharedHandleCallback(req: Request, res: Response) {
     state: body.state,
   });
 
-  $setCookie(res, accessToken.name, accessToken.value, accessToken.options);
-  if (refreshToken) $setCookie(res, refreshToken.name, refreshToken.value, refreshToken.options);
+  setCookie(res, accessToken.name, accessToken.value, accessToken.options);
+  if (refreshToken) setCookie(res, refreshToken.name, refreshToken.value, refreshToken.options);
   res.redirect(frontendUrl);
 }
 
@@ -51,8 +51,8 @@ export async function $sharedHandleLogout(req: Request, res: Response) {
 
   const { logoutUrl, deleteAccessToken, deleteRefreshToken } = await req.oauthProvider.getLogoutUrl(params);
 
-  $deleteCookie(res, deleteRefreshToken.name, deleteRefreshToken.options);
-  $deleteCookie(res, deleteAccessToken.name, deleteAccessToken.options);
+  deleteCookie(res, deleteRefreshToken.name, deleteRefreshToken.options);
+  deleteCookie(res, deleteAccessToken.name, deleteAccessToken.options);
   res.status(200).json({ url: logoutUrl });
 }
 
@@ -91,7 +91,7 @@ export async function $sharedHandleOnBehalfOf(req: Request, res: Response) {
   });
 
   for (const { accessToken } of results) {
-    $setCookie(res, accessToken.name, accessToken.value, accessToken.options);
+    setCookie(res, accessToken.name, accessToken.value, accessToken.options);
   }
 
   res.status(200).json({ tokensSet: results.length });
