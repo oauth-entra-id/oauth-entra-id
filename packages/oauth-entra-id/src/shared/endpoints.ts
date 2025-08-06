@@ -26,9 +26,7 @@ export async function $sharedHandleAuthentication(req: Request, res: Response) {
  */
 export async function $sharedHandleCallback(req: Request, res: Response) {
   const body = req.body as Endpoints['Callback'] | undefined;
-  if (!body) {
-    throw new OAuthError('bad_request', { error: 'Invalid params', description: 'Body must contain code and state' });
-  }
+  if (!body) throw new OAuthError({ msg: 'Invalid params', desc: 'Body must contain code and state' });
 
   const { accessToken, refreshToken, frontendUrl } = await req.oauthProvider.getTokenByCode({
     code: body.code,
@@ -64,22 +62,20 @@ export async function $sharedHandleLogout(req: Request, res: Response) {
  */
 export async function $sharedHandleOnBehalfOf(req: Request, res: Response) {
   const body = req.body as Endpoints['OnBehalfOf'] | undefined;
-  if (!body) {
-    throw new OAuthError('bad_request', { error: 'Invalid params', description: 'Body must contain serviceNames' });
-  }
+  if (!body) throw new OAuthError({ msg: 'Invalid params', desc: 'Body must contain serviceNames' });
 
   if (!req.accessTokenInfo?.jwt) {
-    throw new OAuthError('jwt_error', {
-      error: 'Unauthorized',
-      description: 'Access token is required for on-behalf-of requests',
+    throw new OAuthError({
+      msg: 'Unauthorized',
+      desc: 'Access token is required for on-behalf-of requests',
       status: 401,
     });
   }
 
   if (req.userInfo?.isApp === true) {
-    throw new OAuthError('bad_request', {
-      error: 'Forbidden',
-      description: 'On-behalf-of requests are not allowed for app users',
+    throw new OAuthError({
+      msg: 'Forbidden',
+      desc: 'On-behalf-of requests are not allowed for app users',
       status: 403,
     });
   }

@@ -40,12 +40,15 @@ export async function $encryptAccessToken<T extends object = Record<string, any>
 ): Promise<Result<{ encrypted: string }>> {
   const { data: accessToken, error: jwtError } = zJwt.safeParse(value);
   if (jwtError) {
-    return $err('invalid_format', { error: 'Invalid access token format', description: $prettyErr(jwtError) });
+    return $err({ msg: 'Invalid access token format', desc: `Failed schema: ${$prettyErr(jwtError)}` });
   }
 
   const { data: dataToInject, error: injectError } = zInjectedData.safeParse(params.dataToInject);
   if (injectError) {
-    return $err('invalid_format', { error: 'Invalid injected data format', description: $prettyErr(injectError) });
+    return $err({
+      msg: 'Invalid injected data format',
+      desc: `Failed zInjectedData schema: ${$prettyErr(injectError)}`,
+    });
   }
 
   const injectedData =
@@ -54,9 +57,9 @@ export async function $encryptAccessToken<T extends object = Record<string, any>
       : undefined;
 
   if (injectedData?.error) {
-    return $err('crypto_error', {
-      error: 'Failed to compress injected data',
-      description: injectedData.error.description,
+    return $err({
+      msg: 'Failed to compress injected data',
+      desc: `Compression error: message: ${injectedData.error.message}, description: ${injectedData.error.description}`,
     });
   }
 
@@ -69,15 +72,18 @@ export async function $encryptAccessToken<T extends object = Record<string, any>
 
   const { encrypted, newSecretKey, error } = await $encryptObj(params.cryptoType, struct, params.key);
   if (error) {
-    return $err('crypto_error', { error: 'Failed to encrypt access token', description: error.description });
+    return $err({
+      msg: 'Failed to encrypt access token',
+      desc: `Encryption error: message: ${error.message}, description: ${error.description}`,
+    });
   }
 
   if (params.isOtherKey === false) params.$updateSecretKey('accessToken', newSecretKey);
 
   if (encrypted.length > 4096) {
-    return $err('invalid_format', {
-      error: 'Token too long',
-      description: `Encrypted access token exceeds 4096 characters. Encrypted length: ${encrypted.length}, original length: ${accessToken.length}, injected data length: ${injectedData?.result.length ?? 0}`,
+    return $err({
+      msg: 'Token too long',
+      desc: `Encrypted access token exceeds 4096 characters. Encrypted length: ${encrypted.length}, original length: ${accessToken.length}, injected data length: ${injectedData?.result.length ?? 0}`,
     });
   }
 
@@ -97,36 +103,39 @@ export async function $decryptAccessToken<T extends object = Record<string, any>
 
   const { data: encryptedAccessToken, error: encryptedAccessTokenError } = zEncrypted.safeParse(value);
   if (encryptedAccessTokenError) {
-    return $err('invalid_format', { error: 'Unauthorized', description: 'Invalid access token format' });
+    return $err({ msg: 'Unauthorized', desc: `Failed schema: ${$prettyErr(encryptedAccessTokenError)}` });
   }
 
   const { result, newSecretKey, error } = await $decryptObj(params.cryptoType, encryptedAccessToken, params.key);
   if (error) {
-    return $err('crypto_error', { error: 'Failed to decrypt access token', description: error.description });
+    return $err({
+      msg: 'Failed to decrypt access token',
+      desc: `Decryption error: message: ${error.message}, description: ${error.description}`,
+    });
   }
 
   params.$updateSecretKey('accessToken', newSecretKey);
 
   const { data: accessTokenStruct, error: accessTokenStructError } = zAccessTokenStructure.safeParse(result);
   if (accessTokenStructError) {
-    return $err('invalid_format', {
-      error: 'Invalid access token format',
-      description: $prettyErr(accessTokenStructError),
+    return $err({
+      msg: 'Invalid access token format',
+      desc: `Failed schema: ${$prettyErr(accessTokenStructError)}`,
     });
   }
 
   if (accessTokenStruct.exp < Date.now()) {
-    return $err('bad_request', {
-      error: 'Access token expired',
-      description: `Access token expired at ${new Date(accessTokenStruct.exp).toISOString()}`,
+    return $err({
+      msg: 'Access token expired',
+      desc: `Access token expired at ${new Date(accessTokenStruct.exp).toISOString()}`,
     });
   }
 
   const decompressedInjectedData = accessTokenStruct.inj ? decompressObj(accessTokenStruct.inj) : undefined;
   if (decompressedInjectedData?.error) {
-    return $err('crypto_error', {
-      error: 'Failed to decompress injected data',
-      description: decompressedInjectedData.error.description,
+    return $err({
+      msg: 'Failed to decompress injected data',
+      desc: `Decompression error: message: ${decompressedInjectedData.error.message}, description: ${decompressedInjectedData.error.description}`,
     });
   }
 
@@ -144,7 +153,7 @@ export async function $encryptRefreshToken(
 ): Promise<Result<{ encrypted: string }>> {
   const { data, error: parseError } = zLooseBase64.safeParse(value);
   if (parseError) {
-    return $err('invalid_format', { error: 'Invalid refresh token format', description: $prettyErr(parseError) });
+    return $err({ msg: 'Invalid refresh token format', desc: `Failed schema: ${$prettyErr(parseError)}` });
   }
 
   const { encrypted, newSecretKey, error } = await $encryptObj(
@@ -157,15 +166,18 @@ export async function $encryptRefreshToken(
     params.key,
   );
   if (error) {
-    return $err('crypto_error', { error: 'Failed to encrypt refresh token', description: error.description });
+    return $err({
+      msg: 'Failed to encrypt refresh token',
+      desc: `Encryption error: message: ${error.message}, description: ${error.description}`,
+    });
   }
 
   params.$updateSecretKey('refreshToken', newSecretKey);
 
   if (encrypted.length > 4096) {
-    return $err('invalid_format', {
-      error: 'Token too long',
-      description: `Encrypted refresh token exceeds 4096 characters. Encrypted length: ${encrypted.length}, original length: ${data.length}`,
+    return $err({
+      msg: 'Invalid format',
+      desc: `Encrypted refresh token exceeds 4096 characters. Encrypted length: ${encrypted.length}, original length: ${data.length}`,
     });
   }
 
@@ -178,26 +190,26 @@ export async function $decryptRefreshToken(
 ): Promise<Result<{ decrypted: string; azureId: string }>> {
   const { data: encryptedRefreshToken, error: encryptedRefreshTokenError } = zEncrypted.safeParse(value);
   if (encryptedRefreshTokenError) {
-    return $err('invalid_format', { error: 'Unauthorized', description: 'Invalid refresh token format' });
+    return $err({ msg: 'Invalid format', desc: `Failed schema: ${$prettyErr(encryptedRefreshTokenError)}` });
   }
 
   const { result, newSecretKey, error } = await $decryptObj(params.cryptoType, encryptedRefreshToken, params.key);
   if (error) {
-    return $err('crypto_error', { error: 'Failed to decrypt refresh token', description: error.description });
+    return $err({
+      msg: 'Failed to decrypt refresh token',
+      desc: `Decryption error: message: ${error.message}, description: ${error.description}`,
+    });
   }
 
   const { data: refreshTokenStruct, error: refreshTokenStructError } = zRefreshTokenStructure.safeParse(result);
   if (refreshTokenStructError) {
-    return $err('invalid_format', {
-      error: 'Invalid refresh token format',
-      description: $prettyErr(refreshTokenStructError),
-    });
+    return $err({ msg: 'Invalid format', desc: `Failed schema: ${$prettyErr(refreshTokenStructError)}` });
   }
 
   if (refreshTokenStruct.exp < Date.now()) {
-    return $err('bad_request', {
-      error: 'Refresh token expired',
-      description: `Refresh token expired at ${new Date(refreshTokenStruct.exp).toISOString()}`,
+    return $err({
+      msg: 'Bad request',
+      desc: `Refresh token expired at ${new Date(refreshTokenStruct.exp).toISOString()}`,
     });
   }
 
@@ -209,12 +221,15 @@ export async function $decryptRefreshToken(
 export async function $encryptState(value: object | null, params: BaseParams): Promise<Result<{ encrypted: string }>> {
   const { data, error: parseError } = zState.safeParse(value);
   if (parseError) {
-    return $err('invalid_format', { error: 'Invalid state format', description: $prettyErr(parseError) });
+    return $err({ msg: 'Invalid format', desc: `Failed schema: ${$prettyErr(parseError)}` });
   }
 
   const { encrypted, newSecretKey, error } = await $encryptObj(params.cryptoType, data, params.key);
   if (error) {
-    return $err('crypto_error', { error: 'Failed to encrypt state', description: error.description });
+    return $err({
+      msg: 'Failed to encrypt state',
+      desc: `Encryption error: message: ${error.message}, description: ${error.description}`,
+    });
   }
 
   params.$updateSecretKey('state', newSecretKey);
@@ -228,19 +243,19 @@ export async function $decryptState(
 ): Promise<Result<{ decrypted: z.infer<typeof zState> }>> {
   const { data: encryptedState, error: encryptedStateError } = zEncrypted.safeParse(value);
   if (encryptedStateError) {
-    return $err('invalid_format', { error: 'Invalid state format', description: $prettyErr(encryptedStateError) });
+    return $err({ msg: 'Invalid format', desc: `Failed schema: ${$prettyErr(encryptedStateError)}` });
   }
 
   const { result, newSecretKey, error } = await $decryptObj(params.cryptoType, encryptedState, params.key);
   if (error) {
-    return $err('crypto_error', { error: 'Failed to decrypt state', description: error.description });
+    return $err({ msg: 'Failed to decrypt state', desc: error.description });
   }
 
   params.$updateSecretKey('state', newSecretKey);
 
   const { data: state, error: stateError } = zState.safeParse(result);
   if (stateError) {
-    return $err('invalid_format', { error: 'Invalid state format', description: $prettyErr(stateError) });
+    return $err({ msg: 'Invalid format', desc: `Failed schema: ${$prettyErr(stateError)}` });
   }
 
   return $ok({ decrypted: state });
@@ -252,12 +267,15 @@ export async function $encryptTicket(
 ): Promise<Result<{ encrypted: string }>> {
   const { data, error: parseError } = zUuid.safeParse(ticketId);
   if (parseError) {
-    return $err('invalid_format', { error: 'Invalid ticket format', description: $prettyErr(parseError) });
+    return $err({ msg: 'Invalid format', desc: `Failed schema: ${$prettyErr(parseError)}` });
   }
 
   const { encrypted, newSecretKey, error } = await $encrypt(params.cryptoType, data, params.key);
   if (error) {
-    return $err('crypto_error', { error: 'Failed to encrypt ticket', description: error.description });
+    return $err({
+      msg: 'Failed to encrypt ticket',
+      desc: `Encryption error: message: ${error.message}, description: ${error.description}`,
+    });
   }
 
   params.$updateSecretKey('ticket', newSecretKey);
@@ -271,19 +289,22 @@ export async function $decryptTicket(
 ): Promise<Result<{ decrypted: string }>> {
   const { data, error: encryptedStateError } = zEncrypted.safeParse(value);
   if (encryptedStateError) {
-    return $err('invalid_format', { error: 'Invalid ticket format', description: $prettyErr(encryptedStateError) });
+    return $err({ msg: 'Invalid format', desc: `Failed schema: ${$prettyErr(encryptedStateError)}` });
   }
 
   const { result, newSecretKey, error } = await $decrypt(params.cryptoType, data, params.key);
   if (error) {
-    return $err('crypto_error', { error: 'Failed to decrypt ticket', description: error.description });
+    return $err({
+      msg: 'Failed to decrypt ticket',
+      desc: `Decryption error: message: ${error.message}, description: ${error.description}`,
+    });
   }
 
   params.$updateSecretKey('ticket', newSecretKey);
 
   const { data: ticketId, error: stateError } = zUuid.safeParse(result);
   if (stateError) {
-    return $err('invalid_format', { error: 'Invalid state format', description: $prettyErr(stateError) });
+    return $err({ msg: 'Invalid format', desc: `Failed schema: ${$prettyErr(stateError)}` });
   }
 
   return $ok({ decrypted: ticketId });

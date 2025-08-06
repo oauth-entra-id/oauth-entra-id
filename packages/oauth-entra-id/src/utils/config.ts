@@ -33,7 +33,7 @@ export function $oauthConfig(configuration: OAuthConfig): Result<{
 }> {
   const { data: config, error: configError } = zConfig.safeParse(configuration);
   if (configError) {
-    return $err('misconfiguration', { error: 'Invalid config', description: $prettyErr(configError), status: 500 });
+    return $err({ msg: 'Invalid config', desc: `Failed zConfig schema: ${$prettyErr(configError)}`, status: 500 });
   }
 
   const frontendUrls = config.frontendUrl as NonEmptyArray<string>;
@@ -85,10 +85,9 @@ export function $oauthConfig(configuration: OAuthConfig): Result<{
 
     if (azures.length === 0) {
       throw new OAuthError({
-        type: 'misconfiguration',
-        message: 'No valid Azure configurations found',
-        description: 'Ensure at least one Azure configuration is provided in the config file.',
-        statusCode: 500,
+        msg: 'No valid Azure configurations found',
+        desc: 'Ensure at least one Azure configuration is provided in the config file.',
+        status: 500,
       });
     }
 
@@ -153,12 +152,10 @@ export function $oauthConfig(configuration: OAuthConfig): Result<{
       settings: settings,
     });
   } catch (error) {
-    if (error instanceof OAuthError) {
-      return $err(error);
-    }
-    return $err('misconfiguration', {
-      error: 'Failed to create Azure configurations',
-      description: `Error creating Azure configurations: ${error instanceof Error ? error.message : String(error)}`,
+    if (error instanceof OAuthError) return $err(error);
+    return $err({
+      msg: 'Failed to create Azure configurations',
+      desc: `Error creating Azure configurations: ${error instanceof Error ? error.message : typeof error === 'string' ? error : String(error)}`,
       status: 500,
     });
   }
@@ -170,7 +167,11 @@ export function $jwtClientConfig(config: LiteConfig): Result<{
 }> {
   const { data: parsedConfig, error: configError } = zJwtClientConfig.safeParse(config);
   if (configError) {
-    return $err('misconfiguration', { error: 'Invalid config', description: $prettyErr(configError), status: 500 });
+    return $err({
+      msg: 'Invalid config',
+      desc: `Failed zJwtClientConfig schema: ${$prettyErr(configError)}`,
+      status: 500,
+    });
   }
 
   const { jwksClient, error: jwksError } = $createJwks(parsedConfig.azure.tenantId);
@@ -206,11 +207,9 @@ export function $jwtClientConfig(config: LiteConfig): Result<{
     });
   } catch (error) {
     if (error instanceof OAuthError) return $err(error);
-    return $err('misconfiguration', {
-      error: 'Failed to create Azure configuration',
-      description: `Error creating Azure configuration for clientId ${parsedConfig.azure.clientId} and tenantId ${parsedConfig.azure.tenantId}: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
+    return $err({
+      msg: 'Failed to create Azure configuration',
+      desc: `Error creating Azure configuration for clientId ${parsedConfig.azure.clientId} and tenantId ${parsedConfig.azure.tenantId}: ${error instanceof Error ? error.message : typeof error === 'string' ? error : String(error)}`,
       status: 500,
     });
   }
@@ -227,9 +226,9 @@ function $createJwks(tenantId: string): Result<{ jwksClient: JwksClient }> {
       }),
     });
   } catch (error) {
-    return $err('misconfiguration', {
-      error: 'Failed to create JWKS client',
-      description: `Error creating JWKS client for tenant ${tenantId}: ${error instanceof Error ? error.message : String(error)}`,
+    return $err({
+      msg: 'Failed to create JWKS client',
+      desc: `Error creating JWKS client for tenant ${tenantId}: ${error instanceof Error ? error.message : typeof error === 'string' ? error : String(error)}`,
       status: 500,
     });
   }
@@ -249,11 +248,9 @@ function $createCca(params: {
       },
     });
   } catch (error) {
-    throw new OAuthError('misconfiguration', {
-      error: 'Failed to create Confidential Client Application',
-      description: `Error creating Confidential Client Application for clientId ${params.clientId} and tenantId ${params.tenantId}: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
+    throw new OAuthError({
+      msg: 'Failed to create Confidential Client Application',
+      desc: `Error creating Confidential Client Application for clientId ${params.clientId} and tenantId ${params.tenantId}: ${error instanceof Error ? error.message : typeof error === 'string' ? error : String(error)}`,
       status: 500,
     });
   }
@@ -274,11 +271,7 @@ function $getB2B(b2bApps: z.infer<typeof zAzure>['b2bApps']): {
   const names = Array.from(map.keys());
 
   if (names.length !== b2bApps.length) {
-    throw new OAuthError('misconfiguration', {
-      error: 'Invalid config',
-      description: 'B2B has duplicates',
-      status: 500,
-    });
+    throw new OAuthError({ msg: 'Invalid config', desc: 'B2B has duplicates', status: 500 });
   }
 
   return { map, names: names as NonEmptyArray<string> };
@@ -320,11 +313,7 @@ function $getObo({
   const names = Array.from(map.keys());
 
   if (names.length !== oboServices.length) {
-    throw new OAuthError('misconfiguration', {
-      error: 'Invalid config',
-      description: 'OBO has duplicates',
-      status: 500,
-    });
+    throw new OAuthError({ msg: 'Invalid config', desc: 'OBO has duplicates', status: 500 });
   }
 
   return { map, names: names as NonEmptyArray<string> };

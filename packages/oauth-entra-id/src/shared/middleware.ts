@@ -20,10 +20,7 @@ export async function $sharedMiddleware(
       userInfo: b2b.userInfo,
       tryInjectData: (_data) =>
         Promise.resolve(
-          $err('bad_request', {
-            error: 'Invalid user type',
-            description: 'Injecting data is only supported for user-based sessions',
-          }),
+          $err({ msg: 'Invalid user type', desc: 'Injecting data is only supported for user-based sessions' }),
         ),
     };
   }
@@ -48,14 +45,7 @@ export async function $sharedMiddleware(
     return { userInfo: cookie.userInfo, tryInjectData: cookie.tryInjectData };
   }
 
-  throw new OAuthError(
-    firstError ??
-      $err('jwt_error', {
-        error: 'Unauthorized',
-        description: 'Tokens are invalid or missing',
-        status: 401,
-      }),
-  );
+  throw new OAuthError(firstError ?? $err({ msg: 'Unauthorized', desc: 'Tokens are invalid or missing', status: 401 }));
 }
 
 function $createInjectFunc(req: Request, res: Response) {
@@ -66,10 +56,7 @@ function $createInjectFunc(req: Request, res: Response) {
     const inj = await req.oauthProvider.tryInjectData({ accessToken, data });
     if (inj.error) return $err(inj.error);
     if (req.userInfo?.isApp !== false) {
-      return $err('bad_request', {
-        error: 'Invalid user type',
-        description: 'Injecting data is only supported for user-based sessions',
-      });
+      return $err({ msg: 'Invalid user type', desc: 'Injecting data is only supported for user-based sessions' });
     }
     setCookie(res, inj.newAccessToken.name, inj.newAccessToken.value, inj.newAccessToken.options);
     req.userInfo = { ...req.userInfo, injectedData: data };
@@ -97,11 +84,7 @@ async function $checkCookieTokens(
   const accessToken = getCookie(req, accessTokenName);
   const refreshToken = getCookie(req, refreshTokenName);
   if (!accessToken && !refreshToken) {
-    return $err('nullish_value', {
-      error: 'Unauthorized',
-      description: 'Access token and refresh token are both missing',
-      status: 401,
-    });
+    return $err({ msg: 'Unauthorized', desc: 'Access token and refresh token are both missing', status: 401 });
   }
 
   const at = await req.oauthProvider.verifyAccessToken(accessToken);

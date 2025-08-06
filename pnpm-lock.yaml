@@ -362,11 +362,11 @@ importers:
         specifier: ^3.6.4
         version: 3.6.4
       cipher-kit:
-        specifier: ^0.0.4
-        version: 0.0.4
+        specifier: ^0.0.8
+        version: 0.0.8
       compress-kit:
-        specifier: ^0.0.2
-        version: 0.0.2
+        specifier: ^0.0.3
+        version: 0.0.3
       express:
         specifier: '>=4.21.0'
         version: 5.1.0
@@ -2163,8 +2163,8 @@ packages:
     resolution: {integrity: sha512-rNjApaLzuwaOTjCiT8lSDdGN1APCiqkChLMJxJPWLunPAt5fy8xgU9/jNOchV84wfIxrA0lRQB7oCT8jrn/wrQ==}
     engines: {node: '>=6.0'}
 
-  cipher-kit@0.0.4:
-    resolution: {integrity: sha512-mApTtM2t/fxaNz1M2VU7FRW922+PSeFzK0CymIGVYw1VVRAsJiVPepG/lDDp0JH/1uO1Jz3fl5zkkEXryY4bAg==}
+  cipher-kit@0.0.8:
+    resolution: {integrity: sha512-TGdywOTlpjxiI/J3aQu7Kn3qOYy8qYnH8wYkdqDHrpxKHUo0kVswewOJzW2e3qo2loE3n0p5IeP/QFz54GjCdA==}
 
   class-transformer@0.5.1:
     resolution: {integrity: sha512-SQa1Ws6hUbfC98vKGxZH3KFY0Y1lm5Zm0SY8XX9zbK7FJCyVEac3ATW0RIpwzW+oOfmHE5PMPufDG9hCfoEOMw==}
@@ -2221,8 +2221,8 @@ packages:
     resolution: {integrity: sha512-bKw/r35jR3HGt5PEPm1ljsQQGyCrR8sFGNiN5L+ykDHdpO8Smxkrkla9Yi6NkQyUrb8V54PGhfMs6NrIwtxtdw==}
     engines: {node: '>= 6'}
 
-  compress-kit@0.0.2:
-    resolution: {integrity: sha512-8jiHINwzDDywF0MuiL+5umtCW3hnaC8xmt49Hvm8n8e2JN4MdbA+A/mxo/184C8/XbTaeXgYO+jZeVT6c4M4pA==}
+  compress-kit@0.0.3:
+    resolution: {integrity: sha512-k+mtXdBWMo82Wg20RrUwEbwBC7ioed4r2+I7SgaxQX+PgXPIcGSVGgTP3RLF6/9dY90q6e/mIj9FDizVszYXgQ==}
 
   concat-map@0.0.1:
     resolution: {integrity: sha512-/Srv4dswyQNBfohGpz9o6Yb3Gz3SrUDqBH5rTuhGR7ahtlbYKnVxw2bCFMRljaA7EXHaXZ8wsHdodFvbkhKmqg==}
@@ -5979,7 +5979,7 @@ snapshots:
 
   chrome-trace-event@1.0.4: {}
 
-  cipher-kit@0.0.4: {}
+  cipher-kit@0.0.8: {}
 
   class-transformer@0.5.1: {}
 
@@ -6033,7 +6033,7 @@ snapshots:
       has-own-prop: 2.0.0
       repeat-string: 1.6.1
 
-  compress-kit@0.0.2:
+  compress-kit@0.0.3:
     dependencies:
       pako: 2.1.0
 

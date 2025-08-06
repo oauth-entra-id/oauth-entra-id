@@ -12,7 +12,9 @@ import { $sharedMiddleware } from '~/shared/middleware';
 import type { CallbackFunction } from '~/shared/types';
 import type { OAuthConfig } from '~/types';
 
-const ERROR_MESSAGE = 'Make sure you used Express export and you used authConfig';
+const ERROR_MSG = 'authConfig not initialized or incorrect usage of Express handlers';
+const ERROR_DESC =
+  'Ensure you have called `authConfig(config)` during app setup before endpoints, and are importing all functions from the Express-specific entry point.';
 
 export let expressOAuthProvider: OAuthProvider = undefined as unknown as OAuthProvider;
 
@@ -49,7 +51,7 @@ export function handleAuthentication() {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.oauthProvider || req.serverType !== 'express') {
-        throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE, status: 500 });
+        throw new OAuthError({ msg: ERROR_MSG, desc: ERROR_DESC, status: 500 });
       }
       await $sharedHandleAuthentication(req, res);
     } catch (err) {
@@ -71,7 +73,7 @@ export function handleCallback() {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.oauthProvider || req.serverType !== 'express') {
-        throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE, status: 500 });
+        throw new OAuthError({ msg: ERROR_MSG, desc: ERROR_DESC, status: 500 });
       }
       await $sharedHandleCallback(req, res);
     } catch (err) {
@@ -93,7 +95,7 @@ export function handleLogout() {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.oauthProvider || req.serverType !== 'express') {
-        throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE, status: 500 });
+        throw new OAuthError({ msg: ERROR_MSG, desc: ERROR_DESC, status: 500 });
       }
       await $sharedHandleLogout(req, res);
     } catch (err) {
@@ -115,7 +117,7 @@ export function handleOnBehalfOf() {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.oauthProvider || req.serverType !== 'express') {
-        throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE, status: 500 });
+        throw new OAuthError({ msg: ERROR_MSG, desc: ERROR_DESC, status: 500 });
       }
       await $sharedHandleOnBehalfOf(req, res);
     } catch (err) {
@@ -146,7 +148,7 @@ export function protectRoute(cb?: CallbackFunction) {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.oauthProvider || req.serverType !== 'express') {
-        throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE, status: 500 });
+        throw new OAuthError({ msg: ERROR_MSG, desc: ERROR_DESC, status: 500 });
       }
       const { userInfo, tryInjectData } = await $sharedMiddleware(req, res);
       if (cb) await cb({ userInfo, tryInjectData });
