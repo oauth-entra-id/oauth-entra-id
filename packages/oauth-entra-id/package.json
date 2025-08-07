@@ -70,8 +70,8 @@
   },
   "dependencies": {
     "@azure/msal-node": "^3.6.4",
-    "cipher-kit": "^0.0.8",
-    "compress-kit": "^0.0.3",
+    "cipher-kit": "^0.0.9",
+    "compress-kit": "^0.0.4",
     "jsonwebtoken": "^9.0.2",
     "jwks-rsa": "^3.2.0",
     "modern-cookies": "^1.0.0",
