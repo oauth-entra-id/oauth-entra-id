@@ -1,22 +1,20 @@
+<div align="center">
+<img src="https://github.com/oauth-entra-id/oauth-entra-id/blob/main/assets/banner.svg" align="center" alt="banner" />
+
+<h1 align="center" style="font-weight:900;">oauth-entra-id</h1>
+
 <p align="center">
-  <img src="https://github.com/oauth-entra-id/oauth-entra-id/blob/main/assets/banner.svg" align="center" alt="banner" />
-
-  <h1 align="center" style="font-weight:900;">oauth-entra-id</h1>
-
-  <p align="center">
-    A secure, performant, and feature-rich</br>
-    OAuth 2.0 integration for Microsoft Entra ID <br/>
-    fully abstracted and production-ready.
-  </p>
+  A Secure, Performant, and Feature-Rich <br/>
+  OAuth 2.0 Integration for Microsoft Entra ID<br/>
+  Fully Abstracted and Production-Ready.
 </p>
 
-<p align="center">
 <a href="https://opensource.org/licenses/MIT" rel="nofollow"><img src="https://img.shields.io/github/license/oauth-entra-id/oauth-entra-id?color=DC343B" alt="License"></a>
 <a href="https://www.npmjs.com/package/oauth-entra-id" rel="nofollow"><img src="https://img.shields.io/npm/v/oauth-entra-id?color=0078D4" alt="npm version"></a>
 <a href="https://www.npmjs.com/package/oauth-entra-id" rel="nofollow"><img src="https://img.shields.io/npm/dy/oauth-entra-id.svg?color=03C03C" alt="npm downloads"></a>
 <a href="https://github.com/oauth-entra-id/oauth-entra-id" rel="nofollow"><img src="https://img.shields.io/github/stars/oauth-entra-id/oauth-entra-id" alt="stars"></a>
 
-</p>
+</div>
 
 ## About 📖
 
@@ -57,14 +55,14 @@ This is a walk-through guide that will help you integrate the OAuth 2.0 flow wit
 
 1. [Install](#installation-) the package on your server.
 2. Configure CORS on your server to allow requests with credentials.
-3. Configure your Entra ID as shown in the [Azure Portal Setup](#azure-portal-setup-).
+3. Configure your Entra ID as shown in the [Azure Portal Setup](#azure-portal-setup-️).
 4. Integrate the package into your application.
    - If you use Express, use `oauth-entra-id/express` sub-path for cookie-based authentication, see [Express Usage](#express-usage-).
    - If you use NestJS, use `oauth-entra-id/nestjs` sub-path for cookie-based authentication, see [NestJS Usage](#nestjs-usage-).
    - If you use another framework or you want to use bearer tokens, you can use the core package directly, see [Core Usage](#core-usage-).
    - If you have a B2B only server with unencrypted JWT tokens, you can use the `LiteProvider` from the core package.
-5. Check out how the [Architecture](#architecture-) should look like, and there are some advanced [Examples](#demo-apps-) you can follow.
-6. Configure `OAuthConfig` according to your application needs, see [Configuration](#configuration-) for more details.
+5. Check out how the [Architecture](#architecture-️) should look like, and there are some advanced [Examples](#demo-apps-) you can follow.
+6. Configure `OAuthConfig` according to your application needs, see [Configuration](#configuration-️) for more details.
 7. Test your server whether the authentication endpoint sends back a URL, then visit this URL and check if it completes your authentication flow, you should have 2 cookies `at-<client-id>` and `rt-<client-id>` these are your access and refresh tokens.
 8. Create a protected endpoint that will fetch the user info. If the user is authenticated, the data will be sent, otherwise it will return unauthorized (Make sure you handle correctly `OAuthError` in your server). That's how you would check if a user is authenticated.
 
