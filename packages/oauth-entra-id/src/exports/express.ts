@@ -108,7 +108,7 @@ export function handleLogout() {
  * Route handler that processes on-behalf-of requests to obtain an access token for a service principal.
  *
  * ### Body:
- * - `serviceNames` - An array of service names for which the access token is requested.
+ * - `services` - An array of service names for which the access token is requested.
  * - `azureId` (optional) - Azure configuration ID to use, relevant if multiple Azure configurations (Defaults to the first one).
  *
  * @throws {OAuthError} if there is any issue.

@@ -1,7 +1,7 @@
 import { zValidator } from '@hono/zod-validator';
 import { Hono } from 'hono';
 import { deleteCookie, setCookie } from 'hono/cookie';
-import { z } from 'zod/v4';
+import { z } from 'zod';
 import { oauthProvider } from '~/oauth';
 
 const zSchemas = {
@@ -46,7 +46,7 @@ authRouter.post('/callback', zValidator('form', zSchemas.callback), async (c) =>
 
   setCookie(c, accessToken.name, accessToken.value, accessToken.options);
   if (refreshToken) setCookie(c, refreshToken.name, refreshToken.value, refreshToken.options);
-  return c.redirect(frontendUrl);
+  return c.redirect(frontendUrl, 303);
 });
 
 authRouter.post('/logout', zValidator('json', zSchemas.logout), async (c) => {

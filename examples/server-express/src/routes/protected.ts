@@ -1,7 +1,7 @@
 import axios from 'axios';
 import express, { type Router } from 'express';
 import { expressOAuthProvider, handleOnBehalfOf } from 'oauth-entra-id/express';
-import { z } from 'zod/v4';
+import { z } from 'zod';
 import { serversMap } from '~/env';
 import { HttpException } from '~/error/HttpException';
 import { generateRandomPokemon } from '~/utils/generate';

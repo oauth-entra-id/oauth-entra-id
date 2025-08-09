@@ -54,7 +54,7 @@ export async function $verifyJwt({
       status: 401,
     });
 
-  if (tenantId !== azure.tenantId) {
+  if (azure.tenantId !== 'common' && tenantId !== azure.tenantId) {
     return $err({
       msg: 'Unauthorized',
       desc: `Invalid tenant ID (tid) claim, expected: ${azure.tenantId}, got: ${tenantId}`,

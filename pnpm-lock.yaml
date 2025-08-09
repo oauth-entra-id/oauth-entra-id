@@ -362,11 +362,11 @@ importers:
         specifier: ^3.7.0
         version: 3.7.0
       cipher-kit:
-        specifier: ^0.0.9
-        version: 0.0.9
+        specifier: ^0.0.10
+        version: 0.0.10
       compress-kit:
-        specifier: ^0.0.4
-        version: 0.0.4
+        specifier: ^0.0.5
+        version: 0.0.5
       express:
         specifier: '>=4.21.0'
         version: 5.1.0
@@ -377,8 +377,8 @@ importers:
         specifier: ^3.2.0
         version: 3.2.0
       modern-cookies:
-        specifier: ^1.0.0
-        version: 1.0.0(express@5.1.0)
+        specifier: ^1.0.1
+        version: 1.0.1(express@5.1.0)
       zod:
         specifier: ^4.0.15
         version: 4.0.15
@@ -2163,8 +2163,8 @@ packages:
     resolution: {integrity: sha512-rNjApaLzuwaOTjCiT8lSDdGN1APCiqkChLMJxJPWLunPAt5fy8xgU9/jNOchV84wfIxrA0lRQB7oCT8jrn/wrQ==}
     engines: {node: '>=6.0'}
 
-  cipher-kit@0.0.9:
-    resolution: {integrity: sha512-0ytgFzEZoBHoJwe7PIi7owtK5CvOq/MLNzGeQeJYjG258uEVEt17fHlm0GoxZ9lJw1x3mjcTDEbkkEhNP2lM1g==}
+  cipher-kit@0.0.10:
+    resolution: {integrity: sha512-5mnTXA/p20Gd5vyw8y0OONp4zPtSSV30jZoIPDfybBpI8OEU0DINfFMAuW0UDYW3LUYK5HFAdQiREDMCgpf54w==}
 
   class-transformer@0.5.1:
     resolution: {integrity: sha512-SQa1Ws6hUbfC98vKGxZH3KFY0Y1lm5Zm0SY8XX9zbK7FJCyVEac3ATW0RIpwzW+oOfmHE5PMPufDG9hCfoEOMw==}
@@ -2221,8 +2221,8 @@ packages:
     resolution: {integrity: sha512-bKw/r35jR3HGt5PEPm1ljsQQGyCrR8sFGNiN5L+ykDHdpO8Smxkrkla9Yi6NkQyUrb8V54PGhfMs6NrIwtxtdw==}
     engines: {node: '>= 6'}
 
-  compress-kit@0.0.4:
-    resolution: {integrity: sha512-d+hwThkUdEmd+CHXrzcJfAu/yljf3kz4Qo7xu3asYcW5hSIbAi4bCIvMAUkWrRD+tpQOaa8Qyz7wPECCvV8ESg==}
+  compress-kit@0.0.5:
+    resolution: {integrity: sha512-vxVyCc4Uw9fd8Zw/qRFcnJwjWb8LaCxKu7shi7mtdzeygD6px1KWdWh0sewmYnIHRuSuB6dkcUgJbXTlNDg5Bg==}
 
   concat-map@0.0.1:
     resolution: {integrity: sha512-/Srv4dswyQNBfohGpz9o6Yb3Gz3SrUDqBH5rTuhGR7ahtlbYKnVxw2bCFMRljaA7EXHaXZ8wsHdodFvbkhKmqg==}
@@ -3090,8 +3090,8 @@ packages:
   mlly@1.7.4:
     resolution: {integrity: sha512-qmdSIPC4bDJXgZTCR7XosJiNKySV7O215tsPtDN9iEO/7q/76b/ijtgRu/+epFXSJhijtTCCGp3DWS549P3xKw==}
 
-  modern-cookies@1.0.0:
-    resolution: {integrity: sha512-LAeGCGnr7ywAMPa3t/xW6ivoAszTZtiVtGWMxuQBrUkG1CMoNU9e56D9AIU/SwSKdeG8paMyLjuWfhjUl4yCJA==}
+  modern-cookies@1.0.1:
+    resolution: {integrity: sha512-5MNfIJZ7QVwWG9B/K5zW75p2wVr7QJhKX8hGcM93kp0b2YkgSbEUJsSuAiXxaJyk5oK8tr89BQ2W64kHOSoG/w==}
     peerDependencies:
       express: '>=4.21.0'
     peerDependenciesMeta:
@@ -5979,7 +5979,7 @@ snapshots:
 
   chrome-trace-event@1.0.4: {}
 
-  cipher-kit@0.0.9: {}
+  cipher-kit@0.0.10: {}
 
   class-transformer@0.5.1: {}
 
@@ -6033,7 +6033,7 @@ snapshots:
       has-own-prop: 2.0.0
       repeat-string: 1.6.1
 
-  compress-kit@0.0.4:
+  compress-kit@0.0.5:
     dependencies:
       pako: 2.1.0
 
@@ -6884,7 +6884,7 @@ snapshots:
       pkg-types: 1.3.1
       ufo: 1.6.1
 
-  modern-cookies@1.0.0(express@5.1.0):
+  modern-cookies@1.0.1(express@5.1.0):
     dependencies:
       cookie: 1.0.2
     optionalDependencies:

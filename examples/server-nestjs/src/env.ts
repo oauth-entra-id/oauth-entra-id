@@ -1,6 +1,6 @@
 /** biome-ignore-all lint/style/noProcessEnv: env.ts file */
 import dotenv from 'dotenv';
-import { z } from 'zod/v4';
+import { z } from 'zod';
 
 dotenv.config({ path: '../../.env' });
 if (!process.env.NODE_ENV) dotenv.config();

@@ -8,7 +8,7 @@ export function $getCookieOptions(params: {
   sameSite: boolean;
   timeUnit: 'sec' | 'ms';
   atExp: number;
-  rtExp?: number;
+  rtExp: number;
 }): BaseCookieOptions {
   const timeFrame = params.timeUnit === 'sec' ? 1 : 1000;
   const baseOptions = {
@@ -19,19 +19,9 @@ export function $getCookieOptions(params: {
   } as const;
 
   return {
-    accessTokenOptions: {
-      ...baseOptions,
-      maxAge: params.atExp * timeFrame,
-    },
-    refreshTokenOptions: {
-      ...baseOptions,
-      maxAge: params.rtExp ?? 0 * timeFrame,
-    },
-    deleteTokenOptions: {
-      ...baseOptions,
-      sameSite: params.secure ? 'none' : undefined,
-      maxAge: 0,
-    },
+    accessTokenOptions: { ...baseOptions, maxAge: params.atExp * timeFrame },
+    refreshTokenOptions: { ...baseOptions, maxAge: params.rtExp * timeFrame },
+    deleteTokenOptions: { ...baseOptions, maxAge: 0 },
   } as const;
 }
 

@@ -1,7 +1,7 @@
 import { ConfidentialClientApplication, CryptoProvider } from '@azure/msal-node';
 import { JwksClient } from 'jwks-rsa';
-import type { z } from 'zod/v4';
-import { $err, $ok, OAuthError, type Result } from '~/error';
+import type { z } from 'zod';
+import { $err, $ok, $stringErr, OAuthError, type Result } from '~/error';
 import type {
   AccessTokenName,
   Azure,
@@ -18,7 +18,7 @@ import type {
 } from '~/types';
 import { $getCookieNames, $getCookieOptions } from './cookie-options';
 import { $newSecretKeys } from './encrypt';
-import { $prettyErr, type zAzure, zConfig, zJwtClientConfig } from './zod';
+import { type zAzure, zConfig, zJwtClientConfig } from './zod';
 
 export function $oauthConfig(configuration: OAuthConfig): Result<{
   azures: NonEmptyArray<Azure>;
@@ -32,21 +32,23 @@ export function $oauthConfig(configuration: OAuthConfig): Result<{
   settings: OAuthSettings;
 }> {
   const { data: config, error: configError } = zConfig.safeParse(configuration);
-  if (configError) {
-    return $err({ msg: 'Invalid config', desc: `Failed zConfig schema: ${$prettyErr(configError)}`, status: 500 });
-  }
+  if (configError) return $err({ msg: 'Invalid config', desc: $stringErr(configError), status: 500 });
 
   const frontendUrls = config.frontendUrl as NonEmptyArray<string>;
-  const frontendWhitelist = new Set(frontendUrls.map((url) => new URL(url).host));
-  const serverHost = new URL(config.serverCallbackUrl).host;
+
+  const frontUrlObjects = frontendUrls.map((url) => new URL(url));
+  const serverUrlObject = new URL(config.serverCallbackUrl);
+
+  const frontendHosts = new Set(frontUrlObjects.map((url) => url.host));
+  const serverHost = serverUrlObject.host;
 
   const { cookies } = config.advanced;
   const baseCookieOptions = $getCookieOptions({
     timeUnit: cookies.timeUnit,
     atExp: cookies.accessTokenExpiry,
     rtExp: cookies.refreshTokenExpiry,
-    secure: !cookies.disableSecure && [serverHost, ...frontendWhitelist].every((url) => url.startsWith('https')),
-    sameSite: !cookies.disableSameSite && frontendWhitelist.size === 1 ? frontendWhitelist.has(serverHost) : false,
+    secure: !cookies.disableSecure && [serverUrlObject, ...frontUrlObjects].every((url) => url.protocol === 'https:'),
+    sameSite: !cookies.disableSameSite && frontendHosts.size === 1 ? frontendHosts.has(serverHost) : false,
   });
 
   try {
@@ -64,7 +66,7 @@ export function $oauthConfig(configuration: OAuthConfig): Result<{
           secure: baseCookieOptions.accessTokenOptions.secure,
           sameSite: baseCookieOptions.accessTokenOptions.sameSite,
           atExp: config.advanced.cookies.accessTokenExpiry,
-          serverHost: serverHost,
+          serverUrlObject: serverUrlObject,
         });
 
         const cookieNames = $getCookieNames(azure.clientId, baseCookieOptions.accessTokenOptions.secure);
@@ -143,7 +145,7 @@ export function $oauthConfig(configuration: OAuthConfig): Result<{
     return $ok({
       azures: azures,
       frontendUrls: frontendUrls,
-      frontendWhitelist: frontendWhitelist,
+      frontendWhitelist: frontendHosts,
       serverCallbackUrl: config.serverCallbackUrl,
       baseCookieOptions: baseCookieOptions,
       encryptionKeys: encryptionKeys,
@@ -155,7 +157,7 @@ export function $oauthConfig(configuration: OAuthConfig): Result<{
     if (error instanceof OAuthError) return $err(error);
     return $err({
       msg: 'Failed to create Azure configurations',
-      desc: `Error creating Azure configurations: ${error instanceof Error ? error.message : typeof error === 'string' ? error : String(error)}`,
+      desc: `OAuth Provider Constructor - ${$stringErr(error)}`,
       status: 500,
     });
   }
@@ -166,13 +168,7 @@ export function $jwtClientConfig(config: LiteConfig): Result<{
   jwksClient: JwksClient;
 }> {
   const { data: parsedConfig, error: configError } = zJwtClientConfig.safeParse(config);
-  if (configError) {
-    return $err({
-      msg: 'Invalid config',
-      desc: `Failed zJwtClientConfig schema: ${$prettyErr(configError)}`,
-      status: 500,
-    });
-  }
+  if (configError) return $err({ msg: 'Invalid config', desc: $stringErr(configError), status: 500 });
 
   const { jwksClient, error: jwksError } = $createJwks(parsedConfig.azure.tenantId);
   if (jwksError) return $err(jwksError);
@@ -209,7 +205,7 @@ export function $jwtClientConfig(config: LiteConfig): Result<{
     if (error instanceof OAuthError) return $err(error);
     return $err({
       msg: 'Failed to create Azure configuration',
-      desc: `Error creating Azure configuration for clientId ${parsedConfig.azure.clientId} and tenantId ${parsedConfig.azure.tenantId}: ${error instanceof Error ? error.message : typeof error === 'string' ? error : String(error)}`,
+      desc: `OAuth Lite Provider Constructor - ${$stringErr(error)}`,
       status: 500,
     });
   }
@@ -226,11 +222,7 @@ function $createJwks(tenantId: string): Result<{ jwksClient: JwksClient }> {
       }),
     });
   } catch (error) {
-    return $err({
-      msg: 'Failed to create JWKS client',
-      desc: `Error creating JWKS client for tenant ${tenantId}: ${error instanceof Error ? error.message : typeof error === 'string' ? error : String(error)}`,
-      status: 500,
-    });
+    return $err({ msg: 'Failed to create JWKS client', desc: $stringErr(error), status: 500 });
   }
 }
 
@@ -250,7 +242,7 @@ function $createCca(params: {
   } catch (error) {
     throw new OAuthError({
       msg: 'Failed to create Confidential Client Application',
-      desc: `Error creating Confidential Client Application for clientId ${params.clientId} and tenantId ${params.tenantId}: ${error instanceof Error ? error.message : typeof error === 'string' ? error : String(error)}`,
+      desc: $stringErr(error),
       status: 500,
     });
   }
@@ -282,19 +274,20 @@ function $getObo({
   secure,
   sameSite,
   atExp,
-  serverHost,
+  serverUrlObject,
 }: {
   oboServices: z.infer<typeof zAzure>['downstreamServices'];
   secure: boolean;
   sameSite: 'strict' | 'none' | undefined;
   atExp: number;
-  serverHost: string;
+  serverUrlObject: URL;
 }): { map: Map<string, OboService> | undefined; names: NonEmptyArray<string> | undefined } {
   if (!oboServices) return { map: undefined, names: undefined };
 
   const map = new Map<string, OboService>(
     oboServices.map((service) => {
-      const serviceUrlHosts = new Set(service.serviceUrl.map((url) => new URL(url).host));
+      const serviceUrlObjects = service.serviceUrl.map((url) => new URL(url));
+      const serviceUrlHosts = new Set(serviceUrlObjects.map((url) => url.host));
       return [
         service.serviceName,
         {
@@ -302,8 +295,8 @@ function $getObo({
           scope: service.scope,
           encryptionKey: service.encryptionKey,
           cryptoType: service.cryptoType,
-          isSecure: secure && service.serviceUrl.every((url) => url.startsWith('https')),
-          isSamesite: sameSite === 'strict' && serviceUrlHosts.size === 1 && serviceUrlHosts.has(serverHost),
+          isSecure: secure && [serverUrlObject, ...serviceUrlObjects].every((url) => url.protocol === 'https:'),
+          isSamesite: sameSite === 'strict' && serviceUrlHosts.size === 1 && serviceUrlHosts.has(serverUrlObject.host),
           atExp: service.accessTokenExpiry ?? atExp,
         },
       ];

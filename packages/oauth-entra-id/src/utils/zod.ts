@@ -1,9 +1,9 @@
 import { ENCRYPTION_REGEX } from 'cipher-kit';
 import { COMPRESSION_REGEX } from 'compress-kit';
-import { type ZodError, z } from 'zod/v4';
+import { z } from 'zod';
 
 export function $isStr(value: unknown): value is string {
-  return (value !== null || value !== undefined) && typeof value === 'string' && value.trim().length > 0;
+  return value !== null && value !== undefined && typeof value === 'string' && value.trim().length > 0;
 }
 
 export function $isObj(value: unknown): value is Record<string, unknown> {
@@ -16,15 +16,6 @@ export function $isObj(value: unknown): value is Record<string, unknown> {
 }
 
 export const base64urlWithDotRegex = /^[A-Za-z0-9._-]+$/;
-
-export const $prettyErr = (error: ZodError): string => {
-  return error.issues
-    .map((issue) => {
-      const path = issue.path.length > 0 ? issue.path.join('.') : 'root';
-      return `${path}: ${issue.message}`;
-    })
-    .join('. ');
-};
 
 export const zStr = z.string().trim();
 export const zUuid = z.uuid();
@@ -126,19 +117,19 @@ export const zAuthParams = z.object({
   nonce: zUuid,
   loginHint: zStr.max(320).optional(),
   prompt: zStr.max(10).optional(),
-  codeVerifier: zStr.max(128),
+  codeVerifier: zStr.max(256),
 });
 
 export const zInjectedData = z.record(zStr, z.any()).optional();
 
-export const zAccessTokenStructure = z.object({
+export const zAtStruct = z.object({
   at: zJwt,
   inj: zStr.max(4096).optional(),
   exp: z.number().int().positive(),
   aid: zUuid,
 });
 
-export const zRefreshTokenStructure = z.object({
+export const zRtStruct = z.object({
   rt: zLooseBase64,
   exp: z.number().int().positive(),
   aid: zUuid,
@@ -149,7 +140,7 @@ export const zMethods = {
     .object({
       loginPrompt: zLoginPrompt.optional(),
       email: zEmail.max(320).optional(),
-      frontendUrl: zUrl.max(4096).optional(),
+      frontendUrl: zUrl.max(2048).optional(),
       azureId: zUuid.optional(),
     })
     .default({}),
@@ -159,7 +150,7 @@ export const zMethods = {
   }),
   getLogoutUrl: z
     .object({
-      frontendUrl: zUrl.max(4096).optional(),
+      frontendUrl: zUrl.max(2048).optional(),
       azureId: zUuid.optional(),
     })
     .default({}),

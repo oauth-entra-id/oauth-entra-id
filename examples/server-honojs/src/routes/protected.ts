@@ -3,7 +3,7 @@ import axios from 'axios';
 import { Hono } from 'hono';
 import { setCookie } from 'hono/cookie';
 import { HTTPException } from 'hono/http-exception';
-import { z } from 'zod/v4';
+import { z } from 'zod';
 import { serversMap } from '~/env';
 import { type ProtectRoute, protectRoute } from '~/middlewares/protect-route';
 import { oauthProvider } from '~/oauth';

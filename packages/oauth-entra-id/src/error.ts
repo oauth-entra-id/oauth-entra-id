@@ -1,3 +1,4 @@
+import { ZodError } from 'zod';
 import { $isObj } from './utils/zod';
 
 export type HttpErrorCodes = 400 | 401 | 403 | 500;
@@ -82,5 +83,43 @@ export class OAuthError extends Error {
 
     Object.setPrototypeOf(this, new.target.prototype);
     if (Error.captureStackTrace) Error.captureStackTrace(this, this.constructor);
+  }
+}
+
+export function $stringErr(err: unknown): string {
+  switch (true) {
+    case err instanceof OAuthError:
+      return `OAuthError: ${err.message} (${err.statusCode}) - ${err.description}`;
+    case err instanceof ZodError:
+      return `ZodError (Schema Validation): ${err.issues
+        .map((issue) => `${issue.path.length > 0 ? issue.path.join('.') : 'root'}: ${issue.message}`)
+        .join('. ')}`;
+    case err instanceof Error:
+      return `Error ${err.name}: ${err.message} - ${err.stack ?? 'No stack trace available'}`;
+    case typeof err === 'string':
+      return `String Error: ${err}`;
+    case typeof err === 'object' && err !== null:
+      switch (true) {
+        case 'success' in err &&
+          err.success === false &&
+          'error' in err &&
+          typeof err.error === 'object' &&
+          err.error &&
+          'message' in err.error &&
+          'description' in err.error:
+          return `ResultErr Error: ${err.error.message}${'statusCode' in err.error ? ` (${err.error.statusCode})` : ''} - ${err.error.description}`;
+        case 'message' in err && 'description' in err:
+          return `ResultErr Error: ${err.message}${'statusCode' in err ? ` (${err.statusCode})` : ''} - ${err.description}`;
+        case 'msg' in err && 'desc' in err:
+          return `ResultErr Error: ${err.msg}${'status' in err ? ` (${err.status})` : ''} - ${err.desc}`;
+        default:
+          try {
+            return `Object Error: ${JSON.stringify(err, (_, v) => (typeof v === 'bigint' ? v.toString() : v))}`;
+          } catch {
+            return `Object Error: [Unserializable] ${String(err)}`;
+          }
+      }
+    default:
+      return `Unknown Error: ${String(err)}`;
   }
 }

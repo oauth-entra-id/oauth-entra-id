@@ -40,7 +40,7 @@ export const authRouter: FastifyPluginAsyncTypebox = async (app) => {
 
     reply.setCookie(accessToken.name, accessToken.value, accessToken.options);
     if (refreshToken) reply.setCookie(refreshToken.name, refreshToken.value, refreshToken.options);
-    reply.redirect(frontendUrl);
+    reply.redirect(frontendUrl, 303);
   });
 
   app.post('/logout', { schema: { body: tSchemas.logout } }, async (req, reply) => {

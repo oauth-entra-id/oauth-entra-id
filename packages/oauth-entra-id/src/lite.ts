@@ -1,10 +1,10 @@
 import type { JwksClient } from 'jwks-rsa';
-import { $err, $ok, OAuthError, type Result } from './error';
+import { $err, $ok, $stringErr, OAuthError, type Result } from './error';
 import type { B2BApp, B2BResult, JwtPayload, LiteConfig, Metadata, MinimalAzure } from './types';
 import { $jwtClientConfig } from './utils/config';
 import { $mapAndFilter, TIME_SKEW } from './utils/helpers';
 import { $getExpiry, $verifyJwt } from './utils/jwt';
-import { $prettyErr, zJwt, zMethods } from './utils/zod';
+import { zJwt, zMethods } from './utils/zod';
 
 /**
  * Lightweight provider for verifying JWTs and obtaining B2B app tokens.
@@ -60,7 +60,7 @@ export class LiteProvider {
     }
 
     const { data: parsedParams, error: paramsError } = zMethods.tryGetB2BToken.safeParse(params);
-    if (paramsError) return $err({ msg: 'Bad Request', desc: `Failed schema: ${$prettyErr(paramsError)}` });
+    if (paramsError) return $err({ msg: 'Bad Request', desc: $stringErr(paramsError) });
 
     const apps = parsedParams.apps.map((app) => this.azure.b2bApps?.get(app)).filter((app) => !!app);
     if (!apps || apps.length === 0) return $err({ msg: 'Bad Request', desc: 'B2B app not found', status: 400 });
@@ -114,14 +114,8 @@ export class LiteProvider {
 
       return $ok('app' in params ? { result: results[0] as B2BResult } : { results });
     } catch (error) {
-      return $err(
-        error instanceof OAuthError
-          ? error
-          : $err({
-              msg: 'Bad Request',
-              desc: `Failed to get B2B token: ${error instanceof Error ? error.message : typeof error === 'string' ? error : String(error)}`,
-            }),
-      );
+      if (error instanceof OAuthError) return $err(error);
+      return $err({ msg: 'Bad Request', desc: `Failed to get B2B token: ${$stringErr(error)}` });
     }
   }
 }

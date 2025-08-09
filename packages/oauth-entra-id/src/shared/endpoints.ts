@@ -35,7 +35,7 @@ export async function $sharedHandleCallback(req: Request, res: Response) {
 
   setCookie(res, accessToken.name, accessToken.value, accessToken.options);
   if (refreshToken) setCookie(res, refreshToken.name, refreshToken.value, refreshToken.options);
-  res.redirect(frontendUrl);
+  res.redirect(303, frontendUrl);
 }
 
 /**

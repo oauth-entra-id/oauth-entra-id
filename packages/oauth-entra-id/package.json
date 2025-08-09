@@ -1,6 +1,6 @@
 {
   "name": "oauth-entra-id",
-  "version": "4.1.0-beta.1",
+  "version": "4.1.0-beta.3",
   "description": "🛡️ A secure, performant, and feature-rich OAuth 2.0 integration for Microsoft Entra ID — fully abstracted and production-ready.",
   "homepage": "https://github.com/oauth-entra-id/oauth-entra-id",
   "repository": {
@@ -57,8 +57,7 @@
     }
   },
   "files": [
-    "dist",
-    "README.md"
+    "dist"
   ],
   "sideEffects": false,
   "scripts": {
@@ -70,11 +69,11 @@
   },
   "dependencies": {
     "@azure/msal-node": "^3.7.0",
-    "cipher-kit": "^0.0.9",
-    "compress-kit": "^0.0.4",
+    "cipher-kit": "^0.0.10",
+    "compress-kit": "^0.0.5",
     "jsonwebtoken": "^9.0.2",
     "jwks-rsa": "^3.2.0",
-    "modern-cookies": "^1.0.0",
+    "modern-cookies": "^1.0.1",
     "zod": "^4.0.15"
   },
   "peerDependencies": {
