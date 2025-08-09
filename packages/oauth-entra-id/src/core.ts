@@ -106,7 +106,7 @@ export class OAuthProvider {
     ticket: string;
   }> {
     const { data: parsedParams, error: paramsError } = zMethods.getAuthUrl.safeParse(params);
-    if (paramsError) throw new OAuthError({ msg: 'Bad Request', desc: $stringErr(paramsError) });
+    if (paramsError) throw new OAuthError({ msg: 'Invalid Params', desc: $stringErr(paramsError) });
 
     const { azure, error: azureError } = this.$getAzure({
       azureId: parsedParams.azureId,
@@ -186,7 +186,7 @@ export class OAuthProvider {
     msalResponse: MsalResponse;
   }> {
     const { data: parsedParams, error: paramsError } = zMethods.getTokenByCode.safeParse(params);
-    if (paramsError) throw new OAuthError({ msg: 'Bad Request', desc: $stringErr(paramsError) });
+    if (paramsError) throw new OAuthError({ msg: 'Invalid Params', desc: $stringErr(paramsError) });
 
     const { decrypted: state, error: decryptError } = await this.$decryptToken('state', parsedParams.state);
     if (decryptError) throw new OAuthError(decryptError);
@@ -250,7 +250,7 @@ export class OAuthProvider {
     deleteRefreshToken: Cookies['DeleteRefreshToken'];
   }> {
     const { data: parsedParams, error: paramsError } = zMethods.getLogoutUrl.safeParse(params);
-    if (paramsError) throw new OAuthError({ msg: 'Bad Request', desc: $stringErr(paramsError) });
+    if (paramsError) throw new OAuthError({ msg: 'Invalid Params', desc: $stringErr(paramsError) });
 
     const { azure, error: azureError } = this.$getAzure({
       azureId: parsedParams.azureId,
@@ -435,7 +435,7 @@ export class OAuthProvider {
     if (azureError) return $err(azureError);
 
     const { data: dataToInject, error: dataToInjectError } = zInjectedData.safeParse(params.data);
-    if (dataToInjectError) return $err({ msg: 'Bad Request', desc: $stringErr(dataToInjectError) });
+    if (dataToInjectError) return $err({ msg: 'Invalid Params', desc: $stringErr(dataToInjectError) });
 
     const { encrypted, error: encryptError } = await this.$encryptToken('accessToken', rawAccessToken, {
       azureId,
@@ -490,7 +490,7 @@ export class OAuthProvider {
     params: { azureId?: string } & ({ app: string } | { apps: string[] }),
   ): Promise<Result<{ result: B2BResult } | { results: NonEmptyArray<B2BResult> }>> {
     const { data: parsedParams, error: paramsError } = zMethods.tryGetB2BToken.safeParse(params);
-    if (paramsError) return $err({ msg: 'Bad Request', desc: $stringErr(paramsError) });
+    if (paramsError) return $err({ msg: 'Invalid Params', desc: $stringErr(paramsError) });
 
     const { azure, error: azureError } = this.$getAzure({
       azureId: parsedParams.azureId,
@@ -502,7 +502,7 @@ export class OAuthProvider {
 
     const apps = parsedParams.apps.map((app) => azure.b2b?.get(app)).filter((app) => !!app);
     if (!apps || apps.length === 0) {
-      return $err({ msg: 'Bad Request', desc: 'B2B app not found', status: 400 });
+      return $err({ msg: 'Invalid Params', desc: 'B2B app not found', status: 400 });
     }
 
     try {
@@ -586,7 +586,7 @@ export class OAuthProvider {
     },
   ): Promise<{ result: OboResult } | { results: NonEmptyArray<OboResult> }> {
     const { data: parsedParams, error: paramsError } = zMethods.getTokenOnBehalfOf.safeParse(params);
-    if (paramsError) throw new OAuthError({ msg: 'Bad Request', desc: $stringErr(paramsError) });
+    if (paramsError) throw new OAuthError({ msg: 'Invalid Params', desc: $stringErr(paramsError) });
 
     const { azure, error: azureError } = this.$getAzure({
       azureId: parsedParams.azureId,
@@ -600,7 +600,7 @@ export class OAuthProvider {
     const services = parsedParams.services.map((service) => azure.obo?.get(service)).filter((service) => !!service);
 
     if (!services || services.length === 0) {
-      throw new OAuthError({ msg: 'Bad Request', desc: 'OBO service not found', status: 400 });
+      throw new OAuthError({ msg: 'Invalid Params', desc: 'OBO service not found', status: 400 });
     }
 
     const { decrypted: rawAccessToken, error } = await this.$decryptToken('accessToken', parsedParams.accessToken);
@@ -674,7 +674,7 @@ export class OAuthProvider {
     if (fallbackToDefault) return $ok({ azure: this.azures[0] });
 
     return $err({
-      msg: status === 401 ? 'Unauthorized' : 'Bad Request',
+      msg: status === 401 ? 'Unauthorized' : 'Invalid Params',
       desc: 'Azure configuration not found for the given client ID',
       status,
     });
@@ -707,8 +707,9 @@ export class OAuthProvider {
     try {
       const cache = azure.cca.getTokenCache();
       const serializedCache = JSON.parse(cache.serialize());
-      const refreshTokens = serializedCache.RefreshToken;
-      const refreshTokenKey = Object.keys(refreshTokens).find((key) => key.startsWith(msalResponse.uniqueId));
+      const refreshTokens = serializedCache?.RefreshToken ?? {};
+      const keys = typeof refreshTokens === 'object' ? Object.keys(refreshTokens) : [];
+      const refreshTokenKey = keys.find((key) => key.startsWith(msalResponse.uniqueId));
       if (msalResponse.account) await cache.removeAccount(msalResponse.account);
       const refreshToken = refreshTokenKey ? (refreshTokens[refreshTokenKey].secret as string) : undefined;
       return await this.$encryptToken('refreshToken', refreshToken, {

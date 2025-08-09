@@ -152,10 +152,7 @@ export async function $decryptRefreshToken(
   if (rtStructError) return $err({ msg: 'Invalid format', desc: $stringErr(rtStructError) });
 
   if (rtStruct.exp < Date.now()) {
-    return $err({
-      msg: 'Bad request',
-      desc: `Refresh token expired at ${new Date(rtStruct.exp).toISOString()}`,
-    });
+    return $err({ msg: 'Invalid Params', desc: `Refresh token expired at ${new Date(rtStruct.exp).toISOString()}` });
   }
 
   params.$updateSecretKey('refreshToken', newSecretKey);

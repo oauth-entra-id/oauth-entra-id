@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 import type { JwksClient } from 'jwks-rsa';
-import { $err, $ok, type Result } from '~/error';
+import { $err, $ok, $stringErr, type Result } from '~/error';
 import type { JwtPayload, Metadata } from '~/types';
 import { $isStr } from './zod';
 
@@ -46,18 +46,21 @@ export async function $verifyJwt({
   azure: { clientId: string; tenantId: string };
   jwksClient: JwksClient;
 }): Promise<Result<{ payload: JwtPayload; meta: Metadata }>> {
-  const { kid, tenantId, error } = $getKeyId(jwtToken);
-  if (error)
-    return $err({
-      msg: 'Unauthorized',
-      desc: `Key ID extraction error: message: ${error.message}, description: ${error.description}`,
-      status: 401,
-    });
+  const { kid, tenantId, issuer, error } = $getKeyIdAndExtra(jwtToken);
+  if (error) return $err({ msg: 'Unauthorized', desc: `Key ID Extraction - ${$stringErr(error)}`, status: 401 });
 
   if (azure.tenantId !== 'common' && tenantId !== azure.tenantId) {
     return $err({
       msg: 'Unauthorized',
       desc: `Invalid tenant ID (tid) claim, expected: ${azure.tenantId}, got: ${tenantId}`,
+      status: 401,
+    });
+  }
+
+  if (issuer !== `https://login.microsoftonline.com/${tenantId}/v2.0`) {
+    return $err({
+      msg: 'Unauthorized',
+      desc: `Invalid issuer (iss) claim, expected: https://login.microsoftonline.com/${tenantId}/v2.0, got: ${issuer}`,
       status: 401,
     });
   }
@@ -68,7 +71,6 @@ export async function $verifyJwt({
     const decodedJwt = jwt.verify(jwtToken, publicKey, {
       algorithms: ['RS256'],
       audience: azure.clientId,
-      issuer: `https://login.microsoftonline.com/${azure.tenantId}/v2.0`,
       complete: true,
     });
 
@@ -143,29 +145,43 @@ export function $getExpiry(jwtToken: string): Result<{ clientId: string; exp: nu
   return $ok({ clientId, exp });
 }
 
-export function $getKeyId(jwtToken: string): Result<{ kid: string; tenantId: string }> {
+export function $getKeyIdAndExtra(jwtToken: string): Result<{ kid: string; tenantId: string; issuer: string }> {
   const { decodedJwt, error } = $decodeJwt(jwtToken);
   if (error) return $err(error);
 
-  const kid = decodedJwt.header.kid;
-  if (typeof kid !== 'string')
+  try {
+    const kid = decodedJwt.header.kid;
+    if (typeof kid !== 'string')
+      return $err({
+        msg: 'Invalid JWT token',
+        desc: `Invalid key ID (kid) claim, header: ${JSON.stringify(decodedJwt.header)}`,
+      });
+
+    if (typeof decodedJwt.payload === 'string') {
+      return $err({ msg: 'Invalid JWT token', desc: "Couldn't get the JWT payload" });
+    }
+
+    const tenantId = decodedJwt.payload.tid;
+    if (typeof tenantId !== 'string')
+      return $err({
+        msg: 'Invalid JWT token',
+        desc: `Invalid tenant ID (tid) claim, payload: ${JSON.stringify(decodedJwt.payload)}`,
+      });
+
+    const issuer = decodedJwt.payload.iss;
+    if (typeof issuer !== 'string')
+      return $err({
+        msg: 'Invalid JWT token',
+        desc: `Invalid issuer (iss) claim, payload: ${JSON.stringify(decodedJwt.payload)}`,
+      });
+
+    return $ok({ kid, tenantId, issuer });
+  } catch (error) {
     return $err({
       msg: 'Invalid JWT token',
-      desc: `Invalid key ID (kid) claim, header: ${JSON.stringify(decodedJwt.header)}`,
+      desc: `Error extracting key ID (kid), tenant ID (tid), and issuer (iss): ${error instanceof Error ? error.message : String(error)}`,
     });
-
-  if (typeof decodedJwt.payload === 'string') {
-    return $err({ msg: 'Invalid JWT token', desc: "Couldn't get the JWT payload" });
   }
-
-  const tenantId = decodedJwt.payload.tid;
-  if (typeof tenantId !== 'string')
-    return $err({
-      msg: 'Invalid JWT token',
-      desc: `Invalid tenant ID (tid) claim, payload: ${JSON.stringify(decodedJwt.payload)}`,
-    });
-
-  return $ok({ kid, tenantId });
 }
 
 export function $getClientId(jwtToken: string): Result<{ clientId: string }> {

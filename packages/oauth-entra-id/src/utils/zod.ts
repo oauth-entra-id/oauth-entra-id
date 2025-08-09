@@ -112,14 +112,6 @@ export const zState = z.object({
   ticketId: zUuid,
 });
 
-export const zAuthParams = z.object({
-  state: zStr.max(512),
-  nonce: zUuid,
-  loginHint: zStr.max(320).optional(),
-  prompt: zStr.max(10).optional(),
-  codeVerifier: zStr.max(256),
-});
-
 export const zInjectedData = z.record(zStr, z.any()).optional();
 
 export const zAtStruct = z.object({

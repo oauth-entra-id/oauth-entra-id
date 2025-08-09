@@ -39,12 +39,10 @@ Designed to be framework-agnostic and developer-friendly, it eliminates the comp
 - 🪶 **Lite Provider Mode** – Lightweight variant for services that only need JWT verification and B2B token generation.
 - 📱 **Mobile-Ready** – Native app support via secure `ticket` mechanism.
 
-## Getting Started 🚀
-
 ## Installation 🔥
 
 ```bash
-npm install oauth-entra-id
+npm install oauth-entra-id@latest
 ```
 
 Requires:
@@ -52,6 +50,75 @@ Requires:
 - Node.js v16 or higher (We recommend using the latest LTS version)
 - Deno v2 or higher
 - Bun v1.0 or higher
+
+## Zero to Hero Guide 🌟
+
+This is a walk-through guide that will help you integrate the OAuth 2.0 flow with Microsoft Entra ID in your application, using the `oauth-entra-id` package.
+
+1. [Install](#installation-) the package on your server.
+2. Configure CORS on your server to allow requests with credentials.
+3. Configure your Entra ID as shown in the [Azure Portal Setup](#azure-portal-setup-).
+4. Integrate the package into your application.
+   - If you use Express, use `oauth-entra-id/express` sub-path for cookie-based authentication, see [Express Usage](#express-usage-).
+   - If you use NestJS, use `oauth-entra-id/nestjs` sub-path for cookie-based authentication, see [NestJS Usage](#nestjs-usage-).
+   - If you use another framework or you want to use bearer tokens, you can use the core package directly, see [Core Usage](#core-usage-).
+   - If you have a B2B only server with unencrypted JWT tokens, you can use the `LiteProvider` from the core package.
+5. Check out how the [Architecture](#architecture-) should look like, and there are some advanced [Examples](#demo-apps-) you can follow.
+6. Configure `OAuthConfig` according to your application needs, see [Configuration](#configuration-) for more details.
+7. Test your server whether the authentication endpoint sends back a URL, then visit this URL and check if it completes your authentication flow, you should have 2 cookies `at-<client-id>` and `rt-<client-id>` these are your access and refresh tokens.
+8. Create a protected endpoint that will fetch the user info. If the user is authenticated, the data will be sent, otherwise it will return unauthorized (Make sure you handle correctly `OAuthError` in your server). That's how you would check if a user is authenticated.
+
+```tsx
+// Just an example of User data
+const zUser = z.object({
+  uniqueId: z.uuid(),
+  name: z.string(),
+  email: z.email(),
+});
+
+export default function App() {
+  const [user, setUser] = useState<undefined | null | User>();
+
+  const userData = useQuery({
+    queryKey: ['user', server],
+    queryFn: async () => {
+      // You can use axios.create to create an instance with baseUrl and withCredentials
+      const res = await axios.get(`${SERVER_URL}/protected/user-info`, { withCredentials: true });
+      const data = z.object({ user: zUser }).parse(res?.data);
+      return data.user;
+    },
+  });
+
+  useEffect(() => {
+    if (userData.isLoading) return;
+    setUser(userData.data && !userData.error ? userData.data : null);
+  }, [userData.data, userData.isLoading, userData.error, setUser]);
+
+  return (
+    <Layout>
+      {userData.isLoading ? (
+        <Loading />
+      ) : user === null ? (
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          {/* More public routes... */}
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
+      ) : (
+        <Routes>
+          <Route path="/" element={<Home />} />
+          {/* More protected routes... */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      )}
+    </Layout>
+  );
+}
+```
+
+NOTE: You don't have to have login page. If you receive an unauthorized error you can also fetch auth URL and redirect the user directly to Microsoft login URL.
+
+9. Implement login and logout logic, all you have to do is fetch from the server the url and then what it is successful you would do either `window.location.href = <url>` or `window.open(<url>, '_self')`.
 
 ## Azure Portal Setup 🛠️
 
@@ -98,7 +165,7 @@ export interface OAuthConfig {
     downstreamServices?: Array<{
       serviceName: string; // Unique identifier of the downstream service
       scope: string; // Usually ends with `/.default`
-      serviceUrl: string | string[]; // URL(s) of the downstream service
+      serviceUrl: string | string[]; // URL(s) of the downstream service, Make sure to include http:// or https://
       encryptionKey: string; // 32 character encryption key for the service
       cryptoType?: 'node' | 'web-api'; // Defaults to 'node'
       accessTokenExpiry?: number; // Defaults to 1 hour
@@ -110,8 +177,8 @@ export interface OAuthConfig {
       scope: string; // Usually ends with `/.default`
     }>;
   }>;
-  frontendUrl: string | string[]; // Allowed frontend redirect URL(s)
-  serverCallbackUrl: string; // Server callback URL (must match the one registered in Azure)
+  frontendUrl: string | string[]; // Allowed frontend redirect URL(s), Make sure to include http:// or https://
+  serverCallbackUrl: string; // Server callback URL (must match the one registered in Azure), Make sure to include http:// or https://
   encryptionKey: string; // 32 character encryption key for the access and refresh tokens
 
   // Optional advanced settings
@@ -146,18 +213,7 @@ Both `ResultErr` and `OAuthError` give you the following properties:
 - `statusCode` - The HTTP status code for the error, useful for API responses.
 - `description` - A detailed description of the error, useful for debugging. Don't show this to the user, to avoid leaking sensitive information.
 
-## Usage 🎯
-
-The package provides three main modules for different frameworks:
-
-- `oauth-entra-id` - Core package for any TS/JS framework (e.g., Express, NestJS, HonoJS, Fastify, etc.). jump to **[Core](#usage---core-)**.
-- `oauth-entra-id/express` - For Express.js applications (recommended). Jump to **[Express](#usage---express-)**.
-- `oauth-entra-id/nestjs` - For NestJS applications (recommended). Jump to **[NestJS](#usage---nestjs-)**.
-
-There is another provider called `LiteProvider`, that you can import from the core package. This class has 2 methods `verifyJwt` and `tryGetB2BToken`(which is the same as the normal method).
-You can use this provider if your server is a B2B only server with unencrypted JWT tokens, and you don't need the full OAuth 2.0 flow.
-
-## Usage - Core 🧱
+## Core Usage 🧱
 
 The core package provides the flexibility to integrate OAuth 2.0 with Entra ID in any Node.js framework.
 
@@ -506,7 +562,7 @@ app.post('/on-behalf-of', protectRoute, async (c) => {
 });
 ```
 
-## Usage - Express 📫
+## Express Usage 📫
 
 When using the package with Express, you should import from `oauth-entra-id/express` to easily integrate OAuth2.0.
 
@@ -600,11 +656,9 @@ protectedRouter.use(protectRoute());
 protectedRouter.get('/user-info', (req: Request, res: Response) => {
   res.status(200).json({ message: 'Protected route :)', user: req.userInfo });
 });
-
-protectedRoute.post('/on-behalf-of', sharedHandleOnBehalfOf());
 ```
 
-## Usage - NestJS 🪺
+## NestJS Usage 🪺
 
 When using the package with NestJS, you should import from `oauth-entra-id/nestjs` to easily integrate OAuth2.0.
 
@@ -704,7 +758,6 @@ Now you can use the `ProtectRoute` to protect your routes and get the user infor
 
 ```typescript
 import type { Request } from 'express';
-import { handleOnBehalfOf } from 'oauth-entra-id/nestjs';
 import { Controller, Get, UseGuards, Req } from '@nestjs/common';
 import { ProtectRoute } from '../guards/protect-route.guard';
 
@@ -716,11 +769,6 @@ export class ProtectedController {
   @Get('user-info')
   getUserInfo(@Req() req: Request) {
     return { message: 'Protected route :)', user: req.userInfo };
-  }
-
-  @Post('on-behalf-of')
-  async onBehalfOf(@Req() req: Request, @Res() res: Response) {
-    await handleOnBehalfOf(req, res);
   }
 }
 ```
