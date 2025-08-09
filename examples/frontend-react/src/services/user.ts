@@ -1,4 +1,4 @@
-import { z } from 'zod/v4';
+import { z } from 'zod';
 import { axiosFetch } from '~/lib/axios';
 import { zStr } from '~/lib/zod';
 import { type Color, useServerStore } from '~/stores/server-store';

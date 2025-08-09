@@ -24,11 +24,7 @@ export async function protectRoute(req: FastifyRequest, reply: FastifyReply) {
 
     return;
   }
-  throw new OAuthError('jwt_error', {
-    error: 'Unauthorized',
-    description: firstError ?? 'Tokens are invalid or missing',
-    status: 401,
-  });
+  throw new OAuthError({ msg: 'Unauthorized', desc: firstError ?? 'Tokens are invalid or missing', status: 401 });
 }
 
 async function checkB2BToken(req: FastifyRequest): Promise<boolean> {

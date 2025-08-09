@@ -74,15 +74,6 @@ export interface Endpoints {
   };
 }
 
-export interface CookieParserOptions {
-  httpOnly?: boolean;
-  secure?: boolean;
-  sameSite?: 'strict' | 'lax' | 'none';
-  maxAge?: number;
-  path?: string;
-  domain?: string;
-}
-
 declare global {
   namespace Express {
     export interface Request {

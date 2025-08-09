@@ -10,10 +10,7 @@ import { HttpException } from './error/HttpException';
 import { routesRouter } from './routes';
 
 export default async function createApp() {
-  const app = Fastify({
-    logger: true,
-    trustProxy: env.NODE_ENV === 'production' && env.PROXIES ? env.PROXIES : false,
-  }).withTypeProvider<TypeBoxTypeProvider>();
+  const app = Fastify({ logger: true }).withTypeProvider<TypeBoxTypeProvider>();
 
   await app.register(cors, {
     origin: [env.SERVER_URL, env.REACT_FRONTEND_URL],

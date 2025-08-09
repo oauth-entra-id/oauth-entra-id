@@ -1,10 +1,10 @@
 import type { JwksClient } from 'jwks-rsa';
-import { $err, $ok, OAuthError, type Result } from './error';
+import { $err, $ok, $stringErr, OAuthError, type Result } from './error';
 import type { B2BApp, B2BResult, JwtPayload, LiteConfig, Metadata, MinimalAzure } from './types';
 import { $jwtClientConfig } from './utils/config';
-import { $getExpiry, $verifyJwt } from './utils/crypto/jwt';
 import { $mapAndFilter, TIME_SKEW } from './utils/helpers';
-import { $prettyErr, zJwt, zMethods } from './utils/zod';
+import { $getExpiry, $verifyJwt } from './utils/jwt';
+import { zJwt, zMethods } from './utils/zod';
 
 /**
  * Lightweight provider for verifying JWTs and obtaining B2B app tokens.
@@ -34,9 +34,7 @@ export class LiteProvider {
    */
   async $verifyJwt(jwtToken: string | undefined): Promise<Result<{ payload: JwtPayload; meta: Metadata }>> {
     const { data: token, error } = zJwt.safeParse(jwtToken);
-    if (error) {
-      return $err('jwt_error', { error: 'Unauthorized', description: 'Access token is required', status: 401 });
-    }
+    if (error) return $err({ msg: 'Unauthorized', desc: 'Access token is required', status: 401 });
     return await $verifyJwt({ jwtToken: token, azure: this.azure, jwksClient: this.jwksClient });
   }
 
@@ -58,16 +56,14 @@ export class LiteProvider {
     params: { app: string } | { apps: string[] },
   ): Promise<Result<{ result: B2BResult } | { results: B2BResult[] }>> {
     if (!this.azure.b2bApps || !this.azure.cca) {
-      return $err('misconfiguration', { error: 'B2B apps not configured', status: 500 });
+      return $err({ msg: 'Invalid configuration', desc: 'B2B apps are not configured', status: 500 });
     }
 
     const { data: parsedParams, error: paramsError } = zMethods.tryGetB2BToken.safeParse(params);
-    if (paramsError) return $err('bad_request', { error: 'Invalid params', description: $prettyErr(paramsError) });
+    if (paramsError) return $err({ msg: 'Invalid Params', desc: $stringErr(paramsError) });
 
     const apps = parsedParams.apps.map((app) => this.azure.b2bApps?.get(app)).filter((app) => !!app);
-    if (!apps || apps.length === 0) {
-      return $err('bad_request', { error: 'Invalid params', description: 'B2B app not found' });
-    }
+    if (!apps || apps.length === 0) return $err({ msg: 'Invalid Params', desc: 'B2B app not found', status: 400 });
 
     try {
       const results = await $mapAndFilter(apps, async (app) => {
@@ -113,20 +109,13 @@ export class LiteProvider {
       });
 
       if (!results || results.length === 0) {
-        return $err('internal', { error: 'Failed to get B2B token', status: 500 });
+        return $err({ msg: 'Invalid Params', desc: 'Failed to get B2B token' });
       }
 
       return $ok('app' in params ? { result: results[0] as B2BResult } : { results });
-    } catch (err) {
-      return $err(
-        err instanceof OAuthError
-          ? err
-          : $err('bad_request', {
-              error: 'Failed to get B2B token',
-              description: err instanceof Error ? err.message : String(err),
-              status: 500,
-            }),
-      );
+    } catch (error) {
+      if (error instanceof OAuthError) return $err(error);
+      return $err({ msg: 'Invalid Params', desc: `Failed to get B2B token: ${$stringErr(error)}` });
     }
   }
 }

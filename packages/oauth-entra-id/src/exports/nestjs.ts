@@ -12,7 +12,9 @@ import { $sharedMiddleware } from '~/shared/middleware';
 import type { CallbackFunction } from '~/shared/types';
 import type { OAuthConfig } from '~/types';
 
-const ERROR_MESSAGE = 'Make sure you used NestJS export and you used authConfig';
+const ERROR_MSG = 'authConfig not initialized or incorrect usage of NestJS handlers';
+const ERROR_DESC =
+  'Ensure you have called `authConfig(config)` during app setup before endpoints, and are importing all functions from the NestJS-specific entry point.';
 
 export let nestjsOAuthProvider: OAuthProvider = undefined as unknown as OAuthProvider;
 
@@ -48,13 +50,16 @@ export function authConfig(config: OAuthConfig) {
 export async function handleAuthentication(req: Request, res: Response) {
   try {
     if (!req.oauthProvider || req.serverType !== 'nestjs') {
-      throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE, status: 500 });
+      throw new OAuthError({ msg: ERROR_MSG, desc: ERROR_DESC, status: 500 });
     }
     await $sharedHandleAuthentication(req, res);
   } catch (err) {
     if (err instanceof OAuthError) throw err;
-    if (err instanceof Error) throw new OAuthError('internal', { error: err.message });
-    throw new OAuthError('internal', { error: 'Something went wrong', description: err as string });
+    throw new OAuthError({
+      msg: 'Something went wrong...',
+      desc: err instanceof Error ? err.message : typeof err === 'string' ? err : String(err),
+      status: 500,
+    });
   }
 }
 
@@ -70,13 +75,13 @@ export async function handleAuthentication(req: Request, res: Response) {
 export async function handleCallback(req: Request, res: Response) {
   try {
     if (!req.oauthProvider || req.serverType !== 'nestjs') {
-      throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE, status: 500 });
+      throw new OAuthError({ msg: ERROR_MSG, desc: ERROR_DESC, status: 500 });
     }
     await $sharedHandleCallback(req, res);
   } catch (err) {
     if (err instanceof OAuthError) throw err;
-    if (err instanceof Error) throw new OAuthError('internal', { error: err.message });
-    throw new OAuthError('internal', { error: 'Something went wrong', description: err as string });
+    if (err instanceof Error) throw new OAuthError({ msg: 'internal', desc: err.message, status: 500 });
+    throw new OAuthError({ msg: 'internal', desc: 'Something went wrong', status: 500 });
   }
 }
 
@@ -90,13 +95,16 @@ export async function handleCallback(req: Request, res: Response) {
 export async function handleLogout(req: Request, res: Response) {
   try {
     if (!req.oauthProvider || req.serverType !== 'nestjs') {
-      throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE, status: 500 });
+      throw new OAuthError({ msg: ERROR_MSG, desc: ERROR_DESC, status: 500 });
     }
     await $sharedHandleLogout(req, res);
   } catch (err) {
     if (err instanceof OAuthError) throw err;
-    if (err instanceof Error) throw new OAuthError('internal', { error: err.message });
-    throw new OAuthError('internal', { error: 'Something went wrong', description: err as string });
+    throw new OAuthError({
+      msg: 'Something went wrong',
+      desc: err instanceof Error ? err.message : String(err),
+      status: 500,
+    });
   }
 }
 
@@ -104,7 +112,7 @@ export async function handleLogout(req: Request, res: Response) {
  * Route handler that processes on-behalf-of requests to obtain an access token for a service principal.
  *
  * ### Body:
- * - `serviceNames` - An array of service names for which the access token is requested.
+ * - `services` - An array of service names for which the access token is requested.
  * - `azureId` (optional) - Azure configuration ID to use, relevant if multiple Azure configurations (Defaults to the first one).
  *
  * @throws {OAuthError} if there is any issue.
@@ -112,13 +120,16 @@ export async function handleLogout(req: Request, res: Response) {
 export async function handleOnBehalfOf(req: Request, res: Response) {
   try {
     if (!req.oauthProvider || req.serverType !== 'nestjs') {
-      throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE, status: 500 });
+      throw new OAuthError({ msg: ERROR_MSG, desc: ERROR_DESC, status: 500 });
     }
     await $sharedHandleOnBehalfOf(req, res);
   } catch (err) {
     if (err instanceof OAuthError) throw err;
-    if (err instanceof Error) throw new OAuthError('internal', { error: err.message });
-    throw new OAuthError('internal', { error: 'Something went wrong', description: err as string });
+    throw new OAuthError({
+      msg: 'Something went wrong',
+      desc: err instanceof Error ? err.message : String(err),
+      status: 500,
+    });
   }
 }
 
@@ -144,14 +155,17 @@ export async function handleOnBehalfOf(req: Request, res: Response) {
 export async function isAuthenticated(req: Request, res: Response, cb?: CallbackFunction) {
   try {
     if (!req.oauthProvider || req.serverType !== 'nestjs') {
-      throw new OAuthError('misconfiguration', { error: ERROR_MESSAGE, status: 500 });
+      throw new OAuthError({ msg: ERROR_MSG, desc: ERROR_DESC, status: 500 });
     }
     const { userInfo, tryInjectData } = await $sharedMiddleware(req, res);
     if (cb) await cb({ userInfo, tryInjectData });
     return true;
   } catch (err) {
     if (err instanceof OAuthError) throw err;
-    if (err instanceof Error) throw new OAuthError('internal', { error: err.message });
-    throw new OAuthError('internal', { error: 'Something went wrong', description: err as string });
+    throw new OAuthError({
+      msg: 'Something went wrong',
+      desc: err instanceof Error ? err.message : String(err),
+      status: 500,
+    });
   }
 }

@@ -26,11 +26,7 @@ export const protectRoute = createMiddleware<ProtectRoute>(async (c, next) => {
 
     return await next();
   }
-  throw new OAuthError('jwt_error', {
-    error: 'Unauthorized',
-    description: firstError ?? 'Tokens are invalid or missing',
-    status: 401,
-  });
+  throw new OAuthError({ msg: 'Unauthorized', desc: firstError ?? 'Tokens are invalid or missing', status: 401 });
 });
 
 async function checkB2BToken(c: Context): Promise<boolean> {

@@ -1,7 +1,7 @@
 import { HttpException, Injectable } from '@nestjs/common';
 import axios from 'axios';
 import { nestjsOAuthProvider } from 'oauth-entra-id/nestjs';
-import z from 'zod/v4';
+import z from 'zod';
 import { serversMap } from '~/env';
 
 const zB2BResponse = z.object({

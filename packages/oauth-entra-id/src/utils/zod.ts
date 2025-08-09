@@ -1,31 +1,21 @@
-import { type ZodError, z } from 'zod/v4';
+import { ENCRYPTION_REGEX } from 'cipher-kit';
+import { COMPRESSION_REGEX } from 'compress-kit';
+import { z } from 'zod';
 
-export function $isString(value: unknown): value is string {
-  return (value !== null || value !== undefined) && typeof value === 'string' && value.trim().length > 0;
+export function $isStr(value: unknown): value is string {
+  return value !== null && value !== undefined && typeof value === 'string' && value.trim().length > 0;
 }
 
-export function $isPlainObject(value: unknown): value is Record<string, unknown> {
+export function $isObj(value: unknown): value is Record<string, unknown> {
   return (
     typeof value === 'object' &&
     value !== null &&
+    value !== undefined &&
     (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null)
   );
 }
 
 export const base64urlWithDotRegex = /^[A-Za-z0-9._-]+$/;
-export const encryptedWebApiRegex = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.$/;
-export const encryptedNodeRegex = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.$/;
-export const encryptedRegex = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)?\.$/;
-export const compressedRegex = /^[A-Za-z0-9_-]+\.\.$/;
-
-export const $prettyErr = (error: ZodError): string => {
-  return error.issues
-    .map((issue) => {
-      const path = issue.path.length > 0 ? issue.path.join('.') : 'root';
-      return `${path}: ${issue.message}`;
-    })
-    .join('. ');
-};
 
 export const zStr = z.string().trim();
 export const zUuid = z.uuid();
@@ -33,7 +23,7 @@ export const zUrl = z.url();
 export const zEmail = z.email({ pattern: z.regexes.html5Email });
 export const zBase64 = z.base64url();
 export const zLooseBase64 = zStr.regex(base64urlWithDotRegex);
-export const zCompressed = zStr.regex(compressedRegex);
+export const zCompressed = zStr.regex(COMPRESSION_REGEX.GENERAL);
 
 export const zLoginPrompt = z.enum(['email', 'select-account', 'sso']);
 export const zTimeUnit = z.enum(['ms', 'sec']);
@@ -42,7 +32,7 @@ export const zAccessTokenExpiry = z.number().positive();
 export const zRefreshTokenExpiry = z.number().min(3600);
 const zOneOrMoreUrls = z.union([zUrl.max(2048).transform((url) => [url]), z.array(zUrl.max(2048)).min(1)]);
 
-export const zEncrypted = zStr.max(4096).regex(encryptedRegex);
+export const zEncrypted = zStr.max(4096).regex(ENCRYPTION_REGEX.GENERAL);
 export const zJwt = z.jwt().max(4096);
 
 export const zTenantId = z.union([z.literal('common'), zUuid]);
@@ -122,24 +112,16 @@ export const zState = z.object({
   ticketId: zUuid,
 });
 
-export const zAuthParams = z.object({
-  state: zStr.max(512),
-  nonce: zUuid,
-  loginHint: zStr.max(320).optional(),
-  prompt: zStr.max(10).optional(),
-  codeVerifier: zStr.max(128),
-});
-
 export const zInjectedData = z.record(zStr, z.any()).optional();
 
-export const zAccessTokenStructure = z.object({
+export const zAtStruct = z.object({
   at: zJwt,
   inj: zStr.max(4096).optional(),
   exp: z.number().int().positive(),
   aid: zUuid,
 });
 
-export const zRefreshTokenStructure = z.object({
+export const zRtStruct = z.object({
   rt: zLooseBase64,
   exp: z.number().int().positive(),
   aid: zUuid,
@@ -150,7 +132,7 @@ export const zMethods = {
     .object({
       loginPrompt: zLoginPrompt.optional(),
       email: zEmail.max(320).optional(),
-      frontendUrl: zUrl.max(4096).optional(),
+      frontendUrl: zUrl.max(2048).optional(),
       azureId: zUuid.optional(),
     })
     .default({}),
@@ -160,7 +142,7 @@ export const zMethods = {
   }),
   getLogoutUrl: z
     .object({
-      frontendUrl: zUrl.max(4096).optional(),
+      frontendUrl: zUrl.max(2048).optional(),
       azureId: zUuid.optional(),
     })
     .default({}),

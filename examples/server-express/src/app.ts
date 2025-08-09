@@ -14,10 +14,6 @@ import { routesRouter } from './routes';
 export default function createApp(): Application {
   const app = express();
 
-  if (env.NODE_ENV === 'production' && env.PROXIES) {
-    app.set('trust proxy', env.PROXIES);
-  }
-
   app.disable('x-powered-by');
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
@@ -76,11 +72,6 @@ export default function createApp(): Application {
     }),
   );
 
-  if (env.NODE_ENV === 'production') {
-    app.get('/', (_req, res) => {
-      res.sendStatus(200);
-    });
-  }
   app.use(morgan(env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
   app.use(authConfig(oauthConfig));
