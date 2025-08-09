@@ -48,7 +48,7 @@ export function $oauthConfig(configuration: OAuthConfig): Result<{
     atExp: cookies.accessTokenExpiry,
     rtExp: cookies.refreshTokenExpiry,
     secure: !cookies.disableSecure && [serverUrlObject, ...frontUrlObjects].every((url) => url.protocol === 'https:'),
-    sameSite: !cookies.disableSameSite && frontendHosts.size === 1 ? frontendHosts.has(serverHost) : false,
+    sameSite: !cookies.disableSameSite && frontendHosts.size === 1 && frontendHosts.has(serverHost),
   });
 
   try {
