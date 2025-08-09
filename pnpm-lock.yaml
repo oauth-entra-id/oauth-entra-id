@@ -365,11 +365,11 @@ importers:
         specifier: ^3.7.0
         version: 3.7.0
       cipher-kit:
-        specifier: ^1.0.0
-        version: 1.0.0
+        specifier: ^1.0.1
+        version: 1.0.1
       compress-kit:
-        specifier: ^1.0.0
-        version: 1.0.0
+        specifier: ^1.0.1
+        version: 1.0.1
       express:
         specifier: '>=4.21.0'
         version: 5.1.0
@@ -2172,8 +2172,8 @@ packages:
     resolution: {integrity: sha512-rNjApaLzuwaOTjCiT8lSDdGN1APCiqkChLMJxJPWLunPAt5fy8xgU9/jNOchV84wfIxrA0lRQB7oCT8jrn/wrQ==}
     engines: {node: '>=6.0'}
 
-  cipher-kit@1.0.0:
-    resolution: {integrity: sha512-kgEumMZrLXz+qo7KbgDw/bpMyexoYZtIl2fu82aNJcwGRPDoGT4Tl7TfEEaLtZv7Q6ISM4LJViJLLewI6Mz34A==}
+  cipher-kit@1.0.1:
+    resolution: {integrity: sha512-0I+kJEppy+uRl2iNpl4Z4iN8eIGgIBoKsfYfZvjvRECx5dmpFLc7t2a5fXP1Tk/D7duSQWTaSdYvZUVk/ckjpg==}
 
   class-transformer@0.5.1:
     resolution: {integrity: sha512-SQa1Ws6hUbfC98vKGxZH3KFY0Y1lm5Zm0SY8XX9zbK7FJCyVEac3ATW0RIpwzW+oOfmHE5PMPufDG9hCfoEOMw==}
@@ -2230,8 +2230,8 @@ packages:
     resolution: {integrity: sha512-bKw/r35jR3HGt5PEPm1ljsQQGyCrR8sFGNiN5L+ykDHdpO8Smxkrkla9Yi6NkQyUrb8V54PGhfMs6NrIwtxtdw==}
     engines: {node: '>= 6'}
 
-  compress-kit@1.0.0:
-    resolution: {integrity: sha512-JyLFVijTuE32A3qjEwh8YYRn22URqyZjuFvCzS0UHpBGZ35huwWVmqHwE7BubGivw2qq2bJSNBK+5ylvQnsZIQ==}
+  compress-kit@1.0.1:
+    resolution: {integrity: sha512-3PVkFvqh5Mx7Sv/mrshJlraG5Qod8gUByt3O+Ikxlf3zh7GS8SFErwzKNScCPprOlJO0XmEhXNi9aek8Eul6mg==}
 
   concat-map@0.0.1:
     resolution: {integrity: sha512-/Srv4dswyQNBfohGpz9o6Yb3Gz3SrUDqBH5rTuhGR7ahtlbYKnVxw2bCFMRljaA7EXHaXZ8wsHdodFvbkhKmqg==}
@@ -5978,7 +5978,7 @@ snapshots:
 
   chrome-trace-event@1.0.4: {}
 
-  cipher-kit@1.0.0: {}
+  cipher-kit@1.0.1: {}
 
   class-transformer@0.5.1: {}
 
@@ -6032,9 +6032,9 @@ snapshots:
       has-own-prop: 2.0.0
       repeat-string: 1.6.1
 
-  compress-kit@1.0.0:
+  compress-kit@1.0.1:
     dependencies:
-      cipher-kit: 1.0.0
+      cipher-kit: 1.0.1
       pako: 2.1.0
 
   concat-map@0.0.1: {}
