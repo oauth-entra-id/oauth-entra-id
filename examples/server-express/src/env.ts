@@ -2,14 +2,13 @@
 import dotenv from 'dotenv';
 import { z } from 'zod';
 
-dotenv.config({ path: '../../.env' });
-if (!process.env.NODE_ENV) dotenv.config();
+dotenv.config({ path: '../../.env', quiet: true });
+if (!process.env.NODE_ENV) dotenv.config({ quiet: true });
 
 const zStr = z.string().trim().min(1);
 
 export const zEnv = z.object({
   NODE_ENV: z.enum(['development', 'production']).default('development'),
-  PROXIES: z.union([z.number().nonnegative(), zStr.regex(/^\d+$/).transform(Number)]).default(0),
   EXPRESS_URL: z.url().default('https://localhost:3001'),
   EXPRESS_PORT: zStr.regex(/^\d+$/).transform(Number).default(3001),
   NESTJS_URL: z.url().default('https://localhost:3002'),

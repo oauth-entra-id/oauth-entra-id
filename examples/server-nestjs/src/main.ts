@@ -12,10 +12,6 @@ import { oauthConfig } from './oauth';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  if (env.NODE_ENV === 'production' && env.PROXIES) {
-    app.getHttpAdapter().getInstance().set('trust proxy', env.PROXIES);
-  }
-
   app.enableCors({
     origin: [env.SERVER_URL, env.REACT_FRONTEND_URL],
     methods: 'GET,POST,PUT,DELETE,OPTIONS',

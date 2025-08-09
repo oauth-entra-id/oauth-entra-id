@@ -19,13 +19,13 @@
     "helmet": "^8.1.0",
     "morgan": "^1.10.1",
     "oauth-entra-id": "workspace:*",
-    "zod": "^4.0.15"
+    "zod": "^4.0.16"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
     "@types/morgan": "^1.9.10",
-    "@types/node": "^24.2.0",
+    "@types/node": "^24.2.1",
     "tsup": "^8.5.0",
     "tsx": "^4.20.3",
     "typescript": "^5.9.2"
