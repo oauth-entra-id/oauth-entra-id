@@ -93,8 +93,8 @@ importers:
         specifier: ^1.0.7
         version: 1.0.7(tailwindcss@4.1.11)
       zod:
-        specifier: ^4.0.16
-        version: 4.0.16
+        specifier: ^4.0.17
+        version: 4.0.17
       zustand:
         specifier: ^5.0.7
         version: 5.0.7(@types/react@19.1.9)(react@19.1.1)(use-sync-external-store@1.5.0(react@19.1.1))
@@ -160,8 +160,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/oauth-entra-id
       zod:
-        specifier: ^4.0.16
-        version: 4.0.16
+        specifier: ^4.0.17
+        version: 4.0.17
     devDependencies:
       '@types/cors':
         specifier: ^2.8.19
@@ -221,8 +221,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/oauth-entra-id
       zod:
-        specifier: ^4.0.16
-        version: 4.0.16
+        specifier: ^4.0.17
+        version: 4.0.17
     devDependencies:
       '@types/node':
         specifier: ^24.2.1
@@ -244,7 +244,7 @@ importers:
         version: 1.18.1(hono@4.9.0)
       '@hono/zod-validator':
         specifier: ^0.7.2
-        version: 0.7.2(hono@4.9.0)(zod@4.0.16)
+        version: 0.7.2(hono@4.9.0)(zod@4.0.17)
       axios:
         specifier: ^1.11.0
         version: 1.11.0
@@ -261,8 +261,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/oauth-entra-id
       zod:
-        specifier: ^4.0.16
-        version: 4.0.16
+        specifier: ^4.0.17
+        version: 4.0.17
     devDependencies:
       '@types/node':
         specifier: ^24.2.1
@@ -325,8 +325,8 @@ importers:
         specifier: ^7.8.2
         version: 7.8.2
       zod:
-        specifier: ^4.0.16
-        version: 4.0.16
+        specifier: ^4.0.17
+        version: 4.0.17
     devDependencies:
       '@nestjs/cli':
         specifier: ^11.0.10
@@ -383,8 +383,8 @@ importers:
         specifier: ^1.0.2
         version: 1.0.2(express@5.1.0)
       zod:
-        specifier: ^4.0.16
-        version: 4.0.16
+        specifier: ^4.0.17
+        version: 4.0.17
     devDependencies:
       '@types/express':
         specifier: ^5.0.3
@@ -4222,8 +4222,8 @@ packages:
     resolution: {integrity: sha512-cYVsTjKl8b+FrnidjibDWskAv7UKOfcwaVZdp/it9n1s9fU3IkgDbhdIRKCW4JDsAlECJY0ytoVPT3sK6kideA==}
     engines: {node: '>=18'}
 
-  zod@4.0.16:
-    resolution: {integrity: sha512-Djo/cM339grjI7/HmN+ixYO2FzEMcWr/On50UlQ/RjrWK1I/hPpWhpC76heCptnRFpH0LMwrEbUY50HDc0V8wg==}
+  zod@4.0.17:
+    resolution: {integrity: sha512-1PHjlYRevNxxdy2JZ8JcNAw7rX8V9P1AKkP+x/xZfxB0K5FYfuV+Ug6P/6NVSR2jHQ+FzDDoDHS04nYUsOIyLQ==}
 
   zustand@5.0.7:
     resolution: {integrity: sha512-Ot6uqHDW/O2VdYsKLLU8GQu8sCOM1LcoE8RwvLv9uuRT9s6SOHCKs0ZEOhxg+I1Ld+A1Q5lwx+UlKXXUoCZITg==}
@@ -4638,10 +4638,10 @@ snapshots:
     dependencies:
       hono: 4.9.0
 
-  '@hono/zod-validator@0.7.2(hono@4.9.0)(zod@4.0.16)':
+  '@hono/zod-validator@0.7.2(hono@4.9.0)(zod@4.0.17)':
     dependencies:
       hono: 4.9.0
-      zod: 4.0.16
+      zod: 4.0.17
 
   '@inquirer/checkbox@4.2.0(@types/node@24.2.1)':
     dependencies:
@@ -7979,7 +7979,7 @@ snapshots:
 
   yoctocolors-cjs@2.1.2: {}
 
-  zod@4.0.16: {}
+  zod@4.0.17: {}
 
   zustand@5.0.7(@types/react@19.1.9)(react@19.1.1)(use-sync-external-store@1.5.0(react@19.1.1)):
     optionalDependencies:

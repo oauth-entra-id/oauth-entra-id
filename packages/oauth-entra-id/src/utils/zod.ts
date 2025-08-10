@@ -39,7 +39,6 @@ export const zTenantId = z.union([z.literal('common'), zUuid]);
 export const zScope = zStr.min(3).max(128);
 export const zEncryptionKey = zStr.min(32).max(64);
 export const zServiceName = zStr.min(1).max(64);
-const zJwtClientConfigBase = z.object({ clientId: zUuid, tenantId: zTenantId });
 
 export const zAzure = z.object({
   clientId: zUuid,
@@ -88,6 +87,8 @@ export const zConfig = z.object({
     })
     .prefault({}),
 });
+
+const zJwtClientConfigBase = z.object({ clientId: zUuid, tenantId: zTenantId });
 
 export const zJwtClientConfig = z.object({
   azure: z.union([

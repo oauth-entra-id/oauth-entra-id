@@ -18,7 +18,7 @@
     "hono": "^4.9.0",
     "hono-rate-limiter": "^0.4.2",
     "oauth-entra-id": "workspace:*",
-    "zod": "^4.0.16"
+    "zod": "^4.0.17"
   },
   "devDependencies": {
     "@types/node": "^24.2.1",
