@@ -14,7 +14,6 @@
     "module": "CommonJS",
     "rootDir": ".",
     "moduleResolution": "Node",
-    "baseUrl": ".",
     "paths": {
       "~/*": ["./src/*"]
     },

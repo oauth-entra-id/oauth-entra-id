@@ -15,7 +15,6 @@
     "module": "NodeNext",
     "rootDir": "./src",
     "moduleResolution": "NodeNext",
-    "baseUrl": ".",
     "paths": {
       "~/*": ["./src/*"]
     },
