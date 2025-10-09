@@ -1,5 +1,5 @@
 import type { CryptoProvider } from '@azure/msal-node';
-import type { WebApiKey } from 'cipher-kit/web-api';
+import type { WebSecretKey } from 'cipher-kit/web-api';
 import type { JwksClient } from 'jwks-rsa';
 import type { z } from 'zod';
 import { $err, $ok, $stringErr, OAuthError, type Result } from './error';
@@ -726,7 +726,7 @@ export class OAuthProvider {
   }
 
   /** Updates the secret key for a specific token type if it is a string. */
-  private $updateSecretKey(keyType: keyof typeof this.encryptionKeys, secretKey: WebApiKey | undefined) {
+  private $updateSecretKey(keyType: keyof typeof this.encryptionKeys, secretKey: WebSecretKey | undefined) {
     if (this.settings.cryptoType !== 'web-api' || !secretKey) return;
     const currentKey = this.encryptionKeys[keyType];
     if (typeof currentKey === 'string') {

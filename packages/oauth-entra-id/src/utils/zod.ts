@@ -1,5 +1,4 @@
-import { ENCRYPTION_REGEX } from 'cipher-kit';
-import { COMPRESSION_REGEX } from 'compress-kit';
+import { ENCRYPTED_REGEX } from 'cipher-kit';
 import { z } from 'zod';
 
 export function $isStr(value: unknown): value is string {
@@ -23,7 +22,6 @@ export const zUrl = z.url();
 export const zEmail = z.email({ pattern: z.regexes.html5Email });
 export const zBase64 = z.base64url();
 export const zLooseBase64 = zStr.regex(base64urlWithDotRegex);
-export const zCompressed = zStr.regex(COMPRESSION_REGEX.GENERAL);
 
 export const zLoginPrompt = z.enum(['email', 'select-account', 'sso']);
 export const zTimeUnit = z.enum(['ms', 'sec']);
@@ -32,7 +30,7 @@ export const zAccessTokenExpiry = z.number().positive();
 export const zRefreshTokenExpiry = z.number().min(3600);
 const zOneOrMoreUrls = z.union([zUrl.max(2048).transform((url) => [url]), z.array(zUrl.max(2048)).min(1)]);
 
-export const zEncrypted = zStr.max(4096).regex(ENCRYPTION_REGEX.GENERAL);
+export const zEncrypted = zStr.max(4096).regex(ENCRYPTED_REGEX.general);
 export const zJwt = z.jwt().max(4096);
 
 export const zTenantId = z.union([z.literal('common'), zUuid]);

@@ -1,5 +1,5 @@
-import type { WebApiKey } from 'cipher-kit';
-import { compressObj, decompressObj } from 'compress-kit';
+import type { WebSecretKey } from 'cipher-kit';
+import { tryCompressObj, tryDecompressObj } from 'compress-kit';
 import type { z } from 'zod';
 import { $err, $ok, $stringErr, type Result } from '~/error';
 import type { CryptoType, EncryptionKey } from '~/types';
@@ -15,7 +15,7 @@ type BaseParams = {
 
 type UpdateSecretKeyFunc = (
   key: 'accessToken' | 'refreshToken' | 'state' | 'ticket',
-  secretKey: WebApiKey | undefined,
+  secretKey: WebSecretKey | undefined,
 ) => void;
 
 export async function $encryptAccessToken<T extends object = Record<string, any>>(
@@ -36,7 +36,7 @@ export async function $encryptAccessToken<T extends object = Record<string, any>
 
   const injectedData =
     dataToInject && Object.keys(dataToInject).length !== 0 && !params.disableCompression
-      ? compressObj(dataToInject)
+      ? tryCompressObj(dataToInject)
       : undefined;
 
   if (injectedData?.error) {
@@ -50,7 +50,7 @@ export async function $encryptAccessToken<T extends object = Record<string, any>
     aid: params.azureId,
   } satisfies z.infer<typeof zAtStruct>;
 
-  const { encrypted, newSecretKey, error } = await $encryptObj(params.cryptoType, struct, params.key);
+  const { encrypted, newWebSecretKey: newSecretKey, error } = await $encryptObj(params.cryptoType, struct, params.key);
   if (error) return $err({ msg: 'Failed to encrypt access token', desc: `Encryption - ${$stringErr(error)}` });
 
   if (params.isOtherKey === false) params.$updateSecretKey('accessToken', newSecretKey);
@@ -79,7 +79,11 @@ export async function $decryptAccessToken<T extends object = Record<string, any>
   const { data: encryptedAt, error: encryptedAtError } = zEncrypted.safeParse(value);
   if (encryptedAtError) return $err({ msg: 'Unauthorized', desc: $stringErr(encryptedAtError) });
 
-  const { result, newSecretKey, error } = await $decryptObj(params.cryptoType, encryptedAt, params.key);
+  const {
+    result,
+    newWebSecretKey: newSecretKey,
+    error,
+  } = await $decryptObj(params.cryptoType, encryptedAt, params.key);
   if (error) return $err({ msg: 'Failed to decrypt access token', desc: `Decryption - ${$stringErr(error)}` });
 
   params.$updateSecretKey('accessToken', newSecretKey);
@@ -94,7 +98,7 @@ export async function $decryptAccessToken<T extends object = Record<string, any>
     });
   }
 
-  const decompressedInjectedData = atStruct.inj ? decompressObj(atStruct.inj) : undefined;
+  const decompressedInjectedData = atStruct.inj ? tryDecompressObj(atStruct.inj) : undefined;
   if (decompressedInjectedData?.error) {
     return $err({
       msg: 'Failed to decompress injected data',
@@ -123,7 +127,7 @@ export async function $encryptRefreshToken(
     aid: params.azureId,
   } satisfies z.infer<typeof zRtStruct>;
 
-  const { encrypted, newSecretKey, error } = await $encryptObj(params.cryptoType, struct, params.key);
+  const { encrypted, newWebSecretKey: newSecretKey, error } = await $encryptObj(params.cryptoType, struct, params.key);
   if (error) return $err({ msg: 'Failed to encrypt refresh token', desc: `Encryption - ${$stringErr(error)}` });
 
   params.$updateSecretKey('refreshToken', newSecretKey);
@@ -145,7 +149,11 @@ export async function $decryptRefreshToken(
   const { data: encryptedRefreshToken, error: encryptedRefreshTokenError } = zEncrypted.safeParse(value);
   if (encryptedRefreshTokenError) return $err({ msg: 'Invalid format', desc: $stringErr(encryptedRefreshTokenError) });
 
-  const { result, newSecretKey, error } = await $decryptObj(params.cryptoType, encryptedRefreshToken, params.key);
+  const {
+    result,
+    newWebSecretKey: newSecretKey,
+    error,
+  } = await $decryptObj(params.cryptoType, encryptedRefreshToken, params.key);
   if (error) return $err({ msg: 'Failed to decrypt refresh token', desc: `Decryption - ${$stringErr(error)}` });
 
   const { data: rtStruct, error: rtStructError } = zRtStruct.safeParse(result);
@@ -164,7 +172,7 @@ export async function $encryptState(value: object | null, params: BaseParams): P
   const { data, error: parseError } = zState.safeParse(value);
   if (parseError) return $err({ msg: 'Invalid format', desc: $stringErr(parseError) });
 
-  const { encrypted, newSecretKey, error } = await $encryptObj(params.cryptoType, data, params.key);
+  const { encrypted, newWebSecretKey: newSecretKey, error } = await $encryptObj(params.cryptoType, data, params.key);
   if (error) return $err({ msg: 'Failed to encrypt state', desc: `Encryption - ${$stringErr(error)}` });
 
   params.$updateSecretKey('state', newSecretKey);
@@ -179,7 +187,11 @@ export async function $decryptState(
   const { data: encryptedState, error: encryptedStateError } = zEncrypted.safeParse(value);
   if (encryptedStateError) return $err({ msg: 'Invalid format', desc: $stringErr(encryptedStateError) });
 
-  const { result, newSecretKey, error } = await $decryptObj(params.cryptoType, encryptedState, params.key);
+  const {
+    result,
+    newWebSecretKey: newSecretKey,
+    error,
+  } = await $decryptObj(params.cryptoType, encryptedState, params.key);
   if (error) return $err({ msg: 'Failed to decrypt state', desc: $stringErr(error) });
 
   params.$updateSecretKey('state', newSecretKey);
@@ -197,7 +209,7 @@ export async function $encryptTicket(
   const { data, error: parseError } = zUuid.safeParse(ticketId);
   if (parseError) return $err({ msg: 'Invalid format', desc: $stringErr(parseError) });
 
-  const { encrypted, newSecretKey, error } = await $encrypt(params.cryptoType, data, params.key);
+  const { encrypted, newWebSecretKey: newSecretKey, error } = await $encrypt(params.cryptoType, data, params.key);
   if (error) return $err({ msg: 'Failed to encrypt ticket', desc: `Encryption - ${$stringErr(error)}` });
 
   params.$updateSecretKey('ticket', newSecretKey);
@@ -211,7 +223,7 @@ export async function $decryptTicket(
   const { data, error: encryptedStateError } = zEncrypted.safeParse(value);
   if (encryptedStateError) return $err({ msg: 'Invalid format', desc: $stringErr(encryptedStateError) });
 
-  const { result, newSecretKey, error } = await $decrypt(params.cryptoType, data, params.key);
+  const { result, newWebSecretKey: newSecretKey, error } = await $decrypt(params.cryptoType, data, params.key);
   if (error) return $err({ msg: 'Failed to decrypt ticket', desc: `Decryption - ${$stringErr(error)}` });
 
   params.$updateSecretKey('ticket', newSecretKey);
