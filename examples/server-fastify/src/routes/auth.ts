@@ -34,7 +34,7 @@ export const authRouter: FastifyPluginAsyncTypebox = async (app) => {
   });
 
   app.post('/callback', { schema: { body: tSchemas.callback } }, async (req, reply) => {
-    const { code, state } = req.body;
+    const { code, state } = req.body as { code: string; state: string };
 
     const { accessToken, refreshToken, frontendUrl } = await oauthProvider.getTokenByCode({ code, state });
 

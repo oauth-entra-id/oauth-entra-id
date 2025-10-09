@@ -13,9 +13,9 @@
     "prepare": "husky"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.1.4",
+    "@biomejs/biome": "2.2.5",
     "husky": "^9.1.7",
-    "turbo": "^2.5.5"
+    "turbo": "^2.5.8"
   },
   "packageManager": "pnpm@10.14.0",
   "engines": {
