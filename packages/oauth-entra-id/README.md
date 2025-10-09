@@ -11,14 +11,12 @@
 
 <a href="https://opensource.org/licenses/MIT" rel="nofollow"><img src="https://img.shields.io/github/license/oauth-entra-id/oauth-entra-id?color=DC343B" alt="License"></a>
 <a href="https://www.npmjs.com/package/oauth-entra-id" rel="nofollow"><img src="https://img.shields.io/npm/v/oauth-entra-id?color=0078D4" alt="npm version"></a>
-<a href="https://www.npmjs.com/package/oauth-entra-id" rel="nofollow"><img src="https://img.shields.io/npm/dy/oauth-entra-id.svg?color=03C03C" alt="npm downloads"></a>
+<a href="https://www.npmjs.com/package/oauth-entra-id" rel="nofollow"><img src="https://img.shields.io/npm/dt/oauth-entra-id.svg?color=03C03C" alt="npm downloads"></a>
 <a href="https://github.com/oauth-entra-id/oauth-entra-id" rel="nofollow"><img src="https://img.shields.io/github/stars/oauth-entra-id/oauth-entra-id" alt="stars"></a>
 
 </div>
 
 ## About 📖
-
-A secure, performant, and feature-rich OAuth 2.0 integration for Microsoft Entra ID — fully abstracted and production-ready.
 
 This library simplifies the Authorization Code Grant flow (with PKCE), token rotation, B2B authentication, and the On-Behalf-Of (OBO) flow with a strong focus on type safety, security and performance.
 
@@ -41,11 +39,15 @@ Designed to be framework-agnostic and developer-friendly, it eliminates the comp
 
 ```bash
 npm install oauth-entra-id@latest
+# Or
+yarn add oauth-entra-id@latest
+# Or
+pnpm add oauth-entra-id@latest
 ```
 
 Requires:
 
-- Node.js v16 or higher (We recommend using the latest LTS version)
+- Node.js v18 or higher (We recommend using the latest LTS version)
 - Deno v2 or higher
 - Bun v1.0 or higher
 
