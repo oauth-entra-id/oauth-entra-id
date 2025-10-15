@@ -87,7 +87,7 @@
   "devDependencies": {
     "@types/express": "^5.0.3",
     "@types/jsonwebtoken": "^9.0.10",
-    "@types/node": "^24.7.0",
+    "@types/node": "^24.7.2",
     "tsup": "^8.5.0",
     "typescript": "^5.9.3"
   },
