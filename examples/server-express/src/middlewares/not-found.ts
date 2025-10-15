@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from 'express';
 import { HttpException } from '~/error/HttpException';
 
-export const notFound = (_req: Request, _res: Response, _next: NextFunction) => {
+export const notFound = (req: Request, res: Response, next: NextFunction) => {
   throw new HttpException('Not Found', 404);
 };

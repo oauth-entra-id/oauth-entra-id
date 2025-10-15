@@ -55,7 +55,7 @@ export default async function createApp() {
     max: 100,
     timeWindow: 60 * 1000,
     allowList: ['127.0.0.6'],
-    errorResponseBuilder: (_req, _context) => {
+    errorResponseBuilder: (req, _context) => {
       return {
         error: 'Too many requests from this IP, please try again after a break',
         statusCode: 429,
@@ -76,7 +76,7 @@ export default async function createApp() {
 
   await app.register(routesRouter, { prefix: new URL(env.SERVER_URL).pathname });
 
-  app.setErrorHandler((error, _req, reply) => {
+  app.setErrorHandler((error, req, reply) => {
     const { message, statusCode, description } = new HttpException(error);
     reply.status(statusCode).send({ error: message, statusCode, description });
   });

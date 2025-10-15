@@ -66,7 +66,7 @@ export default function createApp(): Application {
       windowMs: 60 * 1000,
       limit: 100,
       skip: (req) => req.ip === '127.0.0.6',
-      handler: (_req, res) => {
+      handler: (req, res) => {
         res.status(429).json({ error: 'Too many requests from this IP, please try again after a break' });
       },
     }),
@@ -80,7 +80,7 @@ export default function createApp(): Application {
 
   app.use(notFound);
 
-  app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
     const { message, statusCode, description } = new HttpException(err);
     res.status(statusCode).json({ error: message, statusCode, description });
   });

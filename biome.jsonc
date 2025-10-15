@@ -28,6 +28,7 @@
         "noUselessStringConcat": "error"
       },
       "correctness": {
+        "noUnusedFunctionParameters": "off",
         "useExhaustiveDependencies": "warn",
         "useUniqueElementIds": "off"
       },

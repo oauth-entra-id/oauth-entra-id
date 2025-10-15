@@ -23,8 +23,8 @@ export let nestjsOAuthProvider: OAuthProvider = undefined as unknown as OAuthPro
  *
  * @param config  OAuthConfig for your Microsoft Entra ID app.
  */
-export function authConfig(config: OAuthConfig) {
-  return (req: Request, _res: Response, next: NextFunction) => {
+export function authConfig(config: OAuthConfig): (req: Request, res: Response, next: NextFunction) => void {
+  return (req: Request, res: Response, next: NextFunction) => {
     if (!nestjsOAuthProvider) {
       nestjsOAuthProvider = new OAuthProvider(config);
     }
@@ -47,7 +47,7 @@ export function authConfig(config: OAuthConfig) {
  *
  * @throws {OAuthError} if there is any issue.
  */
-export async function handleAuthentication(req: Request, res: Response) {
+export async function handleAuthentication(req: Request, res: Response): Promise<void> {
   try {
     if (!req.oauthProvider || req.serverType !== 'nestjs') {
       throw new OAuthError({ msg: ERROR_MSG, desc: ERROR_DESC, status: 500 });
@@ -72,7 +72,7 @@ export async function handleAuthentication(req: Request, res: Response) {
  *
  * @throws {OAuthError} if there is any issue.
  */
-export async function handleCallback(req: Request, res: Response) {
+export async function handleCallback(req: Request, res: Response): Promise<void> {
   try {
     if (!req.oauthProvider || req.serverType !== 'nestjs') {
       throw new OAuthError({ msg: ERROR_MSG, desc: ERROR_DESC, status: 500 });
@@ -92,7 +92,7 @@ export async function handleCallback(req: Request, res: Response) {
  * - `frontendUrl` (optional) - Overrides the default redirect URL after logout.
  * - `azureId` (optional) - Azure configuration ID to use, relevant if multiple Azure configurations (Defaults to the first one).
  */
-export async function handleLogout(req: Request, res: Response) {
+export async function handleLogout(req: Request, res: Response): Promise<void> {
   try {
     if (!req.oauthProvider || req.serverType !== 'nestjs') {
       throw new OAuthError({ msg: ERROR_MSG, desc: ERROR_DESC, status: 500 });
@@ -117,7 +117,7 @@ export async function handleLogout(req: Request, res: Response) {
  *
  * @throws {OAuthError} if there is any issue.
  */
-export async function handleOnBehalfOf(req: Request, res: Response) {
+export async function handleOnBehalfOf(req: Request, res: Response): Promise<void> {
   try {
     if (!req.oauthProvider || req.serverType !== 'nestjs') {
       throw new OAuthError({ msg: ERROR_MSG, desc: ERROR_DESC, status: 500 });
@@ -152,7 +152,7 @@ export async function handleOnBehalfOf(req: Request, res: Response) {
  *
  * @throws {OAuthError} if there is any issue with the configuration or authentication.
  */
-export async function isAuthenticated(req: Request, res: Response, cb?: CallbackFunction) {
+export async function isAuthenticated(req: Request, res: Response, cb?: CallbackFunction): Promise<boolean> {
   try {
     if (!req.oauthProvider || req.serverType !== 'nestjs') {
       throw new OAuthError({ msg: ERROR_MSG, desc: ERROR_DESC, status: 500 });
