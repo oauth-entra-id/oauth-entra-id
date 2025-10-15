@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import { deleteCookie, getCookie, setCookie } from 'modern-cookies';
-import { $err, $ok, OAuthError, type Result, type ResultErr } from '~/error';
+import { $err, $ok, type ErrorStruct, OAuthError, type Result } from '~/error';
 import type { JwtPayload, Metadata } from '~/types';
 import type { InjectDataFunction, UserInfo } from './types';
 
@@ -28,7 +28,7 @@ export async function $sharedMiddleware(
   const injectFunc = $createInjectFunc(req, res);
   const { cookies } = req.oauthProvider.settings;
 
-  let firstError: ResultErr | null = null;
+  let firstError: ErrorStruct | null = null;
   for (const { accessTokenName, refreshTokenName } of cookies.cookieNames) {
     const cookie = await $checkCookieTokens(req, res, injectFunc, accessTokenName, refreshTokenName);
     if (cookie.error) {

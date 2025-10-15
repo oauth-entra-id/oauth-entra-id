@@ -5,13 +5,10 @@ export function $isStr(value: unknown): value is string {
   return value !== null && value !== undefined && typeof value === 'string' && value.trim().length > 0;
 }
 
-export function $isObj(value: unknown): value is Record<string, unknown> {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    value !== undefined &&
-    (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null)
-  );
+export function $isPlainObj<T extends object = Record<string, unknown>>(x: unknown): x is T {
+  if (typeof x !== 'object' || x === null || x === undefined) return false;
+  const proto = Object.getPrototypeOf(x);
+  return proto === Object.prototype || proto === null;
 }
 
 export const base64urlWithDotRegex = /^[A-Za-z0-9._-]+$/;

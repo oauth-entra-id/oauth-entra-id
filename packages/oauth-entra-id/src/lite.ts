@@ -1,5 +1,5 @@
 import type { JwksClient } from 'jwks-rsa';
-import { $err, $ok, $stringErr, OAuthError, type Result } from './error';
+import { $err, $fmtError, $ok, OAuthError, type Result } from './error';
 import type { B2BApp, B2BResult, JwtPayload, LiteConfig, Metadata, MinimalAzure } from './types';
 import { $jwtClientConfig } from './utils/config';
 import { $mapAndFilter, TIME_SKEW } from './utils/helpers';
@@ -60,7 +60,7 @@ export class LiteProvider {
     }
 
     const { data: parsedParams, error: paramsError } = zMethods.tryGetB2BToken.safeParse(params);
-    if (paramsError) return $err({ msg: 'Invalid Params', desc: $stringErr(paramsError) });
+    if (paramsError) return $err({ msg: 'Invalid Params', desc: $fmtError(paramsError) });
 
     const apps = parsedParams.apps.map((app) => this.azure.b2bApps?.get(app)).filter((app) => !!app);
     if (!apps || apps.length === 0) return $err({ msg: 'Invalid Params', desc: 'B2B app not found', status: 400 });
@@ -115,7 +115,7 @@ export class LiteProvider {
       return $ok('app' in params ? { result: results[0] as B2BResult } : { results });
     } catch (error) {
       if (error instanceof OAuthError) return $err(error);
-      return $err({ msg: 'Invalid Params', desc: `Failed to get B2B token: ${$stringErr(error)}` });
+      return $err({ msg: 'Invalid Params', desc: `Failed to get B2B token: ${$fmtError(error)}` });
     }
   }
 }
