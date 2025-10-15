@@ -185,7 +185,7 @@ export class OAuthProvider {
    */
   async getTokenByCode(params: { code: string; state: string }): Promise<{
     accessToken: Cookies['AccessToken'];
-    refreshToken: Cookies['RefreshToken'] | null;
+    refreshToken: Cookies['RefreshToken'];
     frontendUrl: string;
     ticketId: string;
     msalResponse: MsalResponse;
@@ -220,13 +220,13 @@ export class OAuthProvider {
           value: encryptedAccessToken,
           options: this.baseCookieOptions.accessTokenOptions,
         },
-        refreshToken: encryptedRefreshToken
-          ? {
-              name: azure.cookiesNames.refreshTokenName,
-              value: encryptedRefreshToken,
-              options: this.baseCookieOptions.refreshTokenOptions,
-            }
-          : null,
+        refreshToken: {
+          name: azure.cookiesNames.refreshTokenName,
+          value: encryptedRefreshToken ?? '',
+          options: encryptedRefreshToken
+            ? this.baseCookieOptions.refreshTokenOptions
+            : this.baseCookieOptions.deleteTokenOptions,
+        },
         frontendUrl: state.frontendUrl,
         ticketId: state.ticketId,
         msalResponse,
@@ -351,7 +351,7 @@ export class OAuthProvider {
   async tryRefreshTokens(refreshToken: string | undefined): Promise<
     Result<{
       newAccessToken: Cookies['AccessToken'];
-      newRefreshToken: Cookies['RefreshToken'] | null;
+      newRefreshToken: Cookies['RefreshToken'];
       payload: JwtPayload;
       meta: Metadata;
       rawJwt: string;
@@ -413,13 +413,13 @@ export class OAuthProvider {
           value: encryptedAccessToken,
           options: this.baseCookieOptions.accessTokenOptions,
         },
-        newRefreshToken: encryptedRefreshToken
-          ? {
-              name: azure.cookiesNames.refreshTokenName,
-              value: encryptedRefreshToken,
-              options: this.baseCookieOptions.refreshTokenOptions,
-            }
-          : null,
+        newRefreshToken: {
+          name: azure.cookiesNames.refreshTokenName,
+          value: encryptedRefreshToken ?? '',
+          options: encryptedRefreshToken
+            ? this.baseCookieOptions.refreshTokenOptions
+            : this.baseCookieOptions.deleteTokenOptions,
+        },
         msalResponse: msalResponse,
       });
     } catch (err) {

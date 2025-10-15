@@ -10,8 +10,8 @@ export const routesRouter: Router = express.Router();
 
 const callbackFunc: CallbackFunction = async ({ userInfo, tryInjectData }) => {
   if (userInfo.isApp === false && !userInfo.injectedData) {
-    const { error } = await tryInjectData(getRandomNumber());
-    if (error) throw new OAuthError(error);
+    const inj = await tryInjectData(getRandomNumber());
+    if (inj.error) throw new OAuthError(inj.error);
   }
 };
 

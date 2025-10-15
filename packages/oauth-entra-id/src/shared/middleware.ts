@@ -99,9 +99,8 @@ async function $checkCookieTokens(
 
   const rt = await req.oauthProvider.tryRefreshTokens(refreshToken);
   if (rt.error) return $err(rt.error);
-
   setCookie(res, rt.newAccessToken.name, rt.newAccessToken.value, rt.newAccessToken.options);
-  if (rt.newRefreshToken) setCookie(res, rt.newRefreshToken.name, rt.newRefreshToken.value, rt.newRefreshToken.options);
+  setCookie(res, rt.newRefreshToken.name, rt.newRefreshToken.value, rt.newRefreshToken.options);
 
   return $ok({
     azureId: rt.meta.azureId as string,

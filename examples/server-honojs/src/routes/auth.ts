@@ -45,7 +45,7 @@ authRouter.post('/callback', zValidator('form', zSchemas.callback), async (c) =>
   const { accessToken, refreshToken, frontendUrl } = await oauthProvider.getTokenByCode({ code, state });
 
   setCookie(c, accessToken.name, accessToken.value, accessToken.options);
-  if (refreshToken) setCookie(c, refreshToken.name, refreshToken.value, refreshToken.options);
+  setCookie(c, refreshToken.name, refreshToken.value, refreshToken.options);
   return c.redirect(frontendUrl, 303);
 });
 

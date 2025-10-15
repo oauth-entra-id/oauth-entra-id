@@ -69,7 +69,7 @@ async function checkCookieTokens(
   const final = inj.success ? inj.newAccessToken : rt.newAccessToken;
 
   setCookie(c, final.name, final.value, final.options);
-  if (rt.newRefreshToken) setCookie(c, rt.newRefreshToken.name, rt.newRefreshToken.value, rt.newRefreshToken.options);
+  setCookie(c, rt.newRefreshToken.name, rt.newRefreshToken.value, rt.newRefreshToken.options);
 
   setUserInfo(c, rt.meta, rt.rawJwt, rt.payload, inj.injectedData);
   return { azureId: rt.meta.azureId as string };

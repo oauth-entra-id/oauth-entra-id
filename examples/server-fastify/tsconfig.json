@@ -11,9 +11,9 @@
     "moduleDetection": "force",
 
     /* Modules */
-    "module": "CommonJS",
+    "module": "ESNext",
     "rootDir": ".",
-    "moduleResolution": "Node",
+    "moduleResolution": "Bundler",
     "paths": {
       "~/*": ["./src/*"]
     },
