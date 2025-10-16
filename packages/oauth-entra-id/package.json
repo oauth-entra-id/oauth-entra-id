@@ -105,6 +105,8 @@
     "nestjs",
     "node",
     "bun",
-    "deno"
+    "deno",
+    "backend",
+    "server"
   ]
 }
