@@ -66,9 +66,9 @@ async function checkCookieTokens(
   if (rt.error) return { error: rt.error.description || 'Failed to refresh tokens' };
 
   const inj = await oauthProvider.tryInjectData({ accessToken: rt.rawJwt, data: getRandomNumber() });
-  const final = inj.success ? inj.newAccessToken : rt.newAccessToken;
+  const final = inj.success ? inj : rt;
 
-  setCookie(c, final.name, final.value, final.options);
+  setCookie(c, final.newAccessToken.name, final.newAccessToken.value, final.newAccessToken.options);
   setCookie(c, rt.newRefreshToken.name, rt.newRefreshToken.value, rt.newRefreshToken.options);
 
   setUserInfo(c, rt.meta, rt.rawJwt, rt.payload, inj.injectedData);

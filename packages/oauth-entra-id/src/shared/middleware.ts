@@ -53,11 +53,13 @@ function $createInjectFunc(req: Request, res: Response) {
     accessToken: string,
     data: T,
   ): Promise<Result<{ injectedData: T }>> => {
-    const inj = await req.oauthProvider.tryInjectData({ accessToken, data });
-    if (inj.error) return $err(inj.error);
     if (req.userInfo?.isApp !== false) {
       return $err({ msg: 'Invalid user type', desc: 'Injecting data is only supported for user-based sessions' });
     }
+
+    const inj = await req.oauthProvider.tryInjectData({ accessToken, data });
+    if (inj.error) return $err(inj.error);
+
     setCookie(res, inj.newAccessToken.name, inj.newAccessToken.value, inj.newAccessToken.options);
     req.userInfo = { ...req.userInfo, injectedData: data };
     return $ok({ injectedData: data });
@@ -71,6 +73,7 @@ async function $checkB2BToken(req: Request): Promise<Result<{ userInfo: UserInfo
   const token = authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : undefined;
   const bearer = await req.oauthProvider.verifyAccessToken(token);
   if (bearer.error) return $err(bearer.error);
+
   return $ok({ userInfo: $userInfo(req, bearer.meta, bearer.rawJwt, bearer.payload) });
 }
 
@@ -99,6 +102,7 @@ async function $checkCookieTokens(
 
   const rt = await req.oauthProvider.tryRefreshTokens(refreshToken);
   if (rt.error) return $err(rt.error);
+
   setCookie(res, rt.newAccessToken.name, rt.newAccessToken.value, rt.newAccessToken.options);
   setCookie(res, rt.newRefreshToken.name, rt.newRefreshToken.value, rt.newRefreshToken.options);
 

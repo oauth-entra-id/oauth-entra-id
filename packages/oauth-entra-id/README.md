@@ -313,7 +313,7 @@ Returns:
 
 - Promise of an object:
   - `accessToken` - Access token object containing the token value, suggested name, and options.
-  - `refreshToken` (optional) - Refresh token object containing the token value, suggested name, and options.
+  - `refreshToken` - Refresh token object containing the token value, suggested name, and options (if refresh token is available).
   - `frontendUrl` - The frontend URL to redirect the user after authentication.
   - `ticketId` - Ticket ID useful for bearer flow, store the tokens in a cache or database with a key based on this ticket ID. Later you can use this ticket ID to retrieve the tokens.
   - `msalResponse` - The MSAL response object for extra information if needed.
@@ -323,7 +323,7 @@ app.post('/callback', async (c) => {
   const { code, state } = await c.req.parseBody();
   const { frontendUrl, accessToken, refreshToken } = await oauthProvider.getTokenByCode({ code, state });
   setCookie(c, accessToken.name, accessToken.value, accessToken.options);
-  if (refreshToken) setCookie(c, refreshToken.name, refreshToken.value, refreshToken.options);
+  setCookie(c, refreshToken.name, refreshToken.value, refreshToken.options);
   return c.redirect(frontendUrl);
 });
 ```
@@ -390,7 +390,7 @@ Returns:
 
 - Promise of a `Result` object:
   - `newAccessToken` - The new access token object containing the token value, suggested name, and options.
-  - `newRefreshToken` - The new refresh token object containing the token value, suggested name, and options.
+  - `newRefreshToken` - The new refresh token object containing the token value, suggested name, and options (if refresh token is available).
   - `meta` - Metadata about the user that has been extracted from the payload.
   - `payload` - The payload of the access token.
   - `rawJwt` - The access token in JWT format.
@@ -458,7 +458,7 @@ export const protectRoute = createMiddleware(async (c, next) => {
   const final = inj.success ? inj.newAccessToken : rt.newAccessToken;
 
   setCookie(c, final.name, final.value, final.options);
-  if (rt.newRefreshToken) setCookie(c, rt.newRefreshToken.name, rt.newRefreshToken.value, rt.newRefreshToken.options);
+  setCookie(c, rt.newRefreshToken.name, rt.newRefreshToken.value, rt.newRefreshToken.options);
 
   c.set('userInfo', {
     uniqueId: rt.meta.uniqueId,

@@ -1,6 +1,6 @@
 import { ValidationPipe } from '@nestjs/common';
 import { HttpAdapterHost, NestFactory, Reflector } from '@nestjs/core';
-import helmet from 'helmet';
+import helmet, { type HelmetOptions } from 'helmet';
 import morgan from 'morgan';
 import { authConfig } from 'oauth-entra-id/nestjs';
 import { AppModule } from './app.module';
@@ -19,53 +19,12 @@ async function bootstrap() {
     credentials: true,
   });
 
-  app.use(
-    helmet({
-      contentSecurityPolicy: {
-        directives: {
-          defaultSrc: ["'self'"],
-          scriptSrc: ["'self'"],
-          styleSrc: ["'self'"],
-          imgSrc: ["'self'"],
-          fontSrc: ["'self'"],
-          mediaSrc: ["'self'"],
-          connectSrc: ["'self'"],
-          objectSrc: ["'none'"],
-          baseUri: ["'self'"],
-          formAction: ["'self'"],
-          frameAncestors: ["'none'"],
-          frameSrc: ["'none'"],
-          upgradeInsecureRequests: [],
-        },
-      },
-      frameguard: { action: 'deny' },
-      hidePoweredBy: true,
-      hsts: {
-        maxAge: 2 * 365 * 24 * 60 * 60,
-        includeSubDomains: true,
-        preload: true,
-      },
-      noSniff: true,
-      referrerPolicy: { policy: 'no-referrer' },
-      xPermittedCrossDomainPolicies: {
-        permittedPolicies: 'none',
-      },
-    }),
-  );
-
+  app.use(helmet(helmetConfig));
   app.use(morgan(env.NODE_ENV === 'production' ? 'combined' : 'dev'));
-
-  app.setGlobalPrefix(new URL(env.SERVER_URL).pathname);
-
   app.use(authConfig(oauthConfig));
 
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: false,
-      transform: true,
-    }),
-  );
+  app.setGlobalPrefix(new URL(env.SERVER_URL).pathname);
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: false, transform: true }));
 
   const reflector = app.get(Reflector);
   app.useGlobalGuards(new ProtectRoute(reflector));
@@ -84,3 +43,35 @@ async function bootstrap() {
 }
 
 bootstrap();
+
+const helmetConfig: HelmetOptions = {
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'"],
+      imgSrc: ["'self'"],
+      fontSrc: ["'self'"],
+      mediaSrc: ["'self'"],
+      connectSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+      formAction: ["'self'"],
+      frameAncestors: ["'none'"],
+      frameSrc: ["'none'"],
+      upgradeInsecureRequests: [],
+    },
+  },
+  frameguard: { action: 'deny' },
+  hidePoweredBy: true,
+  hsts: {
+    maxAge: 2 * 365 * 24 * 60 * 60,
+    includeSubDomains: true,
+    preload: true,
+  },
+  noSniff: true,
+  referrerPolicy: { policy: 'no-referrer' },
+  xPermittedCrossDomainPolicies: {
+    permittedPolicies: 'none',
+  },
+};
