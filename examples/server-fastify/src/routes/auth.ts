@@ -34,18 +34,16 @@ export const authRouter: FastifyPluginAsyncTypebox = async (app) => {
   });
 
   app.post('/callback', { schema: { body: tSchemas.callback } }, async (req, reply) => {
-    const { code, state } = req.body;
-
+    const { code, state } = req.body as { code: string; state: string };
     const { accessToken, refreshToken, frontendUrl } = await oauthProvider.getTokenByCode({ code, state });
 
     reply.setCookie(accessToken.name, accessToken.value, accessToken.options);
-    if (refreshToken) reply.setCookie(refreshToken.name, refreshToken.value, refreshToken.options);
+    reply.setCookie(refreshToken.name, refreshToken.value, refreshToken.options);
     reply.redirect(frontendUrl, 303);
   });
 
   app.post('/logout', { schema: { body: tSchemas.logout } }, async (req, reply) => {
     const body = req.body;
-
     const { logoutUrl, deleteAccessToken, deleteRefreshToken } = await oauthProvider.getLogoutUrl({
       frontendUrl: body?.frontendUrl,
       azureId: body?.azureId,

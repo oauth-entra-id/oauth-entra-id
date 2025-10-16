@@ -1,18 +1,14 @@
-import { ENCRYPTION_REGEX } from 'cipher-kit';
-import { COMPRESSION_REGEX } from 'compress-kit';
+import { ENCRYPTED_REGEX } from 'cipher-kit';
 import { z } from 'zod';
 
 export function $isStr(value: unknown): value is string {
   return value !== null && value !== undefined && typeof value === 'string' && value.trim().length > 0;
 }
 
-export function $isObj(value: unknown): value is Record<string, unknown> {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    value !== undefined &&
-    (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null)
-  );
+export function $isPlainObj<T extends object = Record<string, unknown>>(x: unknown): x is T {
+  if (typeof x !== 'object' || x === null || x === undefined) return false;
+  const proto = Object.getPrototypeOf(x);
+  return proto === Object.prototype || proto === null;
 }
 
 export const base64urlWithDotRegex = /^[A-Za-z0-9._-]+$/;
@@ -23,7 +19,6 @@ export const zUrl = z.url();
 export const zEmail = z.email({ pattern: z.regexes.html5Email });
 export const zBase64 = z.base64url();
 export const zLooseBase64 = zStr.regex(base64urlWithDotRegex);
-export const zCompressed = zStr.regex(COMPRESSION_REGEX.GENERAL);
 
 export const zLoginPrompt = z.enum(['email', 'select-account', 'sso']);
 export const zTimeUnit = z.enum(['ms', 'sec']);
@@ -32,7 +27,7 @@ export const zAccessTokenExpiry = z.number().positive();
 export const zRefreshTokenExpiry = z.number().min(3600);
 const zOneOrMoreUrls = z.union([zUrl.max(2048).transform((url) => [url]), z.array(zUrl.max(2048)).min(1)]);
 
-export const zEncrypted = zStr.max(4096).regex(ENCRYPTION_REGEX.GENERAL);
+export const zEncrypted = zStr.max(4096).regex(ENCRYPTED_REGEX.general);
 export const zJwt = z.jwt().max(4096);
 
 export const zTenantId = z.union([z.literal('common'), zUuid]);

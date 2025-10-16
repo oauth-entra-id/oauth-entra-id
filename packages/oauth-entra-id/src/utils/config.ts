@@ -1,7 +1,7 @@
 import { ConfidentialClientApplication, CryptoProvider } from '@azure/msal-node';
 import { JwksClient } from 'jwks-rsa';
 import type { z } from 'zod';
-import { $err, $ok, $stringErr, OAuthError, type Result } from '~/error';
+import { $err, $fmtError, $ok, OAuthError, type Result } from '~/error';
 import type {
   AccessTokenName,
   Azure,
@@ -32,7 +32,7 @@ export function $oauthConfig(configuration: OAuthConfig): Result<{
   settings: OAuthSettings;
 }> {
   const { data: config, error: configError } = zConfig.safeParse(configuration);
-  if (configError) return $err({ msg: 'Invalid config', desc: $stringErr(configError), status: 500 });
+  if (configError) return $err({ msg: 'Invalid config', desc: $fmtError(configError), status: 500 });
 
   const frontendUrls = config.frontendUrl as NonEmptyArray<string>;
 
@@ -157,7 +157,7 @@ export function $oauthConfig(configuration: OAuthConfig): Result<{
     if (error instanceof OAuthError) return $err(error);
     return $err({
       msg: 'Failed to create Azure configurations',
-      desc: `OAuth Provider Constructor - ${$stringErr(error)}`,
+      desc: `OAuth Provider Constructor - ${$fmtError(error)}`,
       status: 500,
     });
   }
@@ -168,7 +168,7 @@ export function $jwtClientConfig(config: LiteConfig): Result<{
   jwksClient: JwksClient;
 }> {
   const { data: parsedConfig, error: configError } = zJwtClientConfig.safeParse(config);
-  if (configError) return $err({ msg: 'Invalid config', desc: $stringErr(configError), status: 500 });
+  if (configError) return $err({ msg: 'Invalid config', desc: $fmtError(configError), status: 500 });
 
   const { jwksClient, error: jwksError } = $createJwks(parsedConfig.azure.tenantId);
   if (jwksError) return $err(jwksError);
@@ -205,7 +205,7 @@ export function $jwtClientConfig(config: LiteConfig): Result<{
     if (error instanceof OAuthError) return $err(error);
     return $err({
       msg: 'Failed to create Azure configuration',
-      desc: `OAuth Lite Provider Constructor - ${$stringErr(error)}`,
+      desc: `OAuth Lite Provider Constructor - ${$fmtError(error)}`,
       status: 500,
     });
   }
@@ -222,7 +222,7 @@ function $createJwks(tenantId: string): Result<{ jwksClient: JwksClient }> {
       }),
     });
   } catch (error) {
-    return $err({ msg: 'Failed to create JWKS client', desc: $stringErr(error), status: 500 });
+    return $err({ msg: 'Failed to create JWKS client', desc: $fmtError(error), status: 500 });
   }
 }
 
@@ -242,7 +242,7 @@ function $createCca(params: {
   } catch (error) {
     throw new OAuthError({
       msg: 'Failed to create Confidential Client Application',
-      desc: $stringErr(error),
+      desc: $fmtError(error),
       status: 500,
     });
   }

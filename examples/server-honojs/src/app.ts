@@ -20,42 +20,41 @@ export function createApp() {
     }),
   );
 
-  app.use(
-    secureHeaders({
-      contentSecurityPolicy: {
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'"],
-        styleSrc: ["'self'"],
-        imgSrc: ["'self'"],
-        fontSrc: ["'self'"],
-        mediaSrc: ["'self'"],
-        connectSrc: ["'self'"],
-        objectSrc: ["'none'"],
-        baseUri: ["'self'"],
-        formAction: ["'self'"],
-        frameAncestors: ["'none'"],
-        frameSrc: ["'none'"],
-        upgradeInsecureRequests: [],
-      },
-      strictTransportSecurity: 'max-age=62899200; includeSubDomains; preload',
-      xContentTypeOptions: 'nosniff',
-      referrerPolicy: 'no-referrer',
-      xPermittedCrossDomainPolicies: 'none',
-      xFrameOptions: 'DENY',
-    }),
-  );
-
+  app.use(secureHeaders(secureHeadersConfig));
   app.use(rateLimiter());
   app.use(logger());
 
   app.route(new URL(env.SERVER_URL).pathname, routesRouter);
+
+  app.notFound((c) => c.json({ error: 'Not found' }, 404));
 
   app.onError((err, c) => {
     const { statusCode, message, description } = errorFilter(err);
     return c.json({ error: message, statusCode, description }, statusCode as ContentfulStatusCode);
   });
 
-  app.notFound((c) => c.json({ error: 'Not found' }, 404));
-
   return app;
 }
+
+const secureHeadersConfig = {
+  contentSecurityPolicy: {
+    defaultSrc: ["'self'"],
+    scriptSrc: ["'self'"],
+    styleSrc: ["'self'"],
+    imgSrc: ["'self'"],
+    fontSrc: ["'self'"],
+    mediaSrc: ["'self'"],
+    connectSrc: ["'self'"],
+    objectSrc: ["'none'"],
+    baseUri: ["'self'"],
+    formAction: ["'self'"],
+    frameAncestors: ["'none'"],
+    frameSrc: ["'none'"],
+    upgradeInsecureRequests: [],
+  },
+  strictTransportSecurity: 'max-age=62899200; includeSubDomains; preload',
+  xContentTypeOptions: 'nosniff',
+  referrerPolicy: 'no-referrer',
+  xPermittedCrossDomainPolicies: 'none',
+  xFrameOptions: 'DENY',
+};

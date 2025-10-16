@@ -34,7 +34,7 @@ export const protectedRouter: FastifyPluginAsyncTypebox = async (app) => {
   app.post('/on-behalf-of', { schema: { body: tSchemas.onBehalfOf } }, async (req, reply) => {
     if (req.userInfo?.isApp === true) throw new HttpException('B2B users cannot use OBO', 401);
 
-    const body = req.body;
+    const body = req.body as { services: string[]; azureId?: string };
 
     const { results } = await oauthProvider.getTokenOnBehalfOf({
       accessToken: req.accessTokenInfo.jwt,
@@ -55,7 +55,8 @@ export const protectedRouter: FastifyPluginAsyncTypebox = async (app) => {
   });
 
   app.post('/get-b2b-info', { schema: { body: tSchemas.getB2BInfo } }, async (req, _reply) => {
-    const body = req.body;
+    const body = req.body as { app: 'express' | 'nestjs' | 'honojs'; azureId?: string };
+
     const { result, error } = await oauthProvider.tryGetB2BToken({ app: body.app, azureId: body.azureId });
     if (error) throw new HttpException('Failed to get B2B token', 500);
 

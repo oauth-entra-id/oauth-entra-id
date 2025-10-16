@@ -11,14 +11,12 @@
 
 <a href="https://opensource.org/licenses/MIT" rel="nofollow"><img src="https://img.shields.io/github/license/oauth-entra-id/oauth-entra-id?color=DC343B" alt="License"></a>
 <a href="https://www.npmjs.com/package/oauth-entra-id" rel="nofollow"><img src="https://img.shields.io/npm/v/oauth-entra-id?color=0078D4" alt="npm version"></a>
-<a href="https://www.npmjs.com/package/oauth-entra-id" rel="nofollow"><img src="https://img.shields.io/npm/dy/oauth-entra-id.svg?color=03C03C" alt="npm downloads"></a>
+<a href="https://www.npmjs.com/package/oauth-entra-id" rel="nofollow"><img src="https://img.shields.io/npm/dt/oauth-entra-id.svg?color=03C03C" alt="npm downloads"></a>
 <a href="https://github.com/oauth-entra-id/oauth-entra-id" rel="nofollow"><img src="https://img.shields.io/github/stars/oauth-entra-id/oauth-entra-id" alt="stars"></a>
 
 </div>
 
 ## About 📖
-
-A secure, performant, and feature-rich OAuth 2.0 integration for Microsoft Entra ID — fully abstracted and production-ready.
 
 This library simplifies the Authorization Code Grant flow (with PKCE), token rotation, B2B authentication, and the On-Behalf-Of (OBO) flow with a strong focus on type safety, security and performance.
 
@@ -41,11 +39,15 @@ Designed to be framework-agnostic and developer-friendly, it eliminates the comp
 
 ```bash
 npm install oauth-entra-id@latest
+# Or
+yarn add oauth-entra-id@latest
+# Or
+pnpm add oauth-entra-id@latest
 ```
 
 Requires:
 
-- Node.js v16 or higher (We recommend using the latest LTS version)
+- Node.js v18 or higher (We recommend using the latest LTS version)
 - Deno v2 or higher
 - Bun v1.0 or higher
 
@@ -311,7 +313,7 @@ Returns:
 
 - Promise of an object:
   - `accessToken` - Access token object containing the token value, suggested name, and options.
-  - `refreshToken` (optional) - Refresh token object containing the token value, suggested name, and options.
+  - `refreshToken` - Refresh token object containing the token value, suggested name, and options (if refresh token is available).
   - `frontendUrl` - The frontend URL to redirect the user after authentication.
   - `ticketId` - Ticket ID useful for bearer flow, store the tokens in a cache or database with a key based on this ticket ID. Later you can use this ticket ID to retrieve the tokens.
   - `msalResponse` - The MSAL response object for extra information if needed.
@@ -321,7 +323,7 @@ app.post('/callback', async (c) => {
   const { code, state } = await c.req.parseBody();
   const { frontendUrl, accessToken, refreshToken } = await oauthProvider.getTokenByCode({ code, state });
   setCookie(c, accessToken.name, accessToken.value, accessToken.options);
-  if (refreshToken) setCookie(c, refreshToken.name, refreshToken.value, refreshToken.options);
+  setCookie(c, refreshToken.name, refreshToken.value, refreshToken.options);
   return c.redirect(frontendUrl);
 });
 ```
@@ -388,7 +390,7 @@ Returns:
 
 - Promise of a `Result` object:
   - `newAccessToken` - The new access token object containing the token value, suggested name, and options.
-  - `newRefreshToken` - The new refresh token object containing the token value, suggested name, and options.
+  - `newRefreshToken` - The new refresh token object containing the token value, suggested name, and options (if refresh token is available).
   - `meta` - Metadata about the user that has been extracted from the payload.
   - `payload` - The payload of the access token.
   - `rawJwt` - The access token in JWT format.
@@ -456,7 +458,7 @@ export const protectRoute = createMiddleware(async (c, next) => {
   const final = inj.success ? inj.newAccessToken : rt.newAccessToken;
 
   setCookie(c, final.name, final.value, final.options);
-  if (rt.newRefreshToken) setCookie(c, rt.newRefreshToken.name, rt.newRefreshToken.value, rt.newRefreshToken.options);
+  setCookie(c, rt.newRefreshToken.name, rt.newRefreshToken.value, rt.newRefreshToken.options);
 
   c.set('userInfo', {
     uniqueId: rt.meta.uniqueId,

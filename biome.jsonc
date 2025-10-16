@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.1.4/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.2.6/schema.json",
   "vcs": {
     "enabled": false,
     "clientKind": "git",
@@ -7,7 +7,7 @@
   },
   "files": {
     "ignoreUnknown": false,
-    "includes": ["**", "!**/node_modules", "!**/dist", "!**/build", "!**/coverage", "!**/.turbo/**"]
+    "includes": ["**", "!**/node_modules", "!**/dist", "!**/build", "!**/coverage", "!**/.turbo"]
   },
   "formatter": {
     "enabled": true,
@@ -28,7 +28,9 @@
         "noUselessStringConcat": "error"
       },
       "correctness": {
-        "useExhaustiveDependencies": "warn"
+        "noUnusedFunctionParameters": "off",
+        "useExhaustiveDependencies": "warn",
+        "useUniqueElementIds": "off"
       },
       "style": {
         "noParameterAssign": "error",

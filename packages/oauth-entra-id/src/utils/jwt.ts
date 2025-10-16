@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 import type { JwksClient } from 'jwks-rsa';
-import { $err, $ok, $stringErr, type Result } from '~/error';
+import { $err, $fmtError, $ok, type Result } from '~/error';
 import type { JwtPayload, Metadata } from '~/types';
 import { $isStr } from './zod';
 
@@ -47,7 +47,7 @@ export async function $verifyJwt({
   jwksClient: JwksClient;
 }): Promise<Result<{ payload: JwtPayload; meta: Metadata }>> {
   const { kid, tenantId, issuer, error } = $getKeyIdAndExtra(jwtToken);
-  if (error) return $err({ msg: 'Unauthorized', desc: `Key ID Extraction - ${$stringErr(error)}`, status: 401 });
+  if (error) return $err({ msg: 'Unauthorized', desc: `Key ID Extraction - ${$fmtError(error)}`, status: 401 });
 
   if (azure.tenantId !== 'common' && tenantId !== azure.tenantId) {
     return $err({

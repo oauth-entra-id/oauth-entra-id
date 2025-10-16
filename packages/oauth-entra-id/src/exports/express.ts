@@ -1,5 +1,5 @@
 import '~/shared/types';
-import type { NextFunction, Request, Response } from 'express';
+import type { NextFunction, Request, RequestHandler, Response } from 'express';
 import { OAuthProvider } from '~/core';
 import { OAuthError } from '~/error';
 import {
@@ -23,8 +23,8 @@ export let expressOAuthProvider: OAuthProvider = undefined as unknown as OAuthPr
  *
  * @param config  OAuthConfig for your Microsoft Entra ID app.
  */
-export function authConfig(config: OAuthConfig) {
-  return (req: Request, _res: Response, next: NextFunction) => {
+export function authConfig(config: OAuthConfig): RequestHandler {
+  return (req: Request, res: Response, next: NextFunction) => {
     if (!expressOAuthProvider) {
       expressOAuthProvider = new OAuthProvider(config);
     }
@@ -47,7 +47,7 @@ export function authConfig(config: OAuthConfig) {
  *
  * @throws {OAuthError} if there is any issue.
  */
-export function handleAuthentication() {
+export function handleAuthentication(): RequestHandler {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.oauthProvider || req.serverType !== 'express') {
@@ -69,7 +69,7 @@ export function handleAuthentication() {
  *
  * @throws {OAuthError} if there is any issue.
  */
-export function handleCallback() {
+export function handleCallback(): RequestHandler {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.oauthProvider || req.serverType !== 'express') {
@@ -91,7 +91,7 @@ export function handleCallback() {
  *
  * @throws {OAuthError} if there is any issue.
  */
-export function handleLogout() {
+export function handleLogout(): RequestHandler {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.oauthProvider || req.serverType !== 'express') {
@@ -113,7 +113,7 @@ export function handleLogout() {
  *
  * @throws {OAuthError} if there is any issue.
  */
-export function handleOnBehalfOf() {
+export function handleOnBehalfOf(): RequestHandler {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.oauthProvider || req.serverType !== 'express') {
@@ -144,7 +144,7 @@ export function handleOnBehalfOf() {
  *
  * @throws {OAuthError} if there is any issue with the configuration or authentication.
  */
-export function protectRoute(cb?: CallbackFunction) {
+export function protectRoute(cb?: CallbackFunction): RequestHandler {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.oauthProvider || req.serverType !== 'express') {

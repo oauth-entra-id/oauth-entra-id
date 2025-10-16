@@ -1,37 +1,40 @@
-import { parseToObj, stringifyObj } from 'cipher-kit';
+import { tryParseToObj, tryStringifyObj } from 'cipher-kit';
 import {
-  createSecretKey as createNodeKey,
-  isNodeKey,
-  type NodeKey,
-  decrypt as nodeDecrypt,
-  encrypt as nodeEncrypt,
-  generateUuid as nodeGenerateUuid,
+  tryCreateSecretKey as createNodeSecretKey,
+  isNodeSecretKey,
+  type NodeSecretKey,
+  tryDecrypt as nodeDecrypt,
+  tryEncrypt as nodeEncrypt,
+  tryGenerateUuid as nodeGenerateUuid,
 } from 'cipher-kit/node';
 import {
-  createSecretKey as createWebApiKey,
-  isWebApiKey,
-  type WebApiKey,
-  decrypt as webApiDecrypt,
-  encrypt as webApiEncrypt,
-  generateUuid as webApiGenerateUuid,
+  tryCreateSecretKey as createWebSecretKey,
+  isWebSecretKey,
+  type WebSecretKey,
+  tryDecrypt as webDecrypt,
+  tryEncrypt as webEncrypt,
+  tryGenerateUuid as webGenerateUuid,
 } from 'cipher-kit/web-api';
-import { $err, $ok, $stringErr } from '~/error';
+import { $err, $fmtError, $ok } from '~/error';
 import type { Result } from '~/exports';
 import type { CryptoType } from '~/types';
 import { $isStr } from './zod';
 
 export function $generateUuid(cryptoType: CryptoType): Result<{ uuid: string }> {
-  const uuid = cryptoType === 'node' ? nodeGenerateUuid() : webApiGenerateUuid();
-  if (uuid.error) return $err({ msg: 'Failed to generate UUID', desc: $stringErr(uuid.error) });
+  const uuid = cryptoType === 'node' ? nodeGenerateUuid() : webGenerateUuid();
+  if (uuid.error) return $err({ msg: 'Failed to generate UUID', desc: $fmtError(uuid.error) });
   return $ok({ uuid: uuid.result });
 }
 
-export function $createSecretKey(cryptoType: CryptoType, key: string): Result<{ newSecretKey: string | NodeKey }> {
+export function $createSecretKey(
+  cryptoType: CryptoType,
+  key: string,
+): Result<{ newSecretKey: string | NodeSecretKey }> {
   if (cryptoType === 'web-api') return $ok({ newSecretKey: key });
 
-  const { secretKey, error } = createNodeKey(key);
-  if (error) return $err({ msg: 'Failed to create Node secret key', desc: $stringErr(error) });
-  return $ok({ newSecretKey: secretKey });
+  const secretKey = createNodeSecretKey(key);
+  if (secretKey.error) return $err({ msg: 'Failed to create Node secret key', desc: $fmtError(secretKey.error) });
+  return $ok({ newSecretKey: secretKey.result });
 }
 
 export function $newSecretKeys(
@@ -39,21 +42,22 @@ export function $newSecretKeys(
   keys: { accessToken: string; refreshToken: string; state: string; ticket: string },
 ): Result<{
   secretKeys: {
-    accessToken: string | NodeKey;
-    refreshToken: string | NodeKey;
-    state: string | NodeKey;
-    ticket: string | NodeKey;
+    accessToken: string | NodeSecretKey;
+    refreshToken: string | NodeSecretKey;
+    state: string | NodeSecretKey;
+    ticket: string | NodeSecretKey;
   };
 }> {
   if (cryptoType === 'web-api') {
     return $ok({ secretKeys: keys });
   }
 
-  const secretKeys = {} as Record<keyof typeof keys, NodeKey>;
+  const secretKeys = {} as Record<keyof typeof keys, NodeSecretKey>;
   for (const name of Object.keys(keys) as (keyof typeof keys)[]) {
-    const { secretKey, error } = createNodeKey(keys[name]);
-    if (error) return $err({ msg: `Failed to create ${name} key`, desc: `Key Creation - ${$stringErr(error)}` });
-    secretKeys[name] = secretKey;
+    const secretKey = createNodeSecretKey(keys[name]);
+    if (secretKey.error)
+      return $err({ msg: `Failed to create ${name} key`, desc: `Key Creation - ${$fmtError(secretKey.error)}` });
+    secretKeys[name] = secretKey.result;
   }
 
   return $ok({ secretKeys: secretKeys });
@@ -62,89 +66,138 @@ export function $newSecretKeys(
 export async function $encrypt(
   cryptoType: CryptoType,
   data: string | null,
-  key: string | WebApiKey | NodeKey,
-): Promise<Result<{ encrypted: string; newSecretKey: WebApiKey | undefined }>> {
+  key: string | WebSecretKey | NodeSecretKey,
+): Promise<Result<{ encrypted: string; newWebSecretKey: WebSecretKey | undefined }>> {
   if (!data) return $err({ msg: 'Invalid data', desc: 'Empty string to encrypt' });
   if (cryptoType === 'node') {
-    if (!$isStr(key) && !isNodeKey(key)) {
-      return $err({ msg: 'Invalid key type', desc: 'Expected NodeKey or string' });
-    }
-    const { secretKey, error: secretKeyError } = createNodeKey(key);
-    if (secretKeyError) {
-      return $err({ msg: 'Failed to create Node secret key', desc: `Key Creation - ${$stringErr(secretKeyError)}` });
+    if ($isStr(key)) {
+      const secretKey = createNodeSecretKey(key);
+      if (secretKey.error) {
+        return $err({
+          msg: 'Failed to create Node secret key',
+          desc: `Key Creation - ${$fmtError(secretKey.error)}`,
+        });
+      }
+
+      const encrypted = nodeEncrypt(data, secretKey.result);
+      if (encrypted.error) {
+        return $err({ msg: 'Encryption failed', desc: `Encryption - ${$fmtError(encrypted.error)}` });
+      }
+
+      return $ok({ encrypted: encrypted.result, newWebSecretKey: undefined });
     }
 
-    const encrypted = nodeEncrypt(data, secretKey);
-    if (encrypted.error) return $err({ msg: 'Encryption failed', desc: `Encryption - ${$stringErr(encrypted.error)}` });
+    if (!isNodeSecretKey(key)) {
+      return $err({ msg: 'Invalid key type', desc: 'Expected NodeSecretKey or string' });
+    }
 
-    return $ok({ encrypted: encrypted.result, newSecretKey: undefined });
+    const encrypted = nodeEncrypt(data, key);
+    if (encrypted.error) return $err({ msg: 'Encryption failed', desc: `Encryption - ${$fmtError(encrypted.error)}` });
+
+    return $ok({ encrypted: encrypted.result, newWebSecretKey: undefined });
   }
 
-  if (!$isStr(key) && !isWebApiKey(key)) {
-    return $err({ msg: 'Invalid key type', desc: 'Expected string or WebApiKey' });
+  if ($isStr(key)) {
+    const secretKey = await createWebSecretKey(key);
+    if (secretKey.error) {
+      return $err({ msg: 'Failed to create Web API secret key', desc: $fmtError(secretKey.error) });
+    }
+
+    const encrypted = await webEncrypt(data, secretKey.result);
+    if (encrypted.error) {
+      return $err({ msg: 'Encryption failed', desc: `Encryption - ${$fmtError(encrypted.error)}` });
+    }
+
+    return $ok({ encrypted: encrypted.result, newWebSecretKey: secretKey.result });
   }
 
-  const { secretKey, error: secretKeyError } = await createWebApiKey(key);
-  if (secretKeyError) return $err({ msg: 'Failed to create Web API secret key', desc: $stringErr(secretKeyError) });
+  if (!isWebSecretKey(key)) {
+    return $err({ msg: 'Invalid key type', desc: 'Expected WebSecretKey or string' });
+  }
 
-  const encrypted = await webApiEncrypt(data, secretKey);
-  if (encrypted.error) return $err({ msg: 'Encryption failed', desc: `Encryption - ${$stringErr(encrypted.error)}` });
+  const encrypted = await webEncrypt(data, key);
+  if (encrypted.error) return $err({ msg: 'Encryption failed', desc: `Encryption - ${$fmtError(encrypted.error)}` });
 
-  return $ok({ encrypted: encrypted.result, newSecretKey: secretKey });
+  return $ok({ encrypted: encrypted.result, newWebSecretKey: key });
 }
 
 export async function $decrypt(
   cryptoType: CryptoType,
   encrypted: string | null,
-  key: string | WebApiKey | NodeKey,
-): Promise<Result<{ result: string; newSecretKey: WebApiKey | undefined }>> {
+  key: string | WebSecretKey | NodeSecretKey,
+): Promise<Result<{ result: string; newWebSecretKey: WebSecretKey | undefined }>> {
   if (!encrypted) return $err({ msg: 'Invalid data', desc: 'Empty string to decrypt' });
   if (cryptoType === 'node') {
-    if (!$isStr(key) && !isNodeKey(key)) {
-      return $err({ msg: 'Invalid key type', desc: 'Expected NodeKey or string' });
+    if ($isStr(key)) {
+      const secretKey = createNodeSecretKey(key);
+      if (secretKey.error) {
+        return $err({
+          msg: 'Failed to create Node secret key',
+          desc: `Key Creation - ${$fmtError(secretKey.error)}`,
+        });
+      }
+
+      const decrypted = nodeDecrypt(encrypted, secretKey.result);
+      if (decrypted.error) {
+        return $err({ msg: 'Decryption failed', desc: `Decryption - ${$fmtError(decrypted.error)}` });
+      }
+
+      return $ok({ result: decrypted.result, newWebSecretKey: undefined });
     }
 
-    const { secretKey, error: secretKeyError } = createNodeKey(key);
-    if (secretKeyError) return $err({ msg: 'Failed to create Node secret key', desc: $stringErr(secretKeyError) });
+    if (!isNodeSecretKey(key)) {
+      return $err({ msg: 'Invalid key type', desc: 'Expected NodeSecretKey or string' });
+    }
 
-    const decrypted = nodeDecrypt(encrypted, secretKey);
-    if (decrypted.error) return $err({ msg: 'Decryption failed', desc: `Decryption - ${$stringErr(decrypted.error)}` });
+    const decrypted = nodeDecrypt(encrypted, key);
+    if (decrypted.error) return $err({ msg: 'Decryption failed', desc: `Decryption - ${$fmtError(decrypted.error)}` });
 
-    return $ok({ result: decrypted.result, newSecretKey: undefined });
+    return $ok({ result: decrypted.result, newWebSecretKey: undefined });
   }
-  if (!$isStr(key) && !isWebApiKey(key)) {
-    return $err({ msg: 'Invalid key type', desc: 'Expected string or WebApiKey' });
+  if ($isStr(key)) {
+    const secretKey = await createWebSecretKey(key);
+    if (secretKey.error) {
+      return $err({ msg: 'Failed to create Web API secret key', desc: $fmtError(secretKey.error) });
+    }
+
+    const decrypted = await webDecrypt(encrypted, secretKey.result);
+    if (decrypted.error) {
+      return $err({ msg: 'Decryption failed', desc: `Decryption - ${$fmtError(decrypted.error)}` });
+    }
+
+    return $ok({ result: decrypted.result, newWebSecretKey: secretKey.result });
   }
 
-  const { secretKey, error: secretKeyError } = await createWebApiKey(key);
-  if (secretKeyError) return $err({ msg: 'Failed to create Web API secret key', desc: $stringErr(secretKeyError) });
+  if (!isWebSecretKey(key)) {
+    return $err({ msg: 'Invalid key type', desc: 'Expected WebSecretKey or string' });
+  }
 
-  const decrypted = await webApiDecrypt(encrypted, secretKey);
-  if (decrypted.error) return $err({ msg: 'Decryption failed', desc: `Decryption - ${$stringErr(decrypted.error)}` });
+  const decrypted = await webDecrypt(encrypted, key);
+  if (decrypted.error) return $err({ msg: 'Decryption failed', desc: `Decryption - ${$fmtError(decrypted.error)}` });
 
-  return $ok({ result: decrypted.result, newSecretKey: secretKey });
+  return $ok({ result: decrypted.result, newWebSecretKey: key });
 }
 
 export async function $encryptObj(
   cryptoType: CryptoType,
   obj: Record<string, unknown> | null,
-  key: string | WebApiKey | NodeKey,
-): Promise<Result<{ encrypted: string; newSecretKey: WebApiKey | undefined }>> {
+  key: string | WebSecretKey | NodeSecretKey,
+): Promise<Result<{ encrypted: string; newWebSecretKey: WebSecretKey | undefined }>> {
   if (!obj) return $err({ msg: 'Invalid data', desc: 'Empty object to encrypt' });
-  const { result, error } = stringifyObj(obj);
-  if (error) return $err({ msg: 'Failed to stringify object', desc: $stringErr(error) });
+  const { result, error } = tryStringifyObj(obj);
+  if (error) return $err({ msg: 'Failed to stringify object', desc: $fmtError(error) });
   return await $encrypt(cryptoType, result, key);
 }
 
 export async function $decryptObj(
   cryptoType: CryptoType,
   encrypted: string | null,
-  key: string | WebApiKey | NodeKey,
-): Promise<Result<{ result: Record<string, unknown>; newSecretKey: WebApiKey | undefined }>> {
+  key: string | WebSecretKey | NodeSecretKey,
+): Promise<Result<{ result: Record<string, unknown>; newWebSecretKey: WebSecretKey | undefined }>> {
   if (!encrypted) return $err({ msg: 'Invalid data', desc: 'Empty string to decrypt' });
   const decrypted = await $decrypt(cryptoType, encrypted, key);
   if (decrypted.error) return decrypted;
-  const { result, error } = parseToObj(decrypted.result);
-  if (error) return $err({ msg: 'Failed to parse object', desc: $stringErr(error) });
-  return $ok({ result, newSecretKey: decrypted.newSecretKey });
+  const { result, error } = tryParseToObj(decrypted.result);
+  if (error) return $err({ msg: 'Failed to parse object', desc: $fmtError(error) });
+  return $ok({ result, newWebSecretKey: decrypted.newWebSecretKey });
 }
