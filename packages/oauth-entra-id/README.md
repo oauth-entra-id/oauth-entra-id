@@ -552,7 +552,7 @@ Returns:
 app.post('/on-behalf-of', protectRoute, async (c) => {
   const { services } = await c.req.json();
   const accessToken = c.get('userInfo').accessToken;
-  const { results } = await oauthProvider.getOnBehalfOfToken({ accessToken, services });
+  const { results } = await oauthProvider.getTokenOnBehalfOf({ accessToken, services });
 
   for (const { accessToken } of results) {
     setCookie(c, accessToken.name, accessToken.value, accessToken.options);
