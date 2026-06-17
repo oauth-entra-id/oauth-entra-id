@@ -47,7 +47,7 @@ pnpm add oauth-entra-id@latest
 
 Requires:
 
-- Node.js v18 or higher (We recommend using the latest LTS version)
+- Node.js v20 or higher (We recommend using the latest LTS version)
 - Deno v2 or higher
 - Bun v1.0 or higher
 
