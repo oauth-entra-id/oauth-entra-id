@@ -335,7 +335,6 @@ Build a logout URL and cookie-deletion instructions.
 Parameters:
 
 - `params` (optional):
-
   - `frontendUrl` (optional) - Frontend URL override to redirect the user after log out.
   - `azureId` (optional) - Azure configuration ID to use, relevant if multiple Azure configurations (Defaults to the first one).
     Returns:
@@ -541,7 +540,6 @@ Parameters:
 Returns:
 
 - Promise of an object or an array of objects (based on the parameters) containing:
-
   - `result` or `results` - An object or an array of objects (based on the parameters) with the following properties:
     - `serviceName` - The name of the OBO service.
     - `clientId` - The client ID of the OBO service.
@@ -552,7 +550,7 @@ Returns:
 app.post('/on-behalf-of', protectRoute, async (c) => {
   const { services } = await c.req.json();
   const accessToken = c.get('userInfo').accessToken;
-  const { results } = await oauthProvider.getOnBehalfOfToken({ accessToken, services });
+  const { results } = await oauthProvider.getTokenOnBehalfOf({ accessToken, services });
 
   for (const { accessToken } of results) {
     setCookie(c, accessToken.name, accessToken.value, accessToken.options);
