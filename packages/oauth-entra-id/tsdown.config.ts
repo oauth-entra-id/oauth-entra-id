@@ -1,7 +1,6 @@
-import { defineConfig, type Options } from 'tsup';
+import { defineConfig } from 'tsdown';
 
-export default defineConfig((options: Options) => ({
-  name: 'oauth-entra-id',
+export default defineConfig({
   entry: {
     index: 'src/exports/index.ts',
     express: 'src/exports/express.ts',
@@ -13,11 +12,8 @@ export default defineConfig((options: Options) => ({
   dts: true,
   sourcemap: true,
   treeshake: true,
-  splitting: true,
   minify: false,
-  cjsInterop: true,
+  cjsDefault: true,
   tsconfig: 'tsconfig.json',
-  skipNodeModulesBundle: true,
-  external: ['express'],
-  ...options,
-}));
+  outExtensions: ({ format }) => ({ js: format === 'cjs' ? '.cjs' : '.js' }),
+});

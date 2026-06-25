@@ -61,9 +61,9 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsup",
+    "build": "tsdown",
     "prepare": "npm run build",
-    "dev": "tsup --watch",
+    "dev": "tsdown --watch",
     "typecheck": "tsc --noEmit",
     "test": "vitest"
   },
@@ -88,7 +88,7 @@
     "@types/express": "^5.0.3",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^24.7.2",
-    "tsup": "^8.5.0",
+    "tsdown": "^0.22.3",
     "typescript": "^5.9.3"
   },
   "engines": {
