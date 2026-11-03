@@ -209,6 +209,7 @@ export class OAuthProvider {
         scopes: azure.scopes,
         redirectUri: this.serverCallbackUrl,
         codeVerifier: state.codeVerifier,
+        nonce: state.nonce,
       });
 
       const { encryptedAccessToken, encryptedRefreshToken, error } = await this.$extractTokens(azure, msalResponse);
