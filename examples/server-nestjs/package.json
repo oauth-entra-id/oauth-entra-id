@@ -7,7 +7,7 @@
   "scripts": {
     "build": "nest build",
     "start": "nest start",
-    "dev": "nest start --watch",
+    "dev": "nest start --watch --exec \"node --max-http-header-size=65536\"",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main"
   },

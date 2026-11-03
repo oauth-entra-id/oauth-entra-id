@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "node dist/index.js",
-    "dev": "tsx watch --clear-screen=false src/index.ts",
+    "dev": "tsx watch --clear-screen=false --max-http-header-size=65536 src/index.ts",
     "build": "tsdown",
     "typecheck": "tsc --noEmit"
   },
