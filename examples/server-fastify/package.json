@@ -11,23 +11,23 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@fastify/cookie": "^11.0.2",
-    "@fastify/cors": "^11.1.0",
+    "@fastify/cookie": "^11.1.5",
+    "@fastify/cors": "^11.4.0",
     "@fastify/formbody": "^8.0.2",
-    "@fastify/helmet": "^13.0.2",
+    "@fastify/helmet": "^13.2.0",
     "@fastify/rate-limit": "^10.3.0",
-    "@fastify/type-provider-typebox": "^6.0.0",
-    "@sinclair/typebox": "^0.34.41",
-    "axios": "^1.12.2",
-    "dotenv": "^17.2.3",
-    "fastify": "^5.6.1",
+    "@fastify/type-provider-typebox": "^6.3.0",
+    "@sinclair/typebox": "^0.34.52",
+    "axios": "^1.21.0",
+    "dotenv": "^17.4.2",
+    "fastify": "^5.12.8",
     "oauth-entra-id": "workspace:*",
-    "zod": "^4.1.12"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@types/node": "^24.7.2",
-    "tsdown": "^0.22.3",
-    "tsx": "^4.20.6",
+    "@types/node": "^24.19.2",
+    "tsdown": "^0.22.14",
+    "tsx": "^4.23.15",
     "typescript": "^5.9.3"
   }
 }
