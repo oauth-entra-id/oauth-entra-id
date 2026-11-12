@@ -53,6 +53,12 @@
       }
     }
   },
+  "overrides": [
+    {
+      "includes": ["e2eTests/**"],
+      "linter": { "rules": { "style": { "noProcessEnv": "off" } } }
+    }
+  ],
   "javascript": {
     "formatter": {
       "enabled": true,

@@ -1,0 +1,15 @@
+{
+  "name": "e2e-tests",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "test": "pnpm -w run test:build && playwright test",
+    "browsers": "playwright install chromium",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@playwright/test": "~1.56.1",
+    "@types/node": "^24.7.2",
+    "typescript": "^5.9.3"
+  }
+}

@@ -21,6 +21,11 @@ export class HttpException extends Error {
         description = env.NODE_ENV === 'development' ? err.description : undefined;
         break;
       }
+      case err instanceof HttpException: {
+        message = err.message;
+        statusCode = err.statusCode;
+        break;
+      }
       case err instanceof Error: {
         message = err.message;
         if (err.name === 'SyntaxError') {
