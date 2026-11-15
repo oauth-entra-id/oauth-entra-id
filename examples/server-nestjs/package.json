@@ -12,13 +12,13 @@
     "start:prod": "node dist/main"
   },
   "dependencies": {
-    "@nestjs/common": "^11.2.8",
+    "@nestjs/common": "^11.2.10",
     "@nestjs/config": "^4.0.4",
-    "@nestjs/core": "^11.2.8",
+    "@nestjs/core": "^11.2.10",
     "@nestjs/mapped-types": "^2.1.1",
-    "@nestjs/platform-express": "^11.2.8",
+    "@nestjs/platform-express": "^11.2.10",
     "@nestjs/throttler": "^6.7.1",
-    "axios": "^1.21.0",
+    "axios": "^1.21.1",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.4",
     "dotenv": "^17.4.2",
