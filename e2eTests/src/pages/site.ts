@@ -82,12 +82,32 @@ export class Site {
     await expect(this.page.getByText(/You are Connected!|Login into account/)).toBeVisible();
   }
 
+  // Waits until the account card has rendered every field, so a read never races the page loading its data.
   async profile() {
-    const text = await this.page.locator('body').innerText();
-    const word = (label: string) => new RegExp(`${label}:\\s*(\\S+)`).exec(text)?.[1] ?? '';
-    const injected = /Injected Data:\s*(\d+) \(Random Number\)/.exec(text)?.[1];
+    const body = this.page.locator('body');
+    const rendered = [
+      /Unique ID:[ \t]*\S/,
+      /Email:[ \t]*\S+@\S+/,
+      /Name:[ \t]*\S/,
+      /Azure:[ \t]*\S/,
+      /Tenant:[ \t]*\S/,
+      /Injected Data:[ \t]*(\d+ \(Random Number\)|None)/,
+    ];
+    let text = '';
+    await expect
+      .poll(
+        async () => {
+          text = await body.innerText();
+          return rendered.every((pattern) => pattern.test(text));
+        },
+        { message: 'the account card shows every field' },
+      )
+      .toBe(true);
+
+    const word = (label: string) => new RegExp(`${label}:[ \\t]*(\\S+)`).exec(text)?.[1] ?? '';
+    const injected = /Injected Data:[ \t]*(\d+) \(Random Number\)/.exec(text)?.[1];
     return {
-      name: /Name:\s*([^\n]+)/.exec(text)?.[1]?.trim() ?? '',
+      name: /Name:[ \t]*([^\n]+)/.exec(text)?.[1]?.trim() ?? '',
       email: word('Email'),
       uniqueId: word('Unique ID'),
       azure: word('Azure'),
