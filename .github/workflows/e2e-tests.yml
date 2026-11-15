@@ -58,11 +58,9 @@ jobs:
       - name: Build the library and example servers
         run: pnpm run test:build
 
-      # Each flow job runs its own servers and Microsoft sign-in; the spec files are independent of each other.
       - name: Run ${{ matrix.flow }} tests
         run: pnpm --filter e2e-tests exec playwright test "tests/[0-9][0-9]-${{ matrix.flow }}.spec.ts"
 
-  # Single status for all flow jobs, so branch protection can keep requiring "e2e".
   e2e:
     needs: e2e-flow
     if: ${{ always() }}
