@@ -27,7 +27,7 @@ export const zAccessTokenExpiry = z.number().positive();
 export const zRefreshTokenExpiry = z.number().min(3600);
 const zOneOrMoreUrls = z.union([zUrl.max(2048).transform((url) => [url]), z.array(zUrl.max(2048)).min(1)]);
 
-export const zEncrypted = zStr.max(4096).regex(ENCRYPTED_REGEX.general);
+export const zEncrypted = zStr.max(4096).regex(ENCRYPTED_REGEX);
 export const zJwt = z.jwt().max(4096);
 
 export const zTenantId = z.union([z.literal('common'), zUuid]);

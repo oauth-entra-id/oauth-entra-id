@@ -1,6 +1,7 @@
 packages:
   - 'examples/*'
   - 'packages/*'
+  - 'e2eTests'
 
 # Force patched versions of vulnerable transitive deps that upstream hasn't bumped yet
 overrides:

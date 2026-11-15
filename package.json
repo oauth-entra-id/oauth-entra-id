@@ -10,6 +10,8 @@
     "check": "pnpm biome check",
     "check:fix": "pnpm biome check --fix",
     "typecheck": "turbo run typecheck",
+    "test:build": "turbo run build --filter=oauth-entra-id --filter=\"server-*\"",
+    "test": "pnpm --filter e2e-tests test",
     "prepare": "husky"
   },
   "devDependencies": {

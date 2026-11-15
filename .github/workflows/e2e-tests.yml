@@ -1,0 +1,75 @@
+name: E2E Tests
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  e2e-flow:
+    name: e2e (${{ matrix.flow }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        flow: [login, session, obo, b2b, logout]
+    env:
+      EXPRESS_URL: ${{ vars.EXPRESS_URL }}
+      NESTJS_URL: ${{ vars.NESTJS_URL }}
+      FASTIFY_URL: ${{ vars.FASTIFY_URL }}
+      HONOJS_URL: ${{ vars.HONOJS_URL }}
+      REACT_FRONTEND_URL: ${{ vars.REACT_FRONTEND_URL }}
+      YELLOW1_AZURE_CLIENT_ID: ${{ secrets.YELLOW1_AZURE_CLIENT_ID }}
+      YELLOW1_AZURE_TENANT_ID: ${{ secrets.YELLOW1_AZURE_TENANT_ID }}
+      YELLOW1_AZURE_CUSTOM_SCOPE: ${{ secrets.YELLOW1_AZURE_CUSTOM_SCOPE }}
+      YELLOW1_AZURE_CLIENT_SECRET: ${{ secrets.YELLOW1_AZURE_CLIENT_SECRET }}
+      YELLOW1_AZURE_EXPOSED_SCOPE: ${{ secrets.YELLOW1_AZURE_EXPOSED_SCOPE }}
+      RED1_AZURE_CLIENT_ID: ${{ secrets.RED1_AZURE_CLIENT_ID }}
+      RED1_AZURE_TENANT_ID: ${{ secrets.RED1_AZURE_TENANT_ID }}
+      RED1_AZURE_CUSTOM_SCOPE: ${{ secrets.RED1_AZURE_CUSTOM_SCOPE }}
+      RED1_AZURE_CLIENT_SECRET: ${{ secrets.RED1_AZURE_CLIENT_SECRET }}
+      RED1_AZURE_EXPOSED_SCOPE: ${{ secrets.RED1_AZURE_EXPOSED_SCOPE }}
+      BLUE1_AZURE_CLIENT_ID: ${{ secrets.BLUE1_AZURE_CLIENT_ID }}
+      BLUE1_AZURE_TENANT_ID: ${{ secrets.BLUE1_AZURE_TENANT_ID }}
+      BLUE1_AZURE_CUSTOM_SCOPE: ${{ secrets.BLUE1_AZURE_CUSTOM_SCOPE }}
+      BLUE1_AZURE_CLIENT_SECRET: ${{ secrets.BLUE1_AZURE_CLIENT_SECRET }}
+      BLUE1_AZURE_EXPOSED_SCOPE: ${{ secrets.BLUE1_AZURE_EXPOSED_SCOPE }}
+      E2E_USER_EMAIL: ${{ secrets.E2E_USER_EMAIL }}
+      E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browser
+        run: pnpm --filter e2e-tests exec playwright install --with-deps chromium
+
+      - name: Build the library and example servers
+        run: pnpm run test:build
+
+      - name: Run ${{ matrix.flow }} tests
+        run: pnpm --filter e2e-tests exec playwright test "tests/[0-9][0-9]-${{ matrix.flow }}.spec.ts"
+
+  e2e:
+    needs: e2e-flow
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Check flow results
+        run: |
+          if [ "${{ needs.e2e-flow.result }}" != "success" ]; then
+            echo "e2e flows finished with: ${{ needs.e2e-flow.result }}"
+            exit 1
+          fi

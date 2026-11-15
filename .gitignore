@@ -8,3 +8,4 @@ dist-ssr
 *.local
 .env
 .cache
+e2eTests/.env.live
