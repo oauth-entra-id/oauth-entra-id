@@ -8,9 +8,14 @@ permissions:
   contents: read
 
 jobs:
-  e2e:
+  e2e-shard:
+    name: e2e (shard ${{ matrix.shard }}/4)
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     env:
       EXPRESS_URL: ${{ vars.EXPRESS_URL }}
       NESTJS_URL: ${{ vars.NESTJS_URL }}
@@ -50,6 +55,23 @@ jobs:
       - name: Install Playwright browser
         run: pnpm --filter e2e-tests exec playwright install --with-deps chromium
 
-      # `pnpm test` builds the library and example servers first, then runs Playwright.
-      - name: Run e2e tests
-        run: pnpm test
+      - name: Build the library and example servers
+        run: pnpm run test:build
+
+      # Each shard runs its own servers and Microsoft sign-in, and the tests are independent of each other.
+      - name: Run e2e tests (shard ${{ matrix.shard }}/4)
+        run: pnpm --filter e2e-tests exec playwright test --shard=${{ matrix.shard }}/4
+
+  # Single status for all shards, so branch protection can keep requiring "e2e".
+  e2e:
+    needs: e2e-shard
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Check shard results
+        run: |
+          if [ "${{ needs.e2e-shard.result }}" != "success" ]; then
+            echo "e2e shards finished with: ${{ needs.e2e-shard.result }}"
+            exit 1
+          fi
