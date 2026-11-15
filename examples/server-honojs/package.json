@@ -11,11 +11,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@hono/node-server": "^2.1.6",
+    "@hono/node-server": "^2.1.8",
     "@hono/zod-validator": "^0.7.6",
-    "axios": "^1.21.0",
+    "axios": "^1.21.1",
     "dotenv": "^17.4.2",
-    "hono": "^4.13.16",
+    "hono": "^4.13.18",
     "hono-rate-limiter": "^0.4.2",
     "oauth-entra-id": "workspace:*",
     "zod": "^4.6.7"
