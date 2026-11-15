@@ -1,5 +1,5 @@
 import { basename } from 'node:path';
-import type { FullResult, Reporter, Suite, TestError, TestResult, TestStep } from '@playwright/test/reporter';
+import type { FullResult, Reporter, Suite, TestCase, TestError, TestResult, TestStep } from '@playwright/test/reporter';
 
 type Category = 'microsoft' | 'timeout' | 'assertion';
 
@@ -53,6 +53,20 @@ export default class SummaryReporter implements Reporter {
 
   onBegin(_config: unknown, suite: Suite): void {
     this.suite = suite;
+  }
+
+  // Print failures as they happen, so CI logs are useful even if the job is cancelled before onEnd runs.
+  onTestEnd(test: TestCase, result: TestResult): void {
+    if (result.status === 'passed' || result.status === 'skipped') return;
+    const message = clean(result.errors[0]?.message ?? 'No error message');
+    console.log(
+      [
+        `FAILED: ${test.title}`,
+        `    stage: ${failedStage(result.steps)?.join(' > ') || 'outside any step'}`,
+        `    category: ${categorize(result, message)}`,
+        `    error: ${message}`,
+      ].join('\n'),
+    );
   }
 
   onError(error: TestError): void {

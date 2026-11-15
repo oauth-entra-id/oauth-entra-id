@@ -14,6 +14,8 @@ export default defineConfig({
   retries: 0,
   forbidOnly: !!process.env.CI,
   timeout: 180_000,
+  // Stop before the workflow's 30 minute limit so the reporter's final summary still prints.
+  globalTimeout: process.env.CI ? 25 * 60_000 : 0,
   expect: { timeout: 15_000 },
   reporter: [['list'], ['./src/reporter.ts']],
   use: {
