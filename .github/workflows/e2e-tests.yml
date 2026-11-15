@@ -8,14 +8,14 @@ permissions:
   contents: read
 
 jobs:
-  e2e-shard:
-    name: e2e (shard ${{ matrix.shard }}/4)
+  e2e-flow:
+    name: e2e (${{ matrix.flow }})
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        flow: [login, session, obo, b2b, logout]
     env:
       EXPRESS_URL: ${{ vars.EXPRESS_URL }}
       NESTJS_URL: ${{ vars.NESTJS_URL }}
@@ -58,20 +58,20 @@ jobs:
       - name: Build the library and example servers
         run: pnpm run test:build
 
-      # Each shard runs its own servers and Microsoft sign-in, and the tests are independent of each other.
-      - name: Run e2e tests (shard ${{ matrix.shard }}/4)
-        run: pnpm --filter e2e-tests exec playwright test --shard=${{ matrix.shard }}/4
+      # Each flow job runs its own servers and Microsoft sign-in; the spec files are independent of each other.
+      - name: Run ${{ matrix.flow }} tests
+        run: pnpm --filter e2e-tests exec playwright test "tests/[0-9][0-9]-${{ matrix.flow }}.spec.ts"
 
-  # Single status for all shards, so branch protection can keep requiring "e2e".
+  # Single status for all flow jobs, so branch protection can keep requiring "e2e".
   e2e:
-    needs: e2e-shard
+    needs: e2e-flow
     if: ${{ always() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - name: Check shard results
+      - name: Check flow results
         run: |
-          if [ "${{ needs.e2e-shard.result }}" != "success" ]; then
-            echo "e2e shards finished with: ${{ needs.e2e-shard.result }}"
+          if [ "${{ needs.e2e-flow.result }}" != "success" ]; then
+            echo "e2e flows finished with: ${{ needs.e2e-flow.result }}"
             exit 1
           fi

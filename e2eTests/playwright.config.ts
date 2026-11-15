@@ -9,7 +9,7 @@ const env = liveEnv();
 export default defineConfig({
   testDir: './tests',
   outputDir: join(tmpdir(), 'oauth-entra-id-e2e', 'output'),
-  fullyParallel: true,
+  fullyParallel: false,
   workers: 1,
   retries: 0,
   forbidOnly: !!process.env.CI,
