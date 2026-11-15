@@ -9,7 +9,18 @@ function escapeRegExp(value: string): string {
 
 function where(page: Page): string {
   const url = new URL(page.url());
-  return `${url.hostname}${url.pathname}`;
+  // GUIDs are shortened, otherwise the reporter's long-string redaction would hide the whole location.
+  return `${url.hostname}${url.pathname}`.replace(/[0-9a-f]{8}-[0-9a-f-]{27}/gi, '<guid>');
+}
+
+async function heading(page: Page): Promise<string> {
+  const text = await page
+    .locator('h1, [role="heading"], #loginHeader')
+    .filter({ visible: true })
+    .first()
+    .innerText({ timeout: 2_000 })
+    .catch(() => '');
+  return text.replace(/\s+/g, ' ').trim().slice(0, 100);
 }
 
 function shown(locator: Locator): Locator {
@@ -109,7 +120,10 @@ async function runSignIn(page: Page, user: Credentials, returnOrigin: string): P
       await skip.click();
     }
   }
-  throw new Error(`Microsoft sign-in did not finish, the browser is at ${where(page)}`);
+  const title = await heading(page);
+  throw new Error(
+    `Microsoft sign-in did not finish, the browser is at ${where(page)}${title ? ` showing "${title}"` : ''}`,
+  );
 }
 
 export async function signInAtMicrosoft(page: Page, user: Credentials, returnOrigin: string): Promise<void> {
