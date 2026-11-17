@@ -1,11 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { lazy, useEffect } from 'react';
-import { Navigate, Route, Routes } from 'react-router';
+import { Navigate, Route, Routes, useLocation } from 'react-router';
 import { toast } from 'sonner';
 import { DotsBackground } from '~/components/DotsBackground';
 import { Navbar } from '~/components/NavBar';
 import { Loading } from '~/components/pages/Loading';
 import { Sonner } from '~/components/ui/Sonner';
+import { MOBILE_RETURN_PATH } from '~/lib/mobile-storage';
 import { getAppInfo } from '~/services/app-info';
 import { getUserData } from '~/services/user';
 import { useServerStore } from '~/stores/server-store';
@@ -14,8 +15,10 @@ import { useUserStore } from '~/stores/user-store';
 
 const Home = lazy(() => import('./pages/home'));
 const Login = lazy(() => import('./pages/login'));
+const MobileReturn = lazy(() => import('./pages/mobile-return'));
 
 export default function App() {
+  const { pathname } = useLocation();
   const { user, setUser } = useUserStore();
   const theme = useThemeStore((state) => state.theme);
   const server = useServerStore((state) => state.server);
@@ -43,7 +46,9 @@ export default function App() {
     <div className={`relative z-0 w-full h-screen bg-background text-foreground overflow-x-hidden ${theme}`}>
       <div className="h-full px-4 sm:px-6 lg:px-8">
         <Navbar />
-        {userData.isLoading || appInfo.isLoading || user === undefined ? (
+        {pathname === MOBILE_RETURN_PATH ? (
+          <MobileReturn />
+        ) : userData.isLoading || appInfo.isLoading || user === undefined ? (
           <Loading />
         ) : user === null ? (
           <Routes>

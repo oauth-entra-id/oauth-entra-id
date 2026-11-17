@@ -4,6 +4,11 @@
   "private": true,
   "scripts": {
     "test": "pnpm -w run test:build && playwright test",
+    "test:headed": "pnpm -w run test:build && playwright test --headed",
+    "test:browser": "pnpm -w run test:build && playwright test \"/0[1-5]-\"",
+    "test:browser:headed": "pnpm -w run test:build && playwright test \"/0[1-5]-\" --headed",
+    "test:mobile": "pnpm -w run test:build && playwright test \"mobile-\"",
+    "test:mobile:headed": "pnpm -w run test:build && playwright test \"mobile-\" --headed",
     "browsers": "playwright install chromium",
     "typecheck": "tsc --noEmit"
   },

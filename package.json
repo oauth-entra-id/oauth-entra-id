@@ -12,6 +12,11 @@
     "typecheck": "turbo run typecheck",
     "test:build": "turbo run build --filter=oauth-entra-id --filter=\"server-*\"",
     "test": "pnpm --filter e2e-tests test",
+    "test:headed": "pnpm --filter e2e-tests test:headed",
+    "test:browser": "pnpm --filter e2e-tests test:browser",
+    "test:browser:headed": "pnpm --filter e2e-tests test:browser:headed",
+    "test:mobile": "pnpm --filter e2e-tests test:mobile",
+    "test:mobile:headed": "pnpm --filter e2e-tests test:mobile:headed",
     "prepare": "husky"
   },
   "devDependencies": {

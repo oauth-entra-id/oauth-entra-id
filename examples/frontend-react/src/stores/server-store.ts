@@ -13,11 +13,14 @@ const zServer = z.enum(['express', 'nestjs', 'fastify', 'honojs']);
 export type Server = z.infer<typeof zServer>;
 
 export const serversMap = {
-  express: { value: 'express', label: 'Express', url: env.EXPRESS_SERVER, Icon: Express },
-  nestjs: { value: 'nestjs', label: 'NestJS', url: env.NESTJS_SERVER, Icon: NestJS },
-  fastify: { value: 'fastify', label: 'Fastify', url: env.FASTIFY_SERVER, Icon: Fastify },
-  honojs: { value: 'honojs', label: 'HonoJS', url: env.HONOJS_SERVER, Icon: HonoJS },
-} as Record<Server, { value: Server; label: string; url: string; Icon: React.FC<React.SVGProps<SVGSVGElement>> }>;
+  express: { value: 'express', label: 'Express', color: 'yellow', url: env.EXPRESS_SERVER, Icon: Express },
+  nestjs: { value: 'nestjs', label: 'NestJS', color: 'red', url: env.NESTJS_SERVER, Icon: NestJS },
+  fastify: { value: 'fastify', label: 'Fastify', color: 'red', url: env.FASTIFY_SERVER, Icon: Fastify },
+  honojs: { value: 'honojs', label: 'HonoJS', color: 'blue', url: env.HONOJS_SERVER, Icon: HonoJS },
+} as Record<
+  Server,
+  { value: Server; label: string; color: Color; url: string; Icon: React.FC<React.SVGProps<SVGSVGElement>> }
+>;
 
 export type Color = 'blue' | 'red' | 'yellow';
 export type TwoStrings = { '1': string; '2': string };

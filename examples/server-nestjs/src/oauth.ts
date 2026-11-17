@@ -1,4 +1,4 @@
-import type { OAuthConfig } from 'oauth-entra-id';
+import { type OAuthConfig, OAuthProvider } from 'oauth-entra-id';
 import { env } from './env';
 
 //! RED SERVICE
@@ -64,3 +64,12 @@ export const oauthConfig = {
     acceptB2BRequests: true,
   },
 } satisfies OAuthConfig;
+
+// Mobile apps get their own provider and callback URL (register `<server>/auth/mobile/callback` in Entra ID), so the cookie flow above stays as it is.
+// Same registrations and keys: the tokens are the same encrypted tokens. Bearer tokens on the mobile routes must belong to users, not apps.
+export const mobileOAuthProvider = new OAuthProvider({
+  ...oauthConfig,
+  frontendUrl: env.MOBILE_RETURN_URL,
+  serverCallbackUrl: `${env.SERVER_URL}/auth/mobile/callback`,
+  advanced: { ...oauthConfig.advanced, acceptB2BRequests: false },
+});

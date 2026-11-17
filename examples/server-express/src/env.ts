@@ -18,6 +18,8 @@ export const zEnv = z.object({
   HONOJS_URL: z.url().default('http://localhost:3004'),
   HONOJS_PORT: zStr.regex(/^\d+$/).transform(Number).default(3004),
   REACT_FRONTEND_URL: z.url().default('http://localhost:5000'),
+  MOBILE_RETURN_PATH: zStr.startsWith('/').default('/mobile-return'),
+  MOBILE_TICKET_TTL_SEC: zStr.regex(/^\d+$/).transform(Number).default(120),
   YELLOW_SECRET_KEY: zStr,
   RED_SECRET_KEY: zStr,
   BLUE_SECRET_KEY: zStr,
@@ -64,6 +66,7 @@ export const env = {
   ...parsedEnv,
   SERVER_URL: parsedEnv.EXPRESS_URL,
   SERVER_PORT: parsedEnv.EXPRESS_PORT,
+  MOBILE_RETURN_URL: `${new URL(parsedEnv.REACT_FRONTEND_URL).origin}${parsedEnv.MOBILE_RETURN_PATH}`,
 };
 
 export const serversMap = {

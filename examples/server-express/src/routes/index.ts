@@ -3,6 +3,7 @@ import { type CallbackFunction, OAuthError } from 'oauth-entra-id';
 import { protectRoute } from 'oauth-entra-id/express';
 import { getRandomNumber } from '~/utils/generate';
 import { authRouter } from './auth';
+import { mobileAuthRouter, mobileProtectedRouter } from './mobile';
 import { protectedRouter } from './protected';
 import { publicRouter } from './public';
 
@@ -17,4 +18,7 @@ const callbackFunc: CallbackFunction = async ({ userInfo, tryInjectData }) => {
 
 routesRouter.use('/', publicRouter);
 routesRouter.use('/auth', authRouter);
+routesRouter.use('/auth/mobile', mobileAuthRouter);
+// Registered before '/protected' on purpose: the cookie middleware of that mount must not wrap the Bearer routes.
+routesRouter.use('/protected/mobile', mobileProtectedRouter);
 routesRouter.use('/protected', protectRoute(callbackFunc), protectedRouter);

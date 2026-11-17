@@ -3,7 +3,7 @@ import { mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { PlaywrightTestConfig } from '@playwright/test';
-import { colors, type LiveEnv, repoRoot, serverNames, servers } from './env';
+import { colors, type LiveEnv, mobileReturnPath, repoRoot, serverNames, servers } from './env';
 
 type WebServers = NonNullable<PlaywrightTestConfig['webServer']>;
 
@@ -35,6 +35,7 @@ export function webServers(env: LiveEnv): WebServers {
   const serverEnv: Record<string, string> = {
     NODE_ENV: 'development',
     REACT_FRONTEND_URL: env.frontend.url,
+    MOBILE_RETURN_PATH: mobileReturnPath,
     YELLOW_SECRET_KEY: secretKey(),
     RED_SECRET_KEY: secretKey(),
     BLUE_SECRET_KEY: secretKey(),

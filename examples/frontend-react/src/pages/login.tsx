@@ -17,11 +17,14 @@ import { ToggleGroup, ToggleGroupItem } from '~/components/ui/ToggleGroup';
 import { cn } from '~/lib/utils';
 import { zEmailForm } from '~/lib/zod';
 import { getAuthUrl } from '~/services/user';
+import { useMobileStore } from '~/stores/mobile-store';
 import { useServerStore } from '~/stores/server-store';
 import { useUserStore } from '~/stores/user-store';
 
 export default function Login() {
   const [ssoEnabled, setSsoEnabled] = useState(true);
+  const mobileEnabled = useMobileStore((state) => state.enabled);
+  const setMobileEnabled = useMobileStore((state) => state.setEnabled);
   const [currentNumber, setCurrentNumber] = useState<'1' | '2'>('1');
   const user = useUserStore((state) => state.user);
   const appInfo = useServerStore((state) => state.appInfo);
@@ -105,6 +108,14 @@ export default function Login() {
                 htmlFor="sso"
                 className={cn('text-sm mx-2', ssoEnabled ? 'text-foreground' : 'text-muted-foreground')}>
                 Single Sign-On
+              </Label>
+            </div>
+            <div className="flex items-center justify-center">
+              <Switch id="mobile" checked={mobileEnabled} onCheckedChange={setMobileEnabled} />
+              <Label
+                htmlFor="mobile"
+                className={cn('text-sm mx-2', mobileEnabled ? 'text-foreground' : 'text-muted-foreground')}>
+                Mobile app mode
               </Label>
             </div>
           </CardContent>
