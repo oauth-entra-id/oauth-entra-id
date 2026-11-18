@@ -83,11 +83,10 @@ export const zConfig = z.object({
     .prefault({}),
 });
 
-const zJwtClientConfigBase = z.object({ clientId: zUuid, tenantId: zTenantId });
-
+// Strict, so an invalid clientSecret or b2bApps fails validation instead of being stripped into a verify-only config
+const zJwtClientConfigBase = z.strictObject({ clientId: zUuid, tenantId: zTenantId });
 export const zJwtClientConfig = z.object({
   azure: z.union([
-    zJwtClientConfigBase,
     zJwtClientConfigBase.extend({
       clientSecret: zStr.min(32).max(128),
       b2bApps: z
@@ -95,6 +94,7 @@ export const zJwtClientConfig = z.object({
         .min(1)
         .optional(),
     }),
+    zJwtClientConfigBase,
   ]),
 });
 

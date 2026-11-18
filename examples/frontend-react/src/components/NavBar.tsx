@@ -1,4 +1,5 @@
 import { Moon, Sun } from 'lucide-react';
+import { ProviderSwitch } from '~/components/ProviderSwitch';
 import { Button } from '~/components/ui/Button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '~/components/ui/DropdownMenu';
 import { useDevTools } from '~/hooks/useDevTools';
@@ -18,6 +19,7 @@ export function Navbar() {
         onDoubleClick={() => toggleDevTools()}>
         React
       </div>
+      <ProviderSwitch />
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button size="icon" variant="outline">

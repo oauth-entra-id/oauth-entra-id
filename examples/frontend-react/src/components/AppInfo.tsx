@@ -1,11 +1,18 @@
 import { cn } from '~/lib/utils';
 import { useServerStore } from '~/stores/server-store';
+import { useUserStore } from '~/stores/user-store';
 import { SmallMutedText } from './ui/Text';
 
 export function AppInfo() {
   const appInfo = useServerStore((state) => state.appInfo);
+  const registration = useServerStore((state) => state.registration);
+  const user = useUserStore((state) => state.user);
 
   if (!appInfo) return null;
+
+  // Signed in: show the registration the user actually signed in with. Otherwise: the one selected on the login page.
+  const { '1': first, '2': second } = appInfo.currentServiceIds;
+  const appId = user ? (user.azureId === second ? second : first) : (appInfo.currentServiceIds[registration] ?? first);
 
   return (
     <SmallMutedText className="mb-1 flex flex-col items-center">
@@ -17,16 +24,7 @@ export function AppInfo() {
             'text-red-700 dark:text-red-400': appInfo.currentServiceName === 'red',
             'text-yellow-700 dark:text-yellow-400': appInfo.currentServiceName === 'yellow',
           })}>
-          {appInfo.currentServiceIds['1'].slice(0, 8)}...{appInfo.currentServiceIds['1'].slice(-8)}
-        </span>
-        {' , '}
-        <span
-          className={cn({
-            'text-blue-800 dark:text-blue-200': appInfo.currentServiceName === 'blue',
-            'text-red-800 dark:text-red-200': appInfo.currentServiceName === 'red',
-            'text-yellow-800 dark:text-yellow-200': appInfo.currentServiceName === 'yellow',
-          })}>
-          {appInfo.currentServiceIds['2'].slice(0, 8)}...{appInfo.currentServiceIds['2'].slice(-8)}
+          {appId.slice(0, 8)}...{appId.slice(-8)}
         </span>
       </div>
     </SmallMutedText>

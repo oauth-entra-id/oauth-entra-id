@@ -43,10 +43,6 @@ function passwordField(page: Page): Locator {
   return shown(page.locator('input[name="passwd"]:not([aria-hidden="true"])'));
 }
 
-export function signInPrompt(page: Page, user: Credentials): Locator {
-  return emailField(page).or(passwordField(page)).or(accountTile(page, user)).first();
-}
-
 async function typeSecret(input: Locator, submit: Locator, value: string, field: string): Promise<void> {
   try {
     await input.fill(value);
@@ -73,7 +69,7 @@ async function pressAndWait(button: Locator, leaving: Locator, problem: Locator)
   ]).catch(() => undefined);
 }
 
-async function describe(locator: Locator): Promise<string> {
+async function textOf(locator: Locator): Promise<string> {
   const text = await locator.innerText({ timeout: 2_000 }).catch(() => '');
   return text.replace(/\s+/g, ' ').trim().slice(0, 300);
 }
@@ -101,7 +97,7 @@ async function runSignIn(page: Page, user: Credentials, returnOrigin: string): P
     if (backOnSite(new URL(page.url()))) return;
 
     if (await problem.isVisible()) {
-      throw new Error(`Microsoft reported: ${await describe(problem)}`);
+      throw new Error(`Microsoft reported: ${await textOf(problem)}`);
     }
     if (await password.isVisible()) {
       await typeSecret(password, primary, user.password, 'password');
@@ -128,25 +124,4 @@ async function runSignIn(page: Page, user: Credentials, returnOrigin: string): P
 
 export async function signInAtMicrosoft(page: Page, user: Credentials, returnOrigin: string): Promise<void> {
   await test.step('Sign in at Microsoft', () => runSignIn(page, user, returnOrigin), { box: true });
-}
-
-export async function finishMicrosoftSignOut(page: Page, user: Credentials, returnOrigin: string): Promise<void> {
-  await test.step(
-    'Finish the Microsoft sign-out',
-    async () => {
-      const tile = accountTile(page, user);
-      const signedOut = shown(page.getByText(/signed out/i));
-      await tile
-        .or(signedOut)
-        .first()
-        .waitFor({ state: 'visible', timeout: 30_000 })
-        .catch(() => undefined);
-      if (await tile.isVisible()) await tile.click();
-      await Promise.race([
-        signedOut.waitFor({ state: 'visible', timeout: 30_000 }),
-        page.waitForURL((url) => url.origin === returnOrigin, { timeout: 30_000 }),
-      ]);
-    },
-    { box: true },
-  );
 }

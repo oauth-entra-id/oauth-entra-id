@@ -25,6 +25,9 @@ async function expectTokenCookies(app: Site, downstream: Color[]): Promise<void>
   for (const color of downstream) {
     const cookie = await app.cookie(`at-${env.apps[color].clientId}`);
     expect(cookie?.httpOnly, `${color} service cookie is HttpOnly`).toBe(true);
+    const lifetime = (cookie?.expires ?? 0) - Date.now() / 1000;
+    expect(lifetime, `${color} service cookie lifetime (seconds)`).toBeGreaterThan(3300);
+    expect(lifetime, `${color} service cookie lifetime (seconds)`).toBeLessThanOrEqual(3600);
   }
 }
 

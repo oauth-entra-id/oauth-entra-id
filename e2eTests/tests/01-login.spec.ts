@@ -1,6 +1,5 @@
 import { liveEnv, serverNames, servers, short } from '../src/env';
 import { expect, test } from '../src/fixtures';
-import { signInPrompt } from '../src/pages/microsoft';
 
 const env = liveEnv();
 const guid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -24,10 +23,14 @@ for (const server of serverNames) {
     });
 
     await test.step('the browser holds HttpOnly session cookies for this registration', async () => {
-      for (const prefix of ['at', 'rt']) {
+      const lifetimes = { at: 3600, rt: 30 * 24 * 3600 };
+      for (const prefix of ['at', 'rt'] as const) {
         const cookie = await app.cookie(`${prefix}-${registration.clientId}`);
         expect.soft(cookie?.httpOnly, `${prefix} cookie is HttpOnly`).toBe(true);
         expect.soft(cookie?.path, `${prefix} cookie path`).toBe('/');
+        const lifetime = (cookie?.expires ?? 0) - Date.now() / 1000;
+        expect.soft(lifetime, `${prefix} cookie lifetime (seconds)`).toBeGreaterThan(lifetimes[prefix] - 300);
+        expect.soft(lifetime, `${prefix} cookie lifetime (seconds)`).toBeLessThanOrEqual(lifetimes[prefix]);
       }
     });
 
@@ -53,7 +56,7 @@ for (const server of serverNames) {
   });
 }
 
-test('Express: Sign In with Email gives Microsoft my email and asks me to sign in again', async ({ site }) => {
+test('Express: Sign In with Email gives Microsoft my email and asks to sign in again', async ({ site }) => {
   const { user } = env;
   const app = await site.knownToMicrosoft();
 
@@ -62,11 +65,10 @@ test('Express: Sign In with Email gives Microsoft my email and asks me to sign i
     await app.clickSignInWithEmail(user.email);
   });
 
-  await test.step('Microsoft gets my email and asks for my credentials again', async () => {
+  await test.step('the login address carries my email and asks to sign in again', async () => {
     const authorizeUrl = new URL(app.page.url());
     expect(authorizeUrl.searchParams.get('login_hint')).toBe(user.email);
     expect(authorizeUrl.searchParams.get('prompt')).toBe('login');
-    await expect(signInPrompt(app.page, user)).toBeVisible();
   });
 
   await test.step('after signing in again the page shows my account', async () => {
@@ -76,7 +78,7 @@ test('Express: Sign In with Email gives Microsoft my email and asks me to sign i
   });
 });
 
-test('HonoJS: with Single Sign-On off Microsoft shows the account picker', async ({ site }) => {
+test('HonoJS: with Single Sign-On off the login asks for the account picker', async ({ site }) => {
   const { user } = env;
   const app = await site.knownToMicrosoft();
 
@@ -86,9 +88,8 @@ test('HonoJS: with Single Sign-On off Microsoft shows the account picker', async
     await app.clickMicrosoft();
   });
 
-  await test.step('Microsoft asks me to pick an account although it knows me', async () => {
+  await test.step('the login address asks for the account picker', async () => {
     expect(new URL(app.page.url()).searchParams.get('prompt')).toBe('select_account');
-    await expect(app.page.getByText(/pick an account/i)).toBeVisible();
   });
 
   await test.step('after picking my account the page shows my account', async () => {

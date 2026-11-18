@@ -9,6 +9,9 @@ export type Color = (typeof colors)[number];
 
 export const repoRoot = join(__dirname, '..', '..');
 
+// Where the example servers send the browser after a mobile login.
+export const mobileReturnPath = '/mobile-return';
+
 export const servers: Record<ServerName, { label: string; color: Color; prefix: string; entry: string }> = {
   express: {
     label: 'Express',

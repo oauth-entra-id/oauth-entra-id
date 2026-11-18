@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { axiosFetch } from '~/lib/axios';
+import { clearMobileSession, saveServiceTokens, saveTicket } from '~/lib/mobile-storage';
 import { zStr } from '~/lib/zod';
+import { isMobileActive } from '~/stores/mobile-store';
 import { type Color, useServerStore } from '~/stores/server-store';
 
 const zGetUserData = z.object({
@@ -16,7 +18,7 @@ const zGetUserData = z.object({
 
 export async function getUserData() {
   const serverUrl = useServerStore.getState().serverUrl;
-  const res = await axiosFetch.get(`${serverUrl}/protected/user-info`);
+  const res = await axiosFetch.get(`${serverUrl}/protected${isMobileActive() ? '/mobile' : ''}/user-info`);
   const parsed = zGetUserData.safeParse(res?.data);
   if (parsed.error) throw new Error('Invalid user data');
   return parsed.data.user;
@@ -24,6 +26,11 @@ export async function getUserData() {
 
 const zGetAUthUrl = z.object({
   url: z.url(),
+});
+
+const zGetMobileAuthUrl = z.object({
+  url: z.url(),
+  ticket: zStr,
 });
 
 export async function getAuthUrl({
@@ -36,6 +43,15 @@ export async function getAuthUrl({
   azureId?: string;
 }) {
   const serverUrl = useServerStore.getState().serverUrl;
+
+  if (isMobileActive()) {
+    const res = await axiosFetch.post(`${serverUrl}/auth/mobile/login`, { email, loginPrompt, azureId });
+    const parsed = zGetMobileAuthUrl.safeParse(res?.data);
+    if (parsed.error) throw new Error('Invalid auth url');
+    saveTicket(parsed.data.ticket);
+    return parsed.data.url;
+  }
+
   const res = await axiosFetch.post(`${serverUrl}/auth/authenticate`, { email, loginPrompt, azureId });
   const parsed = zGetAUthUrl.safeParse(res?.data);
   if (parsed.error) throw new Error('Invalid auth url');
@@ -48,6 +64,15 @@ const zGetLogoutUrl = z.object({
 
 export async function logoutAndGetLogoutUrl(params?: { azureId?: string }) {
   const serverUrl = useServerStore.getState().serverUrl;
+
+  if (isMobileActive()) {
+    const res = await axiosFetch.post(`${serverUrl}/auth/mobile/logout`, { azureId: params?.azureId });
+    const parsed = zGetLogoutUrl.safeParse(res?.data);
+    if (parsed.error) throw new Error('Invalid logout url');
+    clearMobileSession();
+    return parsed.data.url;
+  }
+
   const res = await axiosFetch.post(`${serverUrl}/auth/logout`, { azureId: params?.azureId });
   const parsed = zGetLogoutUrl.safeParse(res?.data);
   if (parsed.error) throw new Error('Invalid logout url');
@@ -58,9 +83,25 @@ const zGetTokensOnBehalfOf = z.object({
   tokensSet: z.number(),
 });
 
+const zGetMobileTokensOnBehalfOf = z.object({
+  tokens: z.array(z.object({ serviceName: zStr, name: zStr, value: zStr })).min(1),
+});
+
 export async function getTokensOnBehalfOf(params: { serviceNames: Color[]; azureId?: string }) {
   if (!params.serviceNames || params.serviceNames.length === 0) throw new Error('No client IDs provided');
   const serverUrl = useServerStore.getState().serverUrl;
+
+  if (isMobileActive()) {
+    const res = await axiosFetch.post(`${serverUrl}/protected/mobile/on-behalf-of`, {
+      services: params.serviceNames,
+      azureId: params.azureId,
+    });
+    const parsed = zGetMobileTokensOnBehalfOf.safeParse(res?.data);
+    if (parsed.error) throw new Error('Invalid on-behalf-of tokens');
+    saveServiceTokens(Object.fromEntries(parsed.data.tokens.map(({ serviceName, value }) => [serviceName, value])));
+    return parsed.data.tokens.length;
+  }
+
   const res = await axiosFetch.post(`${serverUrl}/protected/on-behalf-of`, {
     services: params.serviceNames,
     azureId: params.azureId,
