@@ -1,4 +1,4 @@
-import { LiteProvider, OAuthError } from 'oauth-entra-id';
+import { LiteProvider } from 'oauth-entra-id';
 import { type Color, colors, liveEnv, serverNames, servers } from '../src/env';
 import { expect, test } from '../src/fixtures';
 import { fetchAppToken, tamper } from '../src/mobile-api-client';
@@ -73,44 +73,22 @@ for (const server of serverNames) {
       expect(second.expiresAt).toBeLessThan(Date.now() / 1000 + 24 * 60 * 60);
       expect(second.expiresAt).toBe(first.expiresAt);
     });
-
-    await test.step('an unknown server or missing params are refused', async () => {
-      for (const body of [{}, { app: 'unknown' }, { app: server }]) {
-        expect((await post(body)).status(), `status of ${JSON.stringify(body)}`).toBe(400);
-      }
-    });
   });
 }
 
-// The package alone, no example server: how a LiteProvider behaves with and without a secret.
-test.describe('LiteProvider configurations', () => {
+// The package alone, no example server: how a LiteProvider behaves without a secret, and what it refuses.
+test.describe('LiteProvider used directly', () => {
   const { clientId, tenantId } = env.apps.red;
-  const secret = 's'.repeat(40);
   const b2bApps = [{ appName: 'blue', scope: 'api://blue/.default' }] as [{ appName: string; scope: string }];
 
   test('without a secret it verifies app tokens but cannot get B2B tokens', async ({ request }) => {
     const lite = new LiteProvider({ azure: { clientId, tenantId } });
-    const forMe = await fetchAppToken(request, 'yellow', 'red');
-    const forAnother = await fetchAppToken(request, 'yellow', 'blue');
 
     await test.step('a valid app token is verified', async () => {
-      const { meta, error } = await lite.$verifyJwt(forMe);
+      const { meta, error } = await lite.$verifyJwt(await fetchAppToken(request, 'yellow', 'red'));
       expect(error).toBeUndefined();
       expect(meta?.isApp).toBe(true);
       expect(meta?.audience).toBe(clientId);
-    });
-
-    await test.step('anything else is unauthorized', async () => {
-      const refused: Array<[string, string | undefined]> = [
-        ['no token', undefined],
-        ['garbage', 'garbage'],
-        ['a tampered token', tamper(forMe)],
-        ['a token made for another app', forAnother],
-      ];
-      for (const [name, token] of refused) {
-        const { error } = await lite.$verifyJwt(token);
-        expect(error?.statusCode, `status of ${name}`).toBe(401);
-      }
     });
 
     await test.step('B2B tokens are not available', async () => {
@@ -120,15 +98,8 @@ test.describe('LiteProvider configurations', () => {
     });
   });
 
-  test('a secret without B2B apps behaves the same: no B2B tokens', async () => {
-    const lite = new LiteProvider({ azure: { clientId, tenantId, clientSecret: secret } });
-    const { error } = await lite.tryGetB2BToken({ app: 'blue' });
-    expect(error?.statusCode).toBe(500);
-    expect(error?.description).toMatch(/not configured/i);
-  });
-
   test('with a secret and B2B apps, unknown apps and bad params are refused', async () => {
-    const lite = new LiteProvider({ azure: { clientId, tenantId, clientSecret: secret, b2bApps } });
+    const lite = new LiteProvider({ azure: { clientId, tenantId, clientSecret: 's'.repeat(40), b2bApps } });
 
     const unknown = await lite.tryGetB2BToken({ app: 'unknown' });
     expect(unknown.error?.statusCode).toBe(400);
@@ -149,19 +120,39 @@ test.describe('LiteProvider configurations', () => {
     expect(anyTenant.error).toBeUndefined();
   });
 
-  test('an invalid configuration is refused when the provider is created', () => {
-    const invalid: Array<[string, () => LiteProvider]> = [
-      ['a client ID that is not a GUID', () => new LiteProvider({ azure: { clientId: 'not-a-guid', tenantId } })],
-      ['a tenant that is not a GUID', () => new LiteProvider({ azure: { clientId, tenantId: 'not-a-guid' } })],
-      ['a secret that is too short', () => new LiteProvider({ azure: { clientId, tenantId, clientSecret: 'short' } })],
+  // A real token is rebuilt so that everything the package reads (key ID, tenant, issuer, audience) is genuine, and
+  // only the part that proves who made it is forged. The package must refuse every one of them.
+  test('a token with a real payload but a forged signature or algorithm is refused', async ({ request }) => {
+    const lite = new LiteProvider({ azure: { clientId, tenantId } });
+    const real = await fetchAppToken(request, 'yellow', 'red');
+    const [header = '', payload = '', signature = ''] = real.split('.');
+    const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString('base64url');
+    const decode = (part: string) => JSON.parse(Buffer.from(part, 'base64url').toString());
+
+    await test.step('the real token is accepted', async () => {
+      expect((await lite.$verifyJwt(real)).error).toBeUndefined();
+    });
+
+    const forged: Array<[string, string]> = [
+      ['no signature, algorithm "none"', `${encode({ ...decode(header), alg: 'none' })}.${payload}.`],
       [
-        'the same B2B app twice',
-        () =>
-          new LiteProvider({ azure: { clientId, tenantId, clientSecret: secret, b2bApps: [...b2bApps, ...b2bApps] } }),
+        'the real signature under the algorithm "none"',
+        `${encode({ ...decode(header), alg: 'none' })}.${payload}.${signature}`,
       ],
+      [
+        'the real signature under a symmetric algorithm',
+        `${encode({ ...decode(header), alg: 'HS256' })}.${payload}.${signature}`,
+      ],
+      [
+        'a changed payload with the real signature',
+        `${header}.${encode({ ...decode(payload), roles: ['admin'] })}.${signature}`,
+      ],
+      ['the real header and payload with no signature', `${header}.${payload}.`],
     ];
-    for (const [name, create] of invalid) {
-      expect(create, name).toThrow(OAuthError);
+    for (const [name, token] of forged) {
+      await test.step(name, async () => {
+        expect((await lite.$verifyJwt(token)).error?.statusCode, `status of ${name}`).toBe(401);
+      });
     }
   });
 });

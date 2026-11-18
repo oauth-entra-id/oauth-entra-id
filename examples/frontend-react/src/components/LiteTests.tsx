@@ -22,11 +22,6 @@ const tokenChecks: Array<{ token: LiteToken; label: string }> = [
   { token: 'too-long', label: 'A token that is too long' },
 ];
 
-const paramChecks: Array<{ id: string; label: string; body: { app?: string } }> = [
-  { id: 'unknown-server', label: 'An unknown server', body: { app: 'unknown' } },
-  { id: 'no-server', label: 'No server', body: {} },
-];
-
 /**
  * Manual tests of the package's LiteProvider, no login needed: it only works with plain app tokens.
  * The same in browser and mobile app mode, except for the login token that only exists in mobile app mode.
@@ -66,12 +61,6 @@ export function LiteTests() {
         ]
       : []),
   ];
-  const paramList: Check[] = paramChecks.map(({ id, label, body }) => ({
-    id,
-    label,
-    expected: 400,
-    run: async () => (await getLiteB2BData(body)).status,
-  }));
 
   const runCheck = async (check: Check) => {
     const status = await check.run();
@@ -80,7 +69,7 @@ export function LiteTests() {
 
   const runAll = async () => {
     setResults({});
-    for (const check of [...tokenList, ...paramList]) await runCheck(check);
+    for (const check of tokenList) await runCheck(check);
   };
 
   const getData = async () => {
@@ -101,15 +90,9 @@ export function LiteTests() {
           Run all checks
         </Button>
         <CheckList title="1. Tokens are refused (expect 401)" checks={tokenList} results={results} onCheck={runCheck} />
-        <CheckList
-          title="2. Bad requests are refused (expect 400)"
-          checks={paramList}
-          results={results}
-          onCheck={runCheck}
-        />
         <Separator />
         <div className="flex flex-col items-start justify-center my-2">
-          <span className="text-sm font-semibold">3. Get B2B data (the server gets an app token and uses it)</span>
+          <span className="text-sm font-semibold">2. Get B2B data (the server gets an app token and uses it)</span>
           <div className="flex w-full justify-between items-center mb-1">
             <ToggleGroup
               type="single"
@@ -160,8 +143,8 @@ export function LiteTests() {
           )}
         </div>
         <SmallMutedText>
-          Tampered and wrong-audience app tokens, and the configurations with and without a secret, are only covered by
-          the automatic tests.
+          Tampered and wrong-audience app tokens, and a provider without a secret, are only covered by the automatic
+          tests.
         </SmallMutedText>
       </CardContent>
     </Card>

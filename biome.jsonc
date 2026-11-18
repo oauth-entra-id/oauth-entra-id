@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.2.6/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.6.8/schema.json",
   "vcs": {
     "enabled": false,
     "clientKind": "git",
@@ -7,7 +7,18 @@
   },
   "files": {
     "ignoreUnknown": false,
-    "includes": ["**", "!**/node_modules", "!**/dist", "!**/build", "!**/coverage", "!**/.turbo"]
+    "includes": [
+      "**",
+      "!**/node_modules",
+      "!**/dist",
+      "!**/build",
+      "!**/coverage",
+      "!**/.turbo",
+      "!**/*.md",
+      "!**/*.yml",
+      "!**/*.yaml",
+      "!**/*.svg"
+    ]
   },
   "formatter": {
     "enabled": true,
@@ -20,7 +31,7 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true,
+      "preset": "recommended",
       "suspicious": {
         "noExplicitAny": "off" // Needed for generic types in TypeScript
       },
@@ -56,9 +67,15 @@
   "overrides": [
     {
       "includes": ["e2eTests/**"],
-      "linter": { "rules": { "style": { "noProcessEnv": "off" } } }
+      // innerText is read on purpose: the tests check what is rendered, not the DOM text
+      "linter": { "rules": { "style": { "noProcessEnv": "off" }, "performance": { "useDomNodeTextContent": "off" } } }
     }
   ],
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    }
+  },
   "javascript": {
     "formatter": {
       "enabled": true,

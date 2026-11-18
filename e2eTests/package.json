@@ -9,11 +9,13 @@
     "test:browser:headed": "pnpm -w run test:build && playwright test \"/0[1-5]-\" --headed",
     "test:mobile": "pnpm -w run test:build && playwright test \"mobile-\"",
     "test:mobile:headed": "pnpm -w run test:build && playwright test \"mobile-\" --headed",
+    "test:lite": "pnpm -w run test:build && playwright test \"13-lite\"",
+    "test:package": "pnpm -w run test:build && playwright test \"14-package\"",
     "browsers": "playwright install chromium",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@playwright/test": "~1.56.1",
+    "@playwright/test": "~1.65.1",
     "@types/node": "^24.19.2",
     "oauth-entra-id": "workspace:*",
     "typescript": "^5.9.3"

@@ -2,7 +2,7 @@
 
 Playwright tests for the `oauth-entra-id` package using real Microsoft Entra ID authentication. They run automatically on pull requests and can also be run locally while developing the package.
 
-The example servers and React site are tools for exercising the package, not the subject of the tests. Manual testing and automatic testing use the same example routes and flows; neither requires a special implementation of the package.
+The example servers and React site are tools for exercising the package, not the subject of the tests. Manual testing and automatic testing use the same example routes and flows; neither requires a special implementation of the package. Two flows also call the built package directly, with no example server: the last part of `13-lite` and all of `14-package`. They test what the code does, not how the environment or the app registrations are set up.
 
 ## Requirements
 
@@ -47,6 +47,8 @@ From the repository root:
 | `pnpm test:browser:headed` | Browser flows with visible browser windows |
 | `pnpm test:mobile` | Mobile flows, including ticket and parameter checks |
 | `pnpm test:mobile:headed` | Mobile flows with visible browser windows |
+| `pnpm test:lite` | The `LiteProvider` flow (`13`): no browser, only app tokens |
+| `pnpm test:package` | The `OAuthProvider` checks that use the package directly (`14`): no browser, no login |
 
 These scripts build the package and example servers before running Playwright.
 
@@ -76,17 +78,22 @@ Listing still loads the configuration, so the environment must be populated.
 | [02-session](./tests/02-session.spec.ts) | Browser session persistence, silent refresh and tampered cookies |
 | [03-obo](./tests/03-obo.spec.ts) | Downstream user tokens accepted by their services |
 | [04-b2b](./tests/04-b2b.spec.ts) | App-to-app calls and rejection of invalid or wrong-audience app tokens |
-| [05-logout](./tests/05-logout.spec.ts) | Cookie deletion and Microsoft sign-out |
+| [05-logout](./tests/05-logout.spec.ts) | Cookie deletion and the Microsoft logout address |
 | [06-mobile-login](./tests/06-mobile-login.spec.ts) | Ticket-based login, encrypted tokens, metadata and login prompts |
 | [07-mobile-session](./tests/07-mobile-session.spec.ts) | Mobile session persistence, explicit refresh and tampered tokens |
 | [08-mobile-obo](./tests/08-mobile-obo.spec.ts) | Downstream bearer tokens and OBO error cases |
 | [09-mobile-b2b](./tests/09-mobile-b2b.spec.ts) | App-to-app calls and refusal of app tokens where B2B is disabled |
-| [10-mobile-logout](./tests/10-mobile-logout.spec.ts) | Mobile logout and Microsoft sign-out |
+| [10-mobile-logout](./tests/10-mobile-logout.spec.ts) | Mobile logout and the Microsoft logout address |
 | [11-mobile-ticket](./tests/11-mobile-ticket.spec.ts) | PKCE request parameters, tickets, token-type separation and repeated refresh |
 | [12-mobile-params](./tests/12-mobile-params.spec.ts) | Login options, frontend host whitelist and invalid callback state/code |
-| [13-lite](./tests/13-lite.spec.ts) | `LiteProvider`: plain app token verification, B2B tokens with caching and expiry, and configurations with and without a secret |
+| [13-lite](./tests/13-lite.spec.ts) | `LiteProvider`: plain app token verification through every example server, B2B tokens with caching, and the provider used directly (no secret, unknown apps, tenant check) |
+| [14-package](./tests/14-package.spec.ts) | `OAuthProvider` used directly, only what the other flows do not check: invalid login and logout input, tickets with every crypto and compression setting, and B2B tokens with their cache and refusals |
 
-This is integration coverage of these behaviours, not a claim that every exported method or configuration option is tested.
+The flows cover every public method of `OAuthProvider` and `LiteProvider` and the Express and NestJS adapters, through real sign-ins, real tokens and direct calls. These are not covered:
+
+- Several Azure registrations in one provider (`azureId`) and a second Azure tenant: the optional `*2_AZURE_*` set stays a manual check on the demo.
+- A user token verified by `LiteProvider` (`isApp: false`): user tokens are encrypted, so lite cannot read them. The full provider's tests cover user tokens.
+- Tokens that expire during a run, and Microsoft being slow or unavailable.
 
 ## How the suite works
 
@@ -95,6 +102,7 @@ This is integration coverage of these behaviours, not a claim that every exporte
 - [Fixtures](./src/fixtures.ts) create isolated browser contexts and reuse a worker's Microsoft session to reduce repeated credential entry. Logout tests can request a fresh session.
 - [Page helpers](./src/pages) drive the demo and Microsoft pages.
 - [Mobile API client](./src/mobile-api-client.ts) makes direct HTTP calls for protocol checks.
+- [Registrations helper](./src/registrations.ts) reads the test apps' client IDs, secrets and scopes from the environment, so the specs that call the package directly can create providers.
 
 Mobile testing uses two browser contexts: the demo represents the app, while a separate system browser visits Microsoft. It is not a native mobile app or device test.
 

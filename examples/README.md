@@ -30,11 +30,11 @@ The **LiteProvider** side of the demo tries these routes by hand, without signin
 
 | Lite control | What it demonstrates |
 | --- | --- |
-| **Run all checks** / **Check** | Sends no token, an empty bearer, garbage and a token that is too long to the server's `/lite/b2b-info` (expected 401), and an unknown or missing server to `/lite/get-b2b-info` (expected 400). Each row shows ✅ or ❌ with the status. |
+| **Run all checks** / **Check** | Sends no token, an empty bearer, garbage and a token that is too long to the server's `/lite/b2b-info`. Lite must refuse each with 401. Each row shows ✅ or ❌ with the status. |
 | **Your login token (encrypted)** | Only in Mobile app mode after signing in with OAuthProvider: the login token is encrypted, so lite refuses it (401). In browser mode the token is in an HttpOnly cookie the page cannot read. |
 | **Get Lite Data** | The selected server gets an app token with the lite provider and calls the target's lite route. Shows the data, whether the token was cached (click again to see it) and `expiresAt`. |
 
-Tampered and wrong-audience app tokens, and the checks of a configuration with or without a secret, are only covered by the [automatic tests](../e2eTests/README.md), because the page must never hold an app token or a secret.
+Tampered and wrong-audience app tokens, and a provider without a secret, are only covered by the [automatic tests](../e2eTests/README.md), because the page must never hold an app token or a secret.
 
 ## The Entra ID tenant
 

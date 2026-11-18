@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        flow: [login, session, obo, b2b, logout, mobile-login, mobile-session, mobile-obo, mobile-b2b, mobile-logout, mobile-ticket, mobile-params, lite]
+        flow: [login, session, obo, b2b, logout, mobile-login, mobile-session, mobile-obo, mobile-b2b, mobile-logout, mobile-ticket, mobile-params, lite, package]
     env:
       EXPRESS_URL: ${{ vars.EXPRESS_URL }}
       NESTJS_URL: ${{ vars.NESTJS_URL }}
