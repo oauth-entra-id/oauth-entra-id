@@ -31,6 +31,9 @@ importers:
       '@types/node':
         specifier: ^24.19.2
         version: 24.19.2
+      oauth-entra-id:
+        specifier: workspace:*
+        version: link:../packages/oauth-entra-id
       typescript:
         specifier: ^5.9.3
         version: 5.9.3

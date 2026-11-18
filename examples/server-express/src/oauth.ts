@@ -1,10 +1,19 @@
-import { type OAuthConfig, OAuthProvider } from 'oauth-entra-id';
+import { LiteProvider, type OAuthConfig, OAuthProvider } from 'oauth-entra-id';
 import { env, type Registration, registrations } from './env';
 
 type AzureConfig = Exclude<OAuthConfig['azure'], unknown[]>;
 
 //! YELLOW SERVICE
-function yellowAzure({ yellow, red, blue }: Registration): AzureConfig {
+function yellowB2BApps({ red, blue }: Registration): Required<AzureConfig>['b2bApps'] {
+  return [
+    { appName: 'fastify', scope: red.exposedScope },
+    { appName: 'honojs', scope: blue.exposedScope },
+    { appName: 'nestjs', scope: red.exposedScope },
+  ];
+}
+
+function yellowAzure(registration: Registration): AzureConfig {
+  const { yellow, red, blue } = registration;
   return {
     clientId: yellow.clientId,
     tenantId: yellow.tenantId,
@@ -24,11 +33,7 @@ function yellowAzure({ yellow, red, blue }: Registration): AzureConfig {
         encryptionKey: env.BLUE_SECRET_KEY,
       },
     ],
-    b2bApps: [
-      { appName: 'fastify', scope: red.exposedScope },
-      { appName: 'honojs', scope: blue.exposedScope },
-      { appName: 'nestjs', scope: red.exposedScope },
-    ],
+    b2bApps: yellowB2BApps(registration),
   };
 }
 
@@ -52,4 +57,15 @@ export const mobileOAuthProvider = new OAuthProvider({
   frontendUrl: env.MOBILE_RETURN_URL,
   serverCallbackUrl: `${env.SERVER_URL}/auth/mobile/callback`,
   advanced: { ...oauthConfig.advanced, acceptB2BRequests: false },
+});
+
+// The lite provider: plain (unencrypted) app tokens only. It verifies the ones sent to this server and gets the ones this server sends.
+// It uses the first registration, the second one is only for the full provider.
+export const liteProvider = new LiteProvider({
+  azure: {
+    clientId: registrations.first.yellow.clientId,
+    tenantId: registrations.first.yellow.tenantId,
+    clientSecret: registrations.first.yellow.clientSecret,
+    b2bApps: yellowB2BApps(registrations.first),
+  },
 });

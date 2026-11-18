@@ -104,7 +104,7 @@ export class LiteProvider {
           token: msalResponse.accessToken,
           msalResponse: msalResponse,
           isCached: false,
-          expiresAt: exp - TIME_SKEW,
+          expiresAt: 0,
         } satisfies B2BResult;
       });
 

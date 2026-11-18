@@ -84,6 +84,7 @@ Listing still loads the configuration, so the environment must be populated.
 | [10-mobile-logout](./tests/10-mobile-logout.spec.ts) | Mobile logout and Microsoft sign-out |
 | [11-mobile-ticket](./tests/11-mobile-ticket.spec.ts) | PKCE request parameters, tickets, token-type separation and repeated refresh |
 | [12-mobile-params](./tests/12-mobile-params.spec.ts) | Login options, frontend host whitelist and invalid callback state/code |
+| [13-lite](./tests/13-lite.spec.ts) | `LiteProvider`: plain app token verification, B2B tokens with caching and expiry, and configurations with and without a secret |
 
 This is integration coverage of these behaviours, not a claim that every exported method or configuration option is tested.
 

@@ -555,7 +555,7 @@ export class OAuthProvider {
           token: msalResponse.accessToken,
           msalResponse: msalResponse,
           isCached: false,
-          expiresAt: exp - TIME_SKEW,
+          expiresAt: 0,
         } satisfies B2BResult;
       })) as NonEmptyArray<B2BResult>;
 
