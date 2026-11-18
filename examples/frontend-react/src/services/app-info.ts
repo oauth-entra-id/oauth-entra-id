@@ -5,9 +5,9 @@ import { type Server, useServerStore } from '~/stores/server-store';
 
 export const zGetAppInfo = z.object({
   current: z.enum(['blue', 'red', 'yellow']),
-  blue: z.object({ '1': z.uuid(), '2': z.uuid() }),
-  red: z.object({ '1': z.uuid(), '2': z.uuid() }),
-  yellow: z.object({ '1': z.uuid(), '2': z.uuid() }),
+  blue: z.object({ '1': z.uuid(), '2': z.uuid().optional() }),
+  red: z.object({ '1': z.uuid(), '2': z.uuid().optional() }),
+  yellow: z.object({ '1': z.uuid(), '2': z.uuid().optional() }),
 });
 
 export async function getAppInfo() {

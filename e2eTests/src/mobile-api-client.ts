@@ -40,6 +40,20 @@ export class MobileApi {
     return this.request.post(`${this.url}/auth/mobile/refresh`, { data: body });
   }
 
+  logout(body: Record<string, unknown> = {}): Promise<APIResponse> {
+    return this.request.post(`${this.url}/auth/mobile/logout`, { data: body });
+  }
+
+  /** What Microsoft does after a sign-in: it posts the code and the state to the callback (the redirect is not followed). */
+  callback(form: Record<string, string>): Promise<APIResponse> {
+    return this.request.post(`${this.url}/auth/mobile/callback`, { form, maxRedirects: 0 });
+  }
+
+  onBehalfOf(accessToken: string | undefined, body: Record<string, unknown>): Promise<APIResponse> {
+    const headers: Record<string, string> = accessToken === undefined ? {} : { Authorization: `Bearer ${accessToken}` };
+    return this.request.post(`${this.url}/protected/mobile/on-behalf-of`, { data: body, headers });
+  }
+
   userInfo(accessToken?: string): Promise<APIResponse> {
     const headers: Record<string, string> = accessToken === undefined ? {} : { Authorization: `Bearer ${accessToken}` };
     return this.request.get(`${this.url}/protected/mobile/user-info`, { headers });

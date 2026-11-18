@@ -25,7 +25,8 @@ export default function Login() {
   const [ssoEnabled, setSsoEnabled] = useState(true);
   const mobileEnabled = useMobileStore((state) => state.enabled);
   const setMobileEnabled = useMobileStore((state) => state.setEnabled);
-  const [currentNumber, setCurrentNumber] = useState<'1' | '2'>('1');
+  const registration = useServerStore((state) => state.registration);
+  const setRegistration = useServerStore((state) => state.setRegistration);
   const user = useUserStore((state) => state.user);
   const appInfo = useServerStore((state) => state.appInfo);
   const loginUser = useMutation({
@@ -41,7 +42,7 @@ export default function Login() {
     defaultValues: { email: '' },
     validators: { onChange: zEmailForm },
     onSubmit: async ({ value }) =>
-      await loginUser.mutateAsync({ email: value.email, azureId: appInfo?.currentServiceIds[currentNumber] }),
+      await loginUser.mutateAsync({ email: value.email, azureId: appInfo?.currentServiceIds[registration] }),
   });
 
   if (user) {
@@ -97,7 +98,7 @@ export default function Login() {
               onClick={() =>
                 loginUser.mutate({
                   loginPrompt: ssoEnabled ? undefined : 'select-account',
-                  azureId: appInfo?.currentServiceIds[currentNumber],
+                  azureId: appInfo?.currentServiceIds[registration],
                 })
               }>
               <Microsoft /> Microsoft
@@ -122,29 +123,31 @@ export default function Login() {
         </Card>
         <div className="flex items-center gap-2">
           <ServersDropdown />{' '}
-          <ToggleGroup
-            type="single"
-            size="sm"
-            className="gap-[-10px] border-[1.5px] rounded-lg bg-background"
-            value={currentNumber}
-            onValueChange={(value) => setCurrentNumber(value as '1' | '2')}>
-            <ToggleGroupItem
-              value="1"
+          {appInfo?.currentServiceIds['2'] && (
+            <ToggleGroup
+              type="single"
               size="sm"
-              className={cn(
-                currentNumber === '1' && 'data-[state=on]:bg-primary data-[state=on]:text-primary-foreground',
-              )}>
-              1
-            </ToggleGroupItem>
-            <ToggleGroupItem
-              value="2"
-              size="sm"
-              className={cn(
-                currentNumber === '2' && 'data-[state=on]:bg-primary data-[state=on]:text-primary-foreground',
-              )}>
-              2
-            </ToggleGroupItem>
-          </ToggleGroup>
+              className="gap-[-10px] border-[1.5px] rounded-lg bg-background"
+              value={registration}
+              onValueChange={(value) => value && setRegistration(value as '1' | '2')}>
+              <ToggleGroupItem
+                value="1"
+                size="sm"
+                className={cn(
+                  registration === '1' && 'data-[state=on]:bg-primary data-[state=on]:text-primary-foreground',
+                )}>
+                1
+              </ToggleGroupItem>
+              <ToggleGroupItem
+                value="2"
+                size="sm"
+                className={cn(
+                  registration === '2' && 'data-[state=on]:bg-primary data-[state=on]:text-primary-foreground',
+                )}>
+                2
+              </ToggleGroupItem>
+            </ToggleGroup>
+          )}
         </div>
         <MutedText>React demo that shows how to integrate OAuth2.0 Flow.</MutedText>
         <GitHubLink />

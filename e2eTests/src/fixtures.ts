@@ -21,6 +21,19 @@ export interface Phones {
 const contextOptions = { locale: 'en-US', viewport: { width: 1280, height: 900 } };
 const phoneOptions = { ...devices['Pixel 7'], locale: 'en-US' };
 
+// The demo runs on the Vite dev server with the react-scan toolbar floating over the page. It can sit on top of a menu
+// item and swallow the click, so it is hidden in the test browsers.
+async function hideDevOverlay(context: BrowserContext): Promise<BrowserContext> {
+  await context.addInitScript(() => {
+    addEventListener('DOMContentLoaded', () => {
+      const style = document.createElement('style');
+      style.textContent = '#react-scan-root { display: none !important; }';
+      document.head.append(style);
+    });
+  });
+  return context;
+}
+
 export const test = base.extend<
   { site: Sites; phone: Phones; mobileApi: (server: ServerName) => MobileApi },
   { microsoftSession: MicrosoftSession }
@@ -31,7 +44,7 @@ export const test = base.extend<
 
       const create = (): Promise<StorageState> =>
         base.step(`Prepare a Microsoft session (one sign-in on ${servers.honojs.label})`, async () => {
-          const context = await browser.newContext(contextOptions);
+          const context = await hideDevOverlay(await browser.newContext(contextOptions));
           try {
             const site = new Site(await context.newPage(), context);
             await site.open('honojs');
@@ -55,7 +68,9 @@ export const test = base.extend<
     const contexts: BrowserContext[] = [];
 
     const newSite = async (storageState?: StorageState): Promise<Site> => {
-      const context = await browser.newContext({ ...contextOptions, ...(storageState ? { storageState } : {}) });
+      const context = await hideDevOverlay(
+        await browser.newContext({ ...contextOptions, ...(storageState ? { storageState } : {}) }),
+      );
       contexts.push(context);
       return new Site(await context.newPage(), context);
     };
@@ -82,7 +97,7 @@ export const test = base.extend<
     const contexts: BrowserContext[] = [];
 
     const newPhone = async (storageState?: StorageState): Promise<Phone> => {
-      const appContext = await browser.newContext(phoneOptions);
+      const appContext = await hideDevOverlay(await browser.newContext(phoneOptions));
       const systemContext = await browser.newContext({ ...phoneOptions, ...(storageState ? { storageState } : {}) });
       contexts.push(appContext, systemContext);
       const app = new MobileSite(await appContext.newPage(), appContext, await MicrosoftUrls.block(appContext));

@@ -1,9 +1,9 @@
-import { randomBytes, randomUUID } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { PlaywrightTestConfig } from '@playwright/test';
-import { colors, type LiveEnv, mobileReturnPath, repoRoot, serverNames, servers } from './env';
+import { type LiveEnv, mobileReturnPath, repoRoot, serverNames, servers } from './env';
 
 type WebServers = NonNullable<PlaywrightTestConfig['webServer']>;
 
@@ -11,24 +11,9 @@ function secretKey(): string {
   return randomBytes(32).toString('hex');
 }
 
-// The example servers are configured with two Azure registrations per app and refuse to start without the second.
-// The tests only use the first, so the second gets valid but inert values that never reach Microsoft.
-function unusedSecondRegistration(): Record<string, string> {
-  return Object.fromEntries(
-    colors.flatMap((color) => {
-      const prefix = `${color.toUpperCase()}2_AZURE`;
-      return [
-        [`${prefix}_CLIENT_ID`, randomUUID()],
-        [`${prefix}_TENANT_ID`, randomUUID()],
-        [`${prefix}_CUSTOM_SCOPE`, 'api://unused/e2e'],
-        [`${prefix}_CLIENT_SECRET`, secretKey()],
-        [`${prefix}_EXPOSED_SCOPE`, 'api://unused/.default'],
-      ];
-    }),
-  );
-}
-
 export function webServers(env: LiveEnv): WebServers {
+  // The servers read a `.env` relative to their working directory. A temporary one keeps a developer's own `.env`
+  // (for example with a second Azure registration) out of the test run: the tests only use the first registration.
   const isolatedCwd = join(tmpdir(), 'oauth-entra-id-e2e', 'a', 'b');
   mkdirSync(isolatedCwd, { recursive: true });
 
@@ -39,7 +24,6 @@ export function webServers(env: LiveEnv): WebServers {
     YELLOW_SECRET_KEY: secretKey(),
     RED_SECRET_KEY: secretKey(),
     BLUE_SECRET_KEY: secretKey(),
-    ...unusedSecondRegistration(),
   };
   for (const name of serverNames) {
     serverEnv[`${servers[name].prefix}_URL`] = env.servers[name].url;

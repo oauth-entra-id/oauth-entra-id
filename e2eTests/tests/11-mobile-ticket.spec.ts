@@ -72,6 +72,7 @@ for (const server of serverNames) {
     const tokens = await app.storedTokens();
     const other: Color = colors.find((name) => name !== color) ?? 'blue';
     let current = tokens?.refreshToken ?? '';
+    const { ticket } = await api.newLogin();
 
     await test.step('my access token is accepted, tokens that are not mine or not intact are refused', async () => {
       const accepted = await api.userInfo(tokens?.accessToken);
@@ -88,6 +89,7 @@ for (const server of serverNames) {
         ['garbage', 'garbage'],
         ['a tampered token', tamper(tokens?.accessToken ?? '')],
         ['the refresh token', tokens?.refreshToken],
+        ['a login ticket', ticket],
         [`a token for the ${other} service`, serviceToken],
       ];
       for (const [name, token] of refused) {
@@ -113,12 +115,19 @@ for (const server of serverNames) {
         ['garbage', { refreshToken: 'garbage' }],
         ['a tampered refresh token', { refreshToken: tamper(current) }],
         ['my access token', { refreshToken: tokens?.accessToken }],
+        ['a login ticket', { refreshToken: ticket }],
       ];
       for (const [name, body] of cases) {
         const response = await api.refresh(body);
         expect([400, 401], `status of ${name}`).toContain(response.status());
         expect(await response.text(), 'tokens in the answer').not.toMatch(/accessToken/);
       }
+    });
+
+    await test.step('my access token is refused as a login ticket', async () => {
+      const response = await api.exchange({ ticket: tokens?.accessToken });
+      expect([400, 401], 'status').toContain(response.status());
+      expect(await response.text(), 'tokens in the answer').not.toMatch(/accessToken/);
     });
   });
 }

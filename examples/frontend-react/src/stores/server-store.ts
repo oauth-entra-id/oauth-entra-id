@@ -23,7 +23,7 @@ export const serversMap = {
 >;
 
 export type Color = 'blue' | 'red' | 'yellow';
-export type TwoStrings = { '1': string; '2': string };
+export type TwoStrings = { '1': string; '2'?: string };
 
 interface ServerStore {
   server: Server;
@@ -34,7 +34,9 @@ interface ServerStore {
     currentServiceName: Color;
     other: { blue: TwoStrings; red: TwoStrings; yellow: TwoStrings };
   } | null;
+  registration: keyof TwoStrings;
   setServer: (server: Server) => void;
+  setRegistration: (registration: keyof TwoStrings) => void;
   setAppInfo: (appInfo: z.infer<typeof zGetAppInfo> | null) => void;
 }
 
@@ -45,22 +47,26 @@ export const useServerStore = create<ServerStore>()(
       serverLabel: serversMap.honojs.label,
       serverUrl: serversMap.honojs.url,
       appInfo: null,
+      registration: '1',
       setServer: (server) =>
         set({
           server,
           serverLabel: serversMap[server].label,
           serverUrl: serversMap[server].url,
         }),
+      setRegistration: (registration) => set({ registration }),
       setAppInfo: (appInfo) => {
         if (!appInfo) return set({ appInfo: null });
         const { current, blue, red, yellow } = appInfo;
-        return set({
+        return set((state) => ({
           appInfo: {
             currentServiceIds: appInfo[current],
             currentServiceName: current,
             other: { blue, red, yellow },
           },
-        });
+          // A server without a second registration cannot keep it selected.
+          registration: appInfo[current]['2'] ? state.registration : '1',
+        }));
       },
     }),
     {

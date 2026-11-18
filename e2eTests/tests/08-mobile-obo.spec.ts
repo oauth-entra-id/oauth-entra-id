@@ -58,4 +58,36 @@ for (const server of serverNames) {
       await expectServersAccept(app, [own, ...others]);
     });
   });
+
+  test(`${servers[server].label}: on-behalf-of is refused for an unknown service and for tokens that are not mine`, async ({
+    phone,
+    mobileApi,
+  }) => {
+    const { app } = await phone.signedIn(server);
+    const api = mobileApi(server);
+    const tokens = await app.storedTokens();
+    const other = colors.find((color) => color !== servers[server].color) ?? 'blue';
+
+    const cases: Array<[string, string | undefined, Record<string, unknown>, number]> = [
+      ['a service that is not configured', tokens?.accessToken, { services: ['unknown-service'] }, 400],
+      ['no access token', undefined, { services: [other] }, 401],
+      ['garbage as the access token', 'garbage', { services: [other] }, 401],
+      ['the refresh token as the access token', tokens?.refreshToken, { services: [other] }, 401],
+    ];
+    for (const [name, accessToken, body, status] of cases) {
+      await test.step(name, async () => {
+        const response = await api.onBehalfOf(accessToken, body);
+        expect(response.status(), `status of ${name}`).toBe(status);
+        expect(await response.text(), 'tokens in the answer').not.toMatch(/"value"/);
+      });
+    }
+
+    await test.step('my access token still gets a token for a configured service', async () => {
+      const response = await api.onBehalfOf(tokens?.accessToken, { services: [other] });
+      expect(response.status()).toBe(200);
+      const { tokens: issued } = (await response.json()) as { tokens: Array<{ serviceName: string; value: string }> };
+      expect(issued.map((token) => token.serviceName)).toEqual([other]);
+      expect(looksLikeJwt(issued[0]?.value ?? ''), 'the service token is a plain JWT').toBe(false);
+    });
+  });
 }

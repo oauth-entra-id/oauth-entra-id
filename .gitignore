@@ -9,3 +9,4 @@ dist-ssr
 .env
 .cache
 e2eTests/.env.live
+.github/prompts

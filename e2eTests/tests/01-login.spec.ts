@@ -24,10 +24,14 @@ for (const server of serverNames) {
     });
 
     await test.step('the browser holds HttpOnly session cookies for this registration', async () => {
-      for (const prefix of ['at', 'rt']) {
+      const lifetimes = { at: 3600, rt: 30 * 24 * 3600 };
+      for (const prefix of ['at', 'rt'] as const) {
         const cookie = await app.cookie(`${prefix}-${registration.clientId}`);
         expect.soft(cookie?.httpOnly, `${prefix} cookie is HttpOnly`).toBe(true);
         expect.soft(cookie?.path, `${prefix} cookie path`).toBe('/');
+        const lifetime = (cookie?.expires ?? 0) - Date.now() / 1000;
+        expect.soft(lifetime, `${prefix} cookie lifetime (seconds)`).toBeGreaterThan(lifetimes[prefix] - 300);
+        expect.soft(lifetime, `${prefix} cookie lifetime (seconds)`).toBeLessThanOrEqual(lifetimes[prefix]);
       }
     });
 
