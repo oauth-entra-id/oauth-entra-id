@@ -60,7 +60,7 @@ export class LiteProvider {
     }
 
     const { data: parsedParams, error: paramsError } = zMethods.tryGetB2BToken.safeParse(params);
-    if (paramsError) return $err({ msg: 'Invalid Params', desc: $fmtError(paramsError) });
+    if (paramsError) return $err({ msg: 'Invalid Params', desc: $fmtError(paramsError), status: 400 });
 
     const apps = parsedParams.apps.map((app) => this.azure.b2bApps?.get(app)).filter((app) => !!app);
     if (!apps || apps.length === 0) return $err({ msg: 'Invalid Params', desc: 'B2B app not found', status: 400 });
@@ -104,18 +104,18 @@ export class LiteProvider {
           token: msalResponse.accessToken,
           msalResponse: msalResponse,
           isCached: false,
-          expiresAt: 0,
+          expiresAt: exp - TIME_SKEW,
         } satisfies B2BResult;
       });
 
       if (!results || results.length === 0) {
-        return $err({ msg: 'Invalid Params', desc: 'Failed to get B2B token' });
+        return $err({ msg: 'Invalid Params', desc: 'Failed to get B2B token', status: 400 });
       }
 
       return $ok('app' in params ? { result: results[0] as B2BResult } : { results });
     } catch (error) {
       if (error instanceof OAuthError) return $err(error);
-      return $err({ msg: 'Invalid Params', desc: `Failed to get B2B token: ${$fmtError(error)}` });
+      return $err({ msg: 'Invalid Params', desc: `Failed to get B2B token: ${$fmtError(error)}`, status: 400 });
     }
   }
 }

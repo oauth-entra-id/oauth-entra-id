@@ -63,10 +63,12 @@ export interface Azure {
   oboNames: NonEmptyArray<string> | undefined;
 }
 
-export type LiteConfig = BaseWithExtended<
-  { clientId: string; tenantId: LooseString<'common'> },
-  { clientSecret: string; b2bApps: NonEmptyArray<{ appName: string; scope: string }> }
->;
+export interface LiteConfig {
+  azure: BaseWithExtended<
+    { clientId: string; tenantId: LooseString<'common'> },
+    { clientSecret: string; b2bApps: NonEmptyArray<{ appName: string; scope: string }> }
+  >;
+}
 
 export interface MinimalAzure {
   clientId: string;
